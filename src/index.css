@@ -1,0 +1,30 @@
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: #f5f5f5;
+}
+
+/* Стелс-режим для скриншотов/демо: ?blur в URL размывает чувствительные
+   подписи (названия НГДУ и т.п.), см. AppLayout. */
+body[data-blur='1'] .sensitive {
+  filter: blur(5px);
+}
+
+/* Строгая оболочка рабочего приложения; состояния компонентов сохраняются. */
+.app-brand { display: flex; align-items: center; gap: 10px; min-height: 80px; padding: 18px 16px; color: #1d2b3a; }
+.app-brand:hover { color: #2f6fed; }
+.app-brand strong { display: block; font-size: 14px; font-weight: 600; }
+.app-brand small { display: block; margin-top: 4px; color: #657487; font-size: 12px; }
+.app-brand-mark { width: 32px; height: 32px; border: 1px solid #2f6fed; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #2f6fed; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+.app-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-inline: 24px; border-bottom: 1px solid #dce3ea; line-height: normal; }
+.app-header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+.app-company { color: #657487; font-size: 13px; }
+
+/* Выбранный знак «Поток»: собственная геометрия без декоративной рамки. */
+img.app-brand-mark { border: 0; border-radius: 0; display: block; object-fit: contain; }
