@@ -2,7 +2,7 @@
   "runId": "pulse-design-2026-10-14",
   "fileKey": "km4tIbp3LnMTRrV6yi6Qho",
   "url": "https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho",
-  "scope": "3 editable desktop screens and 3 logo concepts",
+  "scope": "Рабочие сценарии, состояния, адаптивность и прототип",
   "foundations": {
     "createdNodeIds": [
       "0:1",
@@ -76,8 +76,109 @@
     "screens-built-and-visually-reviewed",
     "logo-concepts-two-rounds-tested"
   ],
-  "pending": [],
-  "status": "logo selected; brand kit prepared",
+  "pending": [
+    "Согласовать дизайн",
+    "Уточнить контракты новых API"
+  ],
+  "status": "Дизайн готов к рассмотрению; React не перенесён",
   "chosenLogo": "A / Поток",
-  "approvedBrandFrameId": "13:35"
+  "approvedBrandFrameId": "13:35",
+  "v2": {
+    "screens": [
+      {
+        "id": "19:1431",
+        "name": "06 / Скважины",
+        "width": 1440,
+        "height": 1024,
+        "children": 87
+      },
+      {
+        "id": "19:1519",
+        "name": "07 / Тревоги",
+        "width": 1440,
+        "height": 1024,
+        "children": 75
+      },
+      {
+        "id": "19:1595",
+        "name": "08 / Проверка тревоги",
+        "width": 1440,
+        "height": 1024,
+        "children": 45
+      },
+      {
+        "id": "19:1641",
+        "name": "09 / Тревога проверена",
+        "width": 1440,
+        "height": 1024,
+        "children": 52
+      },
+      {
+        "id": "19:1694",
+        "name": "10 / Журнал",
+        "width": 1440,
+        "height": 1024,
+        "children": 59
+      },
+      {
+        "id": "19:1754",
+        "name": "11 / Журнал действий",
+        "width": 1440,
+        "height": 1024,
+        "children": 50
+      },
+      {
+        "id": "19:1805",
+        "name": "12 / Аналитика",
+        "width": 1440,
+        "height": 1024,
+        "children": 60
+      },
+      {
+        "id": "19:1866",
+        "name": "13 / Расчёт выполняется",
+        "width": 1440,
+        "height": 1024,
+        "children": 31
+      },
+      {
+        "id": "19:1898",
+        "name": "14 / Файл: ошибка",
+        "width": 1440,
+        "height": 1024,
+        "children": 29
+      },
+      {
+        "id": "19:1928",
+        "name": "15 / Файл: недостаточно данных",
+        "width": 1440,
+        "height": 1024,
+        "children": 29
+      },
+      {
+        "id": "19:1958",
+        "name": "16 / Файл: обработка",
+        "width": 1440,
+        "height": 1024,
+        "children": 29
+      },
+      {
+        "id": "19:1988",
+        "name": "17 / Ноутбук 1280",
+        "width": 1280,
+        "height": 1024,
+        "children": 51
+      },
+      {
+        "id": "19:2040",
+        "name": "18 / Планшет 1024",
+        "width": 1024,
+        "height": 1024,
+        "children": 23
+      }
+    ],
+    "statesBoardId": "19:2064",
+    "componentsBoardId": "21:259",
+    "prototypeLinks": 99
+  }
 }
