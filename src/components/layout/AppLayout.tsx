@@ -40,7 +40,7 @@ export function AppLayout() {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider width={224} breakpoint="lg" collapsedWidth="0" style={{ borderRight: `1px solid ${t.border}` }}>
         <Link to="/" className="app-brand" aria-label="Пульс скважины — обзор фонда">
-          <span className="app-brand-mark" aria-hidden="true">ПС</span>
+          <img className="app-brand-mark" src="/brand/pulse-symbol.svg" alt="" aria-hidden="true" />
           <span>
             <strong>Пульс скважины</strong>
             <small>Мониторинг УЭЦН</small>
