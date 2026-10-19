@@ -1,24 +1,31 @@
+import {useAuth} from '@/auth/AuthProvider';
+import { PresentationOverview } from '@/components/telemetry/PresentationOverview';
+import { useWells } from '@/hooks/useWells';
+import { useFund } from '@/theme/FundProvider';
 import { Alert, Button, Card, Col, Modal, Progress, Row, Segmented, Statistic, Table, Tag, Tooltip } from 'antd';
 import {
-  CheckOutlined,
-  CloseOutlined,
   PlayCircleOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useFundFilters } from '@/theme/FundFilters';
+import { mlRows, mlScopedRows, mlSnapshotNotice, cohortStatusLabel, mlAlertReviewPath } from '@/lib/mlSnapshot';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { mlApi, type MlWell } from '@/api/ml';
+import { mlApi, type MlDisplayWell } from '@/api/ml';
 import { toApiError } from '@/api/client';
 import { PageSpin } from '@/components/common/PageSpin';
 import { ExplainBars } from '@/components/ml/ExplainBars';
-import { useAlertStatus, useMlRun } from '@/hooks/useMlRun';
+import { useMlRun } from '@/hooks/useMlRun';
 import dayjs from 'dayjs';
+import { ReviewPanel } from '@/components/telemetry/ReviewPanel';
 import { FAILURE_TYPE_RU } from '@/lib/labels';
 
 const ALERT_STATUS_RU = {
   new: { label: 'новая', color: 'red' },
+  confirmed: { label: 'подтверждена', color: 'orange' },
+  inconclusive: { label: 'нужны данные', color: 'gold' },
   acknowledged: { label: 'в работе', color: 'blue' },
   false_positive: { label: 'ложная', color: 'default' },
 } as const;
@@ -29,43 +36,51 @@ function riskColor(risk: number, threshold: number, high = 1.0): string {
   return '#8c8c8c';
 }
 
-export function MlRiskPage() {
+export function MlRiskPage() { const {fund} = useFund(); const ml=useQuery({queryKey:['ml-wells'],queryFn:()=>mlApi.wells(false)}); if(ml.isLoading)return <PageSpin loading><span /></PageSpin>; if(ml.isError)return <PageSpin loading={false} error={ml.error}><span /></PageSpin>; return fund === 'presentation' && ml.data?.profile !== 'cohort' ? <PresentationOverview /> : <OperationalMlRiskPage />; }
+function OperationalMlRiskPage() {
+ const {isAdmin}=useAuth();
+ const {filters}=useFundFilters();
+ const [search]=useSearchParams();
+ const selectedRun=Number(search.get('run_id')) || undefined;
   const [filter, setFilter] = useState<'all' | 'alerts'>('all');
-  const [explainWell, setExplainWell] = useState<MlWell | null>(null);
+  const [explainWell, setExplainWell] = useState<MlDisplayWell | null>(null);
 
   const wellsQ = useQuery({
-    queryKey: ['ml-wells'],
-    queryFn: () => mlApi.wells(false),
+    queryKey: selectedRun ? ['ml-snapshot',selectedRun] : ['ml-wells'],
+    queryFn: () => selectedRun ? mlApi.snapshot(selectedRun) : mlApi.wells(false),
   });
-  const metricsQ = useQuery({ queryKey: ['ml-metrics'], queryFn: mlApi.metrics });
+  const metricsQ = useQuery({ queryKey: ['ml-metrics'], queryFn: mlApi.metrics,enabled:isAdmin && !!wellsQ.data && wellsQ.data.profile !== 'cohort' });
   const { running, lastRun, start } = useMlRun();
-  const alertStatus = useAlertStatus();
 
-  const threshold = wellsQ.data?.alert_threshold ?? 0.7;
-  const highThreshold = wellsQ.data?.high_threshold ?? 1.0;
-  const wells = wellsQ.data?.wells ?? [];
+  const cohort = wellsQ.data?.profile === 'cohort';
+  const threshold = wellsQ.data && wellsQ.data.profile !== 'cohort' ? wellsQ.data.alert_threshold : null;
+  const highThreshold = wellsQ.data && wellsQ.data.profile !== 'cohort' ? wellsQ.data.high_threshold : null;
+  const registry = useWells();
+  const wells = mlScopedRows(mlRows(wellsQ.data), registry.data ?? [], filters, cohort);
+  const notice = mlSnapshotNotice(wellsQ.data, lastRun);
   const alerts = useMemo(() => wells.filter((w) => w.tier === 'alert'), [wells]);
   const watches = useMemo(() => wells.filter((w) => w.tier === 'watch'), [wells]);
+  const reviewPath = explainWell ? mlAlertReviewPath(explainWell) : null;
   const shown =
     filter === 'alerts' ? wells.filter((w) => w.tier !== null) : wells;
 
-  const stage1 = metricsQ.data?.models.find((m) => m.name.startsWith('stage1'));
+  const stage1 = cohort ? undefined : metricsQ.data?.models.find((m) => m.name.startsWith('stage1'));
   const report = stage1?.metrics.report;
   const perWell = stage1?.calibration?.per_well;
 
-  const columns: ColumnsType<MlWell> = [
+  const columns: ColumnsType<MlDisplayWell> = [
     {
       title: 'Скважина',
-      dataIndex: 'well_id',
-      key: 'well_id',
+      dataIndex: 'app_well_id',
+      key: 'app_well_id',
       width: 110,
       render: (id: number, r) =>
-        r.app_well_id ? (
-          <Link to={`/wells/${r.app_well_id}`} onClick={(e) => e.stopPropagation()}>
+        r.app_well_id != null ? (
+          <Link to={`/wells/${r.app_well_id}${r.run_id != null ? `?run_id=${r.run_id}` : ''}`} onClick={(e) => e.stopPropagation()}>
             <b>{id}</b>
           </Link>
         ) : (
-          <b>{id}</b>
+          <span>Не сопоставлена</span>
         ),
     },
     { title: 'НГДУ', dataIndex: 'oilfield', key: 'oilfield', width: 110,
@@ -74,21 +89,21 @@ export function MlRiskPage() {
       title: 'Риск отказа',
       dataIndex: 'risk',
       key: 'risk',
-      sorter: (a, b) => a.risk - b.risk,
-      defaultSortOrder: 'descend',
-      render: (risk: number, r) => (
+      sorter: (a, b) => (a.risk ?? -1) - (b.risk ?? -1),
+      defaultSortOrder: cohort ? undefined : 'descend',
+      render: (risk: number | null, r) => risk === null ? <Tag>{cohortStatusLabel(r)}</Tag> : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 220 }}>
-          <Tag color={riskColor(risk, threshold, highThreshold)} style={{ minWidth: 64, textAlign: 'center' }}>
+          <Tag color={cohort ? (r.tier === 'alert' ? '#d64545' : r.tier === 'watch' ? '#c98a1f' : '#8c8c8c') : riskColor(risk, threshold!, highThreshold!)} style={{ minWidth: 64, textAlign: 'center' }}>
             {(risk * 100).toFixed(1)}%
           </Tag>
           <Progress
             percent={risk * 100}
             size="small"
             showInfo={false}
-            strokeColor={riskColor(risk, threshold, highThreshold)}
+            strokeColor={cohort ? (r.tier === 'alert' ? '#d64545' : r.tier === 'watch' ? '#c98a1f' : '#8c8c8c') : riskColor(risk, threshold!, highThreshold!)}
             style={{ width: 70, margin: 0 }}
           />
-          {!r.data_ok && (
+          {r.data_ok === false && (
             <Tooltip title="Связь с установкой терялась — текущий риск посчитан по неполному ряду">
               <Tag color="default" style={{ cursor: 'help' }}>нет связи</Tag>
             </Tooltip>
@@ -96,9 +111,8 @@ export function MlRiskPage() {
           {r.tier && (
             <Tooltip
               title={
-                `Ярус ставится не по одному окну, а по числу сработавших: ` +
-                `${r.windows_fired} из ${r.windows_total} окон наблюдения превысили порог. ` +
-                `На этом же правиле измерены заявленные полнота и точность.`
+                `Ярус сохранён моделью для этого запуска. ` +
+                `${r.windows_fired ?? '—'} из ${r.windows_total ?? '—'} окон сработало по правилу решения.`
               }
             >
               <Tag color={r.tier === 'alert' ? '#d64545' : '#c98a1f'} style={{ cursor: 'help' }}>
@@ -114,7 +128,7 @@ export function MlRiskPage() {
       key: 'alert_status',
       width: 190,
       render: (_: unknown, r) => {
-        if (!r.alert_id || !r.alert_status) return null;
+        if (r.alert_id == null || !r.alert_status) return null;
         const st = ALERT_STATUS_RU[r.alert_status];
         return (
           <div
@@ -122,29 +136,7 @@ export function MlRiskPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <Tag color={st.color}>{st.label}</Tag>
-            {r.alert_status !== 'acknowledged' && (
-              <Tooltip title="Принято в работу">
-                <Button
-                  size="small"
-                  icon={<CheckOutlined />}
-                  onClick={() =>
-                    alertStatus.mutate({ alertId: r.alert_id!, status: 'acknowledged' })
-                  }
-                />
-              </Tooltip>
-            )}
-            {r.alert_status !== 'false_positive' && (
-              <Tooltip title="Ложная тревога">
-                <Button
-                  size="small"
-                  danger
-                  icon={<CloseOutlined />}
-                  onClick={() =>
-                    alertStatus.mutate({ alertId: r.alert_id!, status: 'false_positive' })
-                  }
-                />
-              </Tooltip>
-            )}
+            <Button size="small" onClick={() => setExplainWell(r)}>Обработка</Button>
           </div>
         );
       },
@@ -166,7 +158,7 @@ export function MlRiskPage() {
             {r.true_failure_at ? ` · ${dayjs(r.true_failure_at).format('DD.MM.YYYY')}` : ''}
           </span>
         ) : (
-          <Tag>норма</Tag>
+          <Tag>{cohort ? 'Нет зарегистрированного исхода' : 'норма'}</Tag>
         ),
     },
   ];
@@ -183,13 +175,13 @@ export function MlRiskPage() {
       <Row gutter={16}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic title="Скважин в скоринге" value={wells.length} />
+            <Statistic title="Скважин с оценкой" value={wells.filter(w => w.risk !== null).length} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title={`Тревога (порог ${(highThreshold * 100).toFixed(0)}%, точность ~80%)`}
+              title={highThreshold === null ? 'Тревога · сохранённый ярус' : `Тревога (порог ${(highThreshold * 100).toFixed(0)}%)`}
               value={alerts.length}
               valueStyle={{ color: '#d64545' }}
               prefix={<WarningOutlined />}
@@ -199,7 +191,7 @@ export function MlRiskPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title={`Наблюдение (порог ${(threshold * 100).toFixed(0)}%)`}
+              title={threshold === null ? 'Наблюдение · сохранённый ярус' : `Наблюдение (порог ${(threshold * 100).toFixed(0)}%)`}
               value={watches.length}
               valueStyle={{ color: '#c98a1f' }}
             />
@@ -251,10 +243,11 @@ export function MlRiskPage() {
       </Row>
 
       <Card
-        title={`Риск отказа по скважинам · модель ${stage1?.name ?? 'stage1_binary_v1'}`}
+        className="pulse-responsive-card"
+        title={cohort ? 'Риск отказа по скважинам · сохранённый результат' : `Риск отказа по скважинам · модель ${stage1?.name ?? '—'}`}
         extra={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {lastRun && (
+          <div className="pulse-ml-actions">
+            {!cohort && lastRun && (
               <span style={{ color: '#8c8c8c', fontSize: 12 }}>
                 прогон {dayjs(lastRun.started_at).format('DD.MM HH:mm')} (
                 {lastRun.trigger === 'scheduled' ? 'авто' : 'вручную'})
@@ -269,8 +262,9 @@ export function MlRiskPage() {
               ]}
             />
             <Button
+              disabled={!isAdmin}
               icon={<PlayCircleOutlined />}
-              loading={running || start.isPending}
+              loading={running || wellsQ.data?.running || start.isPending}
               onClick={() => start.mutate()}
             >
               {running ? 'Идёт прогон...' : 'Прогнать'}
@@ -278,14 +272,16 @@ export function MlRiskPage() {
           </div>
         }
       >
+        {notice && <Alert type="info" message={notice} style={{marginBottom:16}} />}
         {wellsQ.isError ? (
           <div style={{ color: '#c98a1f' }}>
-            {toApiError(wellsQ.error).message} — вероятно, кэш признаков пересобирается.
+            {toApiError(wellsQ.error).message}
           </div>
         ) : (
           <Table
-            rowKey="well_id"
+            rowKey={w => w.app_well_id ?? w.well_id!}
             size="middle"
+            scroll={{x:1050}}
             columns={columns}
             dataSource={shown}
             pagination={{ pageSize: 15, showTotal: (t) => `Всего: ${t}` }}
@@ -299,7 +295,7 @@ export function MlRiskPage() {
         onCancel={() => setExplainWell(null)}
         footer={
           explainWell?.app_well_id ? (
-            <Link to={`/wells/${explainWell.app_well_id}`}>
+            <Link to={`/wells/${explainWell.app_well_id}${explainWell.run_id != null ? `?run_id=${explainWell.run_id}` : ''}`}>
               <Button type="primary">Открыть карточку скважины</Button>
             </Link>
           ) : null
@@ -307,12 +303,13 @@ export function MlRiskPage() {
         width={620}
         title={
           explainWell
-            ? `Скважина ${explainWell.well_id} · риск ${(explainWell.risk * 100).toFixed(1)}% — почему?`
+            ? `${explainWell.app_well_id != null ? `Скважина · ID Pulse ${explainWell.app_well_id}` : 'Скважина не сопоставлена'} · ${explainWell.risk === null ? cohortStatusLabel(explainWell) : `риск ${(explainWell.risk * 100).toFixed(1)}% — почему?`}`
             : ''
         }
       >
         {explainWell && (
           <>
+            {reviewPath !== null && <ReviewPanel key={reviewPath} path={reviewPath} />}
             {/* Стадия 0: сработавшие правила — основания рядом с вкладом
                 признаков. Технолог должен видеть не только «что подняло риск»,
                 но и «какое правило сработало» */}
@@ -325,7 +322,7 @@ export function MlRiskPage() {
                 ))}
               </div>
             )}
-            {!explainWell.data_ok && (
+            {explainWell.data_ok === false && (
               <Alert
                 type="warning"
                 showIcon
@@ -338,7 +335,7 @@ export function MlRiskPage() {
                 }
               />
             )}
-            <ExplainBars wellId={explainWell.well_id} />
+            {explainWell.risk === null ? <Alert type="info" message={cohortStatusLabel(explainWell)} description={explainWell.reason_code} /> : <ExplainBars wellId={explainWell.well_id} contributions={explainWell.contributions} windowKind={explainWell.explanation_window_kind} windowEnd={explainWell.explanation_window_end} />}
           </>
         )}
       </Modal>

@@ -10,7 +10,7 @@ export const antdTheme: ThemeConfig = {
     colorBorderSecondary: t.border,
     colorBgLayout: t.canvas,
     borderRadius: t.radius,
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
+    fontFamily: "Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
   },
   components: {
     Table: { headerBg: '#f8fafc', headerColor: t.muted },

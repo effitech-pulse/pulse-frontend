@@ -1,4 +1,4 @@
-import { App, Form, Input, InputNumber, Modal, Switch } from 'antd';
+import { App, Collapse, Form, Input, InputNumber, Modal, Switch } from 'antd';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { wellsApi } from '@/api/wells';
@@ -42,15 +42,11 @@ export function AddWellModal({ open, onClose }: { open: boolean; onClose: () => 
       forceRender
     >
       <Form form={form} layout="vertical" initialValues={{ active: true }}>
-        <Form.Item name="unitek_id" label="UNITEK_ID" rules={[{ required: true, message: 'Обязательно' }]}>
-          <InputNumber style={{ width: '100%' }} precision={0} />
-        </Form.Item>
-        <Form.Item name="armits_id" label="ARMITS_ID" rules={[{ required: true, message: 'Обязательно' }]}>
-          <InputNumber style={{ width: '100%' }} precision={0} />
-        </Form.Item>
+        <p>ID Pulse будет назначен автоматически. Связи с внешними системами можно добавить позже в интеграциях.</p>
         <Form.Item name="well_number" label="№ скважины (необязательно)">
           <Input />
         </Form.Item>
+        <Form.Item name="responsible" label="Ответственный (необязательно)"><Input maxLength={120} /></Form.Item>
         <Form.Item name="ngdu" label="НГДУ (NGDU)" rules={[{ required: true, message: 'Обязательно' }]}>
           <InputNumber style={{ width: '100%' }} precision={0} />
         </Form.Item>
@@ -60,6 +56,7 @@ export function AddWellModal({ open, onClose }: { open: boolean; onClose: () => 
         <Form.Item name="active" label="Активна" valuePropName="checked">
           <Switch />
         </Form.Item>
+        <Collapse items={[{key:'external',label:'Связи с внешними системами · необязательно',children:<><Form.Item name="unitek_id" label="ID в Unitek"><InputNumber style={{width:'100%'}} precision={0} /></Form.Item><Form.Item name="armits_id" label="ID в Armits"><InputNumber style={{width:'100%'}} precision={0} /></Form.Item></>}]} />
       </Form>
     </Modal>
   );

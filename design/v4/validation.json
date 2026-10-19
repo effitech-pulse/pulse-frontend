@@ -1,0 +1,371 @@
+[
+  {
+    "id": "42:74",
+    "name": "29 / Вход",
+    "types": {
+      "FRAME": 6,
+      "VECTOR": 2,
+      "TEXT": 14,
+      "INSTANCE": 5,
+      "RECTANGLE": 1
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "42:103",
+    "name": "30 / Регистрация",
+    "types": {
+      "FRAME": 8,
+      "VECTOR": 2,
+      "TEXT": 17,
+      "INSTANCE": 6
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "42:137",
+    "name": "31 / Заявка на доступ",
+    "types": {
+      "FRAME": 4,
+      "VECTOR": 2,
+      "TEXT": 9,
+      "INSTANCE": 2
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "42:155",
+    "name": "32 / Восстановление пароля",
+    "types": {
+      "FRAME": 5,
+      "VECTOR": 2,
+      "TEXT": 10,
+      "INSTANCE": 3
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "42:176",
+    "name": "31а / Ожидание одобрения",
+    "types": {
+      "FRAME": 4,
+      "VECTOR": 2,
+      "TEXT": 8,
+      "INSTANCE": 1
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "42:192",
+    "name": "32а / Письмо для восстановления",
+    "types": {
+      "FRAME": 4,
+      "VECTOR": 2,
+      "TEXT": 8,
+      "INSTANCE": 1
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "42:208",
+    "name": "29а / Ошибка входа",
+    "types": {
+      "FRAME": 6,
+      "VECTOR": 2,
+      "TEXT": 13,
+      "INSTANCE": 4
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "43:939",
+    "name": "33 / Рассылки",
+    "types": {
+      "FRAME": 40,
+      "VECTOR": 13,
+      "TEXT": 45,
+      "RECTANGLE": 6,
+      "INSTANCE": 7
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "43:1047",
+    "name": "34 / Правило рассылки",
+    "types": {
+      "FRAME": 48,
+      "VECTOR": 13,
+      "TEXT": 42,
+      "RECTANGLE": 2,
+      "INSTANCE": 11
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "43:1160",
+    "name": "35 / Группы получателей",
+    "types": {
+      "FRAME": 40,
+      "VECTOR": 13,
+      "TEXT": 44,
+      "RECTANGLE": 6,
+      "INSTANCE": 7
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "43:1267",
+    "name": "36 / Редактирование группы",
+    "types": {
+      "FRAME": 44,
+      "VECTOR": 13,
+      "TEXT": 39,
+      "RECTANGLE": 5,
+      "INSTANCE": 6
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "43:1371",
+    "name": "37 / Журнал доставки",
+    "types": {
+      "FRAME": 40,
+      "VECTOR": 13,
+      "TEXT": 44,
+      "RECTANGLE": 6,
+      "INSTANCE": 4
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "43:1475",
+    "name": "38 / Предпросмотр письма",
+    "types": {
+      "FRAME": 35,
+      "VECTOR": 13,
+      "TEXT": 26,
+      "RECTANGLE": 3,
+      "INSTANCE": 2
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "43:1551",
+    "name": "36а / Группа сохранена",
+    "types": {
+      "FRAME": 34,
+      "VECTOR": 13,
+      "TEXT": 22,
+      "RECTANGLE": 2,
+      "INSTANCE": 1
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "43:1620",
+    "name": "37а / Ошибка доставки",
+    "types": {
+      "FRAME": 35,
+      "VECTOR": 13,
+      "TEXT": 24,
+      "RECTANGLE": 2,
+      "INSTANCE": 2
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "43:1693",
+    "name": "38а / Подтверждение тестового письма",
+    "types": {
+      "FRAME": 35,
+      "VECTOR": 13,
+      "TEXT": 25,
+      "RECTANGLE": 2,
+      "INSTANCE": 2
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "44:176",
+    "name": "39 / Статистика",
+    "types": {
+      "FRAME": 50,
+      "VECTOR": 13,
+      "TEXT": 58,
+      "RECTANGLE": 6,
+      "INSTANCE": 5
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "44:305",
+    "name": "40 / Управление фондом",
+    "types": {
+      "FRAME": 41,
+      "VECTOR": 13,
+      "TEXT": 50,
+      "RECTANGLE": 7,
+      "INSTANCE": 8
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "44:421",
+    "name": "41 / Фильтры и сортировка",
+    "types": {
+      "FRAME": 44,
+      "VECTOR": 13,
+      "TEXT": 34,
+      "RECTANGLE": 2,
+      "INSTANCE": 8
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "44:519",
+    "name": "41а / Фонд отфильтрован",
+    "types": {
+      "FRAME": 40,
+      "VECTOR": 13,
+      "TEXT": 43,
+      "RECTANGLE": 6,
+      "INSTANCE": 5
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "44:623",
+    "name": "42 / Добавить скважину",
+    "types": {
+      "FRAME": 44,
+      "VECTOR": 13,
+      "TEXT": 35,
+      "RECTANGLE": 2,
+      "INSTANCE": 8
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "44:722",
+    "name": "43 / Редактировать скважину",
+    "types": {
+      "FRAME": 44,
+      "VECTOR": 13,
+      "TEXT": 36,
+      "RECTANGLE": 2,
+      "INSTANCE": 9
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "44:823",
+    "name": "44 / Предпросмотр импорта",
+    "types": {
+      "FRAME": 40,
+      "VECTOR": 13,
+      "TEXT": 40,
+      "RECTANGLE": 6,
+      "INSTANCE": 2
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "44:921",
+    "name": "45 / Архивирование скважины",
+    "types": {
+      "FRAME": 36,
+      "VECTOR": 13,
+      "TEXT": 26,
+      "RECTANGLE": 2,
+      "INSTANCE": 3
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  },
+  {
+    "id": "44:998",
+    "name": "46 / Архив фонда",
+    "types": {
+      "FRAME": 37,
+      "VECTOR": 13,
+      "TEXT": 29,
+      "RECTANGLE": 4,
+      "INSTANCE": 2
+    },
+    "fonts": [
+      "Roboto"
+    ],
+    "images": []
+  }
+]

@@ -1,3 +1,4 @@
+import {useAuth} from '@/auth/AuthProvider';
 import { Card, Tabs } from 'antd';
 import { ApartmentOutlined, ClusterOutlined, FundProjectionScreenOutlined } from '@ant-design/icons';
 import { WellsPage } from '@/pages/WellsPage';
@@ -5,6 +6,7 @@ import { NgduPanel } from '@/components/structure/NgduPanel';
 import { DepartmentsPanel } from '@/components/structure/DepartmentsPanel';
 
 export function StructurePage() {
+ const {isAdmin}=useAuth();
   return (
     <Tabs
       defaultActiveKey="wells"
@@ -44,7 +46,7 @@ export function StructurePage() {
             </Card>
           ),
         },
-      ]}
+      ].filter(item=>isAdmin || item.key==='wells')}
     />
   );
 }

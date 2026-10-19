@@ -1,22 +1,33 @@
-import { Card, Col, Descriptions, Empty, Progress, Row, Table, Tabs, Tag } from 'antd';
+import { Alert, Card, Col, Descriptions, Empty, Progress, Row, Table, Tabs, Tag } from 'antd';
 import dayjs from 'dayjs';
-import { Line } from '@ant-design/charts';
-import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { RiskHistoryChart } from '@/components/ml/RiskHistoryChart';
+import { useEffect, useMemo } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useDepartments, useWell, useWellComplications } from '@/hooks/useWells';
 import { wellsApi } from '@/api/wells';
 import { useQuery } from '@tanstack/react-query';
 import { PageSpin } from '@/components/common/PageSpin';
 import { StatusTag } from '@/components/common/StatusTag';
 import { IncidentsTab } from '@/components/wells/IncidentsTab';
+import { mlRiskRow, mlHistory, cohortStatusLabel } from '@/lib/mlSnapshot';
 import { mlApi } from '@/api/ml';
 import { ExplainBars } from '@/components/ml/ExplainBars';
+import { useFund } from '@/theme/FundProvider';
+import { ManualChecks } from '@/components/telemetry/ManualChecks';
+import {WellHistoryPanel} from '@/components/wells/WellHistoryPanel';
+import {useAuth} from '@/auth/AuthProvider';
+import { TelemetryWorkspace } from '@/components/telemetry/TelemetryWorkspace';
 
 export function WellDetailPage() {
   const { wellId: wellIdParam } = useParams();
   const wellId = Number(wellIdParam);
+  const [search, setSearch] = useSearchParams();
 
+  const selectedRun=Number(search.get('run_id')) || undefined;
   const well = useWell(wellId);
+  const {isAdmin}=useAuth();
+  const {fund, setFund} = useFund();
+  useEffect(() => { if (well.data && (well.data.fund_type ?? 'operational') !== fund) setFund(well.data.fund_type ?? 'operational'); }, [well.data, fund, setFund]);
   const complications = useWellComplications(wellId);
   const classification = useQuery({
     queryKey: ['well', wellId, 'classification'],
@@ -25,9 +36,9 @@ export function WellDetailPage() {
   });
 
   const mlRisk = useQuery({
-    queryKey: ['ml-by-unitek', well.data?.unitek_id],
-    queryFn: () => mlApi.byUnitek(well.data!.unitek_id),
-    enabled: !!well.data?.unitek_id,
+    queryKey: ['well-risk', wellId, selectedRun],
+    queryFn: () => mlApi.byAppWell(wellId, selectedRun),
+    enabled: wellId > 0,
     retry: false,
   });
   const departments = useDepartments();
@@ -41,44 +52,42 @@ export function WellDetailPage() {
   // История риска по окнам: ML-стек проекта считает риск для каждого окна,
   // и именно по числу сработавших окон ставится ярус скважины
   const riskHistory = useQuery({
-    queryKey: ['ml-history', wellId],
-    queryFn: () => mlApi.history(wellId),
-    enabled: wellId > 0,
+    queryKey: ['ml-history', wellId, selectedRun],
+    queryFn: () => mlApi.appHistory(wellId, 400, selectedRun),
+    enabled: wellId > 0 && !!mlRisk.data && !('status' in mlRisk.data),
     retry: false,
   });
+  const risk = mlRisk.data ? mlRiskRow(mlRisk.data) : null;
+  // Cohort timeline and contributions come from the same immutable result as risk.
+  const history = mlHistory(mlRisk.data && 'status' in mlRisk.data ? mlRisk.data : riskHistory.data);
   const riskPoints = useMemo(
     () =>
-      (riskHistory.data?.points ?? []).map((p) => ({
+      (history?.points ?? []).map((p) => ({
         date: dayjs(p.window_end).format('DD.MM.YY'),
         risk: p.risk,
       })),
-    [riskHistory.data],
+    [history],
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="pulse-well-page" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {well.data?.fund_type === 'presentation' && <Alert type="info" showIcon message="Показательный фонд" description="Синтетические обезличенные скважины. Реальная телеметрия не раскрывается в связи с NDA." />}
+      {well.data?.archived_at&&<Alert type="warning" showIcon message="Скважина в архиве" description={`Скрыта из оперативного фонда с ${new Date(well.data.archived_at).toLocaleString('ru',{timeZone:'Europe/Moscow'})} МСК. Телеметрия, проверки и заключения доступны. Для изменения карточки сначала восстановите скважину.`} />}
       <Card
-        title={`Скважина #${wellId}`}
+        title={`Скважина · ID Pulse ${wellId}`}
+        extra={isAdmin && !well.data?.archived_at && <Link to={`/integrations?tab=wells&well=${wellId}`}>Связи с источниками</Link>}
       >
         <PageSpin loading={well.isLoading} error={well.error}>
           <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }}>
-            {/* номер скважины и заводские идентификаторы — данные заказчика:
-                в стелс-режиме (?blur) они размываются вместе с НГДУ, иначе
-                попадают на скриншоты во внешних материалах */}
-            <Descriptions.Item label="№ скважины">
-              <span className="sensitive">{well.data?.well_number ?? '—'}</span>
-            </Descriptions.Item>
-            <Descriptions.Item label="Unitek ID">
-              <span className="sensitive">{well.data?.unitek_id}</span>
-            </Descriptions.Item>
-            <Descriptions.Item label="Armits ID">
-              <span className="sensitive">{well.data?.armits_id}</span>
-            </Descriptions.Item>
+            <Descriptions.Item label="ID Pulse">{wellId}</Descriptions.Item>
+            <Descriptions.Item label="№ скважины"><span className="sensitive">{well.data?.well_number ?? '—'}</span></Descriptions.Item>
             <Descriptions.Item label="НГДУ"><span className="sensitive">{well.data?.ngdu}</span></Descriptions.Item>
             <Descriptions.Item label="Цех">{deptLabel(well.data?.department)}</Descriptions.Item>
             <Descriptions.Item label="Активна">
               <StatusTag status={well.data?.active ? 'ok' : 'no_data'} />
             </Descriptions.Item>
+            <Descriptions.Item label="Ответственный">{well.data?.responsible??'Не назначен'}</Descriptions.Item>
+            <Descriptions.Item label="Версия карточки">{well.data?.revision??'—'}</Descriptions.Item>
             <Descriptions.Item label="Классификация осложнений">
               {classification.data?.classification ?? '—'}
             </Descriptions.Item>
@@ -87,57 +96,61 @@ export function WellDetailPage() {
       </Card>
 
       <Tabs
-        defaultActiveKey="overview"
+        activeKey={search.get('tab') ?? 'overview'}
+        onChange={tab => setSearch(p => { p.set('tab', tab); return p; }, {replace:true})}
         items={[
           {
             key: 'overview',
             label: 'Обзор',
             children: (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <Card title="Риск отказа (ML · stage1_binary_v1)">
-                  {mlRisk.isError || !mlRisk.data ? (
+                <Card title={`Риск отказа (ML · ${risk?.model_name ?? 'сохранённый результат'})`}>
+                  <PageSpin loading={mlRisk.isLoading} error={mlRisk.error}>
+                  {!risk || risk.risk === null ? (
                     <span style={{ color: '#8c8c8c' }}>
-                      Скважина не найдена в ML-скоринге (нет телеметрии в кэше признаков).
+                      {risk ? `${cohortStatusLabel(risk)}${risk.reason_code ? ` · ${risk.reason_code}` : ''}` : 'Сохранённой оценки риска нет.'}
                     </span>
                   ) : (
                     <Row gutter={24} align="middle">
                       <Col xs={24} md={7}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <Tag
-                            color={mlRisk.data.alert ? '#d64545' : '#2e9e6b'}
+                            color={risk.tier === 'alert' ? '#d64545' : risk.tier === 'watch' ? '#c98a1f' : '#2e9e6b'}
                             style={{ fontSize: 16, padding: '4px 10px' }}
                           >
-                            {(mlRisk.data.risk * 100).toFixed(1)}%
+                            {(risk.risk * 100).toFixed(1)}%
                           </Tag>
                           <Progress
-                            percent={mlRisk.data.risk * 100}
+                            percent={risk.risk * 100}
                             showInfo={false}
-                            strokeColor={mlRisk.data.alert ? '#d64545' : '#2e9e6b'}
+                            strokeColor={risk.tier === 'alert' ? '#d64545' : risk.tier === 'watch' ? '#c98a1f' : '#2e9e6b'}
                             style={{ width: 120, margin: 0 }}
                           />
                         </div>
                         <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>
-                          {mlRisk.data.alert ? 'тревога' : 'норма'} · окно от{' '}
-                          {mlRisk.data.window_end
-                            ? dayjs(mlRisk.data.window_end).format('DD.MM.YYYY')
+                          {cohortStatusLabel(risk)} · окно от{' '}
+                          {risk.window_end
+                            ? dayjs(risk.window_end).format('DD.MM.YYYY')
                             : '—'}
                         </div>
                       </Col>
                       <Col xs={24} md={17}>
-                        <ExplainBars wellId={mlRisk.data.well_id} topN={5} />
+                        <ExplainBars wellId={risk.well_id} topN={5} contributions={risk.contributions} windowKind={risk.explanation_window_kind} windowEnd={risk.explanation_window_end} />
                       </Col>
                     </Row>
                   )}
+                  {risk?.snapshot_id && <p>Сохранённый расчёт № {risk.run_id ?? '—'} · данные по {risk.as_of ?? 'неизвестной дате'}. {risk.provenance_status === 'historical_unknown' ? 'Происхождение исторического результата неизвестно.' : 'Происхождение результата подтверждено частично.'}</p>}
+                  </PageSpin>
                 </Card>
                 <Card
                   title="Риск по окнам наблюдения"
                   extra={
-                    riskHistory.data ? (
+                    history ? (
                       <span style={{ color: '#8c8c8c', fontSize: 12 }}>
-                        сработало {riskHistory.data.windows_fired} окон из{' '}
-                        {riskHistory.data.windows_total} · порог наблюдения{' '}
-                        {(riskHistory.data.threshold * 100).toFixed(0)}%, тревоги{' '}
-                        {(riskHistory.data.high_threshold * 100).toFixed(0)}%
+                        сработало {history.windows_fired} окон из{' '}
+                        {history.windows_total}
+                        {history.threshold !== null ? ` · порог наблюдения ${(history.threshold * 100).toFixed(0)}%` : ' · порог решения не представлен в шкале риска'}
+                        {history.high_threshold !== null ? ` · тревоги ${(history.high_threshold * 100).toFixed(0)}%` : ''}
                       </span>
                     ) : null
                   }
@@ -145,14 +158,14 @@ export function WellDetailPage() {
                   {/* Основание яруса в явном виде: ярус ставится по числу окон,
                       где риск превысил порог, — здесь видно, какие именно это
                       окна и как риск набирался */}
-                  <PageSpin loading={riskHistory.isLoading} error={riskHistory.error}>
+                  <PageSpin loading={mlRisk.isLoading || riskHistory.isLoading} error={mlRisk.error || riskHistory.error}>
                     {/* график строится только с данными: пустой набор роняет
                         G2 ошибкой «Missing encode for x or y channel» и оставляет
                         пустую карточку вместо понятного сообщения */}
                     {riskPoints.length > 0 ? (
-                      <Line data={riskPoints} xField="date" yField="risk" height={280} autoFit />
+                      <RiskHistoryChart data={riskPoints} />
                     ) : (
-                      <Empty description="Скважина ещё не проходила скоринг" />
+                      <Empty description={risk?.risk === null ? cohortStatusLabel(risk) : 'История риска отсутствует'} />
                     )}
                   </PageSpin>
                 </Card>
@@ -180,6 +193,9 @@ export function WellDetailPage() {
             ),
           },
           { key: 'failures', label: 'Отказы', children: <IncidentsTab wellId={wellId} /> },
+          {key:'history',label:'История карточки',children:<WellHistoryPanel wellId={wellId} />},
+          { key: 'checks', label: 'Проверки', children: <ManualChecks key={wellId} wellId={String(wellId)} /> },
+          { key: 'telemetry', label: 'Телеметрия', children: well.data ? <TelemetryWorkspace key={wellId} wellId={String(wellId)} /> : <PageSpin loading={well.isLoading} error={well.error}><span /></PageSpin> },
         ]}
       />
     </div>

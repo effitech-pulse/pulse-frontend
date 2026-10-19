@@ -27,16 +27,14 @@ interface UploadResult {
 }
 
 const VERDICT_UI = {
-  alert: { color: '#d64545', label: 'ТРЕВОГА — высокая вероятность отказа',
-    hint: 'Устойчивая предотказная картина (ярус точности ~80%). Рекомендуется проверка технологом.' },
+  alert: { color: '#d64545', label: 'ТРЕВОГА — по оценке модели',
+    hint: 'Модель выдала тревогу по выбранному периоду. Требуется заключение технолога.' },
   watch: { color: '#c98a1f', label: 'НАБЛЮДЕНИЕ — есть признаки риска',
-    hint: 'Есть окна с предотказной сигнатурой (рабочая точка recall 87%). Стоит взять скважину под контроль.' },
-  norm: { color: '#2e9e6b', label: 'НОРМА — признаков близкого отказа нет',
-    hint: 'Предотказных сигнатур в загруженном периоде не обнаружено.' },
+    hint: 'Выполнено условие наблюдения по расчётным окнам. Стоит проверить параметры скважины.' },
+  norm: { color: '#2e9e6b', label: 'НОРМА — по оценке модели',
+    hint: 'Условие наблюдения модели за выбранный период не выполнено.' },
   insufficient: { color: '#8c8c8c', label: 'ДАННЫХ НЕДОСТАТОЧНО — оценка невозможна',
-    hint: 'Установка работала слишком мало окон, чтобы правило тревоги могло сработать: ' +
-      'большая часть периода — простой или отсутствие телеметрии (нули по всем каналам). ' +
-      'Это не «норма» — по такому файлу нельзя сказать ни да, ни нет.' },
+    hint: 'Недостаточно окон работы установки для оценки. Проверьте длительность периода, наличие каналов и интервалы простоя.' },
 } as const;
 
 export function UploadCheckPage() {
@@ -114,7 +112,7 @@ export function UploadCheckPage() {
               </Tag>
               <Typography.Text type="secondary">
                 {result.filename} · {result.span_days} суток · {result.n_windows} окон ·{' '}
-                {result.channels_used} каналов распознано
+                {result.channels_used} исходных признаков распознано
                 {result.features_total ? (
                   <>
                     {' · '}
@@ -122,8 +120,8 @@ export function UploadCheckPage() {
                       title={
                         'Часть признаков модели требует данных, которых в одном файле нет: ' +
                         'соседи по кусту, статистика месторождения, счётчики защитных ' +
-                        'остановок. Они заполнены типичными значениями обучающей выборки, ' +
-                        'поэтому оценка по файлу грубее, чем в мониторинге фонда.'
+                        'остановок. Пропуски заполняются медианами обучения или резервными нулями. ' +
+                        'Источник каждого значения указан в объяснении.'
                       }
                     >
                       <span style={{ borderBottom: '1px dashed #bfbfbf', cursor: 'help' }}>
@@ -137,7 +135,7 @@ export function UploadCheckPage() {
             </div>
             <div style={{ color: '#8c8c8c', marginTop: 8 }}>{v.hint}</div>
             <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>
-              Оценка по телеметрии без кустового контекста и дебита — в мониторинге точность выше.
+              Оценка зависит от полноты переданных данных. Заполненные значения признаков отмечены в объяснении.
             </div>
             <Row gutter={16} style={{ marginTop: 16 }}>
               <Col xs={12} md={6}>
@@ -200,7 +198,7 @@ export function UploadCheckPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <span style={{ width: 210, fontSize: 13, overflow: 'hidden',
                             textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                            {c.label}
+                            {c.label}{c.value_source && c.value_source !== 'computed' ? ' · заполнено' : ''}
                           </span>
                           <div style={{ flex: 1, background: '#f0f2f5', borderRadius: 4, height: 10 }}>
                             <div style={{

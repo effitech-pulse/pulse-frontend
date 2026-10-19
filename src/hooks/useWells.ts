@@ -1,11 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
-import { departmentsApi, ngduApi, runsApi, wellsApi } from '@/api/wells';
+import { type WellArchive, departmentsApi, ngduApi, runsApi, wellsApi } from '@/api/wells';
 import { toApiError } from '@/api/client';
+import {useFundFilters} from '@/theme/FundFilters';
+import { useFund } from '@/theme/FundProvider';
 import type { WellUpdate } from '@/api/types';
 
-export const useWells = (activeOnly = true) =>
-  useQuery({ queryKey: ['wells', activeOnly], queryFn: () => wellsApi.list(activeOnly) });
+export const useWells = (activeOnly = true, applyFilters = true, archive:WellArchive = 'current') => {
+  const {fund} = useFund();
+  const {filters}=useFundFilters();const selected=applyFilters?filters:undefined;
+  return useQuery({queryKey:['wells', activeOnly, fund, selected, archive], queryFn:async () => (await wellsApi.list(activeOnly,fund,selected,archive)).filter(w => (w.fund_type ?? 'operational') === fund)});
+};
 
 export const useUpdateWell = () => {
   const qc = useQueryClient();
@@ -15,19 +20,9 @@ export const useUpdateWell = () => {
     onSuccess: () => {
       message.success('Сохранено');
       qc.invalidateQueries({ queryKey: ['wells'] });
-    },
-    onError: (e) => message.error(toApiError(e).message),
-  });
-};
-
-export const useDeleteWell = () => {
-  const qc = useQueryClient();
-  const { message } = App.useApp();
-  return useMutation({
-    mutationFn: (id: number) => wellsApi.remove(id),
-    onSuccess: () => {
-      message.success('Скважина удалена');
-      qc.invalidateQueries({ queryKey: ['wells'] });
+      qc.invalidateQueries({ queryKey: ['well'] });
+      qc.invalidateQueries({ queryKey: ['well-history'] });
+      qc.invalidateQueries({ queryKey: ['presentation-summary'] });
     },
     onError: (e) => message.error(toApiError(e).message),
   });

@@ -21,7 +21,10 @@ const AuditPage = lazy(() => import('@/pages/AuditPage').then((m) => ({ default:
 const AnalyticsPage = lazy(() =>
   import('@/pages/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })),
 );
+const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
+const TelemetryPage = lazy(() => import('@/pages/TelemetryPage').then(m => ({ default: m.TelemetryPage })));
 
+const AccountsPage=lazy(()=>import('@/pages/AccountsPage').then(m=>({default:m.AccountsPage})));
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -33,8 +36,11 @@ export const router = createBrowserRouter([
       { path: 'structure', element: <StructurePage /> },
       { path: 'ml-risk', element: <MlRiskPage /> },
       { path: 'upload-check', element: <UploadCheckPage /> },
+      { path:'accounts',element:<AccountsPage /> },
       { path: 'audit', element: <AuditPage /> },
       { path: 'analytics', element: <AnalyticsPage /> },
+      { path: 'integrations', element: <IntegrationsPage /> },
+      { path: 'telemetry/:wellId', element: <TelemetryPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

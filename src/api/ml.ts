@@ -1,10 +1,12 @@
 import { apiClient } from './client';
+import type { TelemetryScore } from './integrations';
+import type { Well } from './types';
 
 const V1 = '/api/v1';
 
 // --- ML-контур (Стадия 1): риск отказа + метрики моделей --------------------
 
-export type AlertStatus = 'new' | 'acknowledged' | 'false_positive';
+export type AlertStatus = 'new' | 'acknowledged' | 'false_positive' | 'confirmed' | 'inconclusive';
 
 export interface MlWell {
   well_id: number;
@@ -30,12 +32,89 @@ export interface MlWell {
   true_failure_at: string | null;
 }
 
-export interface MlWellsResponse {
+export interface ResearchWellsResponse {
+  profile?: 'research';
   count: number;
   alert_threshold: number;
   high_threshold: number;
   running: boolean;
   wells: MlWell[];
+}
+
+export type CohortStatus = 'scored' | 'archived' | 'inactive' | 'insufficient' | 'error';
+export interface ThresholdRule {
+  scale: string;
+  comparison: string;
+  threshold: number;
+  k_windows: number;
+  lookback_days?: number | null;
+}
+export interface CohortResult extends TelemetryScore {
+  decision_rule?: { watch: ThresholdRule; high?: ThresholdRule | null; high_enabled: boolean } | null;
+  provenance?: { provenance_status: string; input_kind: string; context_completeness: string } | null;
+  timeline: { window_end: string; risk: number; watch_fired?: boolean | null; high_fired?: boolean | null }[];
+}
+interface CohortOutcomeBase {
+  alert_id?: number | null;
+  alert_status?: AlertStatus | null;
+  app_well_id: number;
+  reason_code: string;
+  input_sha256?: string;
+  bounds: { start: string; end: string } | null;
+  resolution: string;
+  metadata?: Well;
+  run_id?: number | null;
+  snapshot_id?: string | null;
+  as_of?: string | null;
+  cohort_version?: string;
+}
+export type CohortOutcome = CohortOutcomeBase & (
+  {status:'scored'; result:CohortResult} |
+  {status:Exclude<CohortStatus,'scored'>; result:null}
+);
+export interface CohortWellsResponse {
+  profile: 'cohort';
+  cohort_version: string;
+  snapshot_id: string | null;
+  run_id: number | null;
+  as_of: string | null;
+  count: number;
+  running: boolean;
+  outcomes: CohortOutcome[];
+  coverage: { member_count: number; visible_count: number; scored_count: number; archived_count: number; inactive_count: number; insufficient_count: number; error_count: number };
+  provenance_status: 'partial' | 'historical_unknown';
+  evaluation_status: 'evaluated' | 'no_scored_members';
+  outcome_completeness?: string;
+}
+export type MlWellsResponse = ResearchWellsResponse | CohortWellsResponse;
+/** Presentation row only: a cohort ID is never a research well_id. */
+export interface MlDisplayWell extends Omit<MlWell, 'well_id' | 'risk' | 'alert' | 'data_ok' | 'windows_fired' | 'windows_total'> {
+  well_id: number | null;
+  risk: number | null;
+  alert: boolean | null;
+  data_ok: boolean | null;
+  windows_fired: number | null;
+  windows_total: number | null;
+  status?: CohortStatus;
+  reason_code?: string;
+  contributions?: MlContribution[];
+  metadata?: Well;
+  run_id?: number | null;
+  snapshot_id?: string | null;
+  as_of?: string | null;
+  model_name?: string | null;
+  provenance_status?: string;
+  explanation_window_kind?: 'peak' | 'latest' | 'unknown';
+  explanation_window_end?: string | null;
+}
+export type MlRiskResponse = MlWell | CohortOutcome;
+export type MlHistoryResponse = MlRiskHistory | CohortOutcome;
+export interface MlHistoryView {
+  threshold: number | null;
+  high_threshold: number | null;
+  windows_total: number;
+  windows_fired: number;
+  points: { window_end: string; risk: number; fired: boolean | null }[];
 }
 
 export type DriftVerdict = 'stable' | 'moderate' | 'severe' | 'unknown';
@@ -118,6 +197,7 @@ export interface MlSavedModel {
 }
 
 export interface MlContribution {
+  value_source?: string | null;
   feature: string;
   label: string;
   value: number;
@@ -134,6 +214,8 @@ export const mlApi = {
     apiClient
       .get<MlWellsResponse>(`${V1}/ml/wells`, { params: { alert_only: alertOnly } })
       .then((r) => r.data),
+  snapshot: (runId: number) =>
+    apiClient.get<CohortWellsResponse>(`${V1}/ml/runs/${runId}/snapshot`).then(r => r.data),
   refresh: () =>
     apiClient.post<{ started: boolean }>(`${V1}/ml/wells/refresh`).then((r) => r.data),
   runs: (limit = 20) =>
@@ -149,6 +231,8 @@ export const mlApi = {
       .then((r) => r.data),
   metrics: () =>
     apiClient.get<{ models: MlSavedModel[] }>(`${V1}/ml/metrics`).then((r) => r.data),
+  byAppWell: (wellId: number, runId?: number) => apiClient.get<MlRiskResponse>(`${V1}/wells/${wellId}/risk`, {params:{run_id:runId}}).then(r=>r.data),
+  appHistory: (wellId: number, limit=400, runId?: number) => apiClient.get<MlHistoryResponse>(`${V1}/wells/${wellId}/risk/history`,{params:{limit,run_id:runId}}).then(r=>r.data),
   byUnitek: (unitekId: number) =>
     apiClient.get<MlWell>(`${V1}/ml/wells/by-unitek/${unitekId}`).then((r) => r.data),
   explain: (wellId: number, topN = 6) =>

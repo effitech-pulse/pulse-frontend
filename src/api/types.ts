@@ -1,9 +1,13 @@
 // Types mirroring the FastAPI Pydantic schemas (src/schemas/*).
 
 export interface Well {
+ revision:number;
+ archived_at:string|null;
+ responsible:string|null;
+  fund_type: 'operational' | 'presentation';
   id: number;
-  unitek_id: number;
-  armits_id: number;
+  unitek_id: number | null;
+  armits_id: number | null;
   well_number: string | null;
   ngdu: number;
   department: number;
@@ -11,8 +15,10 @@ export interface Well {
 }
 
 export interface WellUpdate {
-  unitek_id?: number;
-  armits_id?: number;
+ revision?:number;
+ responsible?:string|null;
+  unitek_id?: number | null;
+  armits_id?: number | null;
   well_number?: string | null;
   ngdu?: number;
   department?: number;
@@ -55,8 +61,11 @@ export interface Ngdu {
 }
 
 export interface WellCreate {
-  unitek_id: number;
-  armits_id: number;
+ responsible?:string|null;
+  id?: number;
+  well_number?: string | null;
+  unitek_id?: number | null;
+  armits_id?: number | null;
   ngdu: number;
   department: number;
   active?: boolean;

@@ -1,3 +1,4 @@
+import {useAuth} from '@/auth/AuthProvider';
 import {
   Button,
   Card,
@@ -28,6 +29,7 @@ const FAILURE_TYPES = [
 ].map((v) => ({ value: v, label: v }));
 
 export function IncidentsTab({ wellId }: { wellId: number }) {
+  const {isAdmin,canOperate}=useAuth();
   const { data, isLoading, error } = useIncidents(wellId);
   const create = useCreateIncident(wellId);
   const del = useDeleteIncident(wellId);
@@ -54,7 +56,7 @@ export function IncidentsTab({ wellId }: { wellId: number }) {
       render: (_: unknown, r: Incident) => (
         <Space>
           <Popconfirm title="Удалить отказ?" okText="Да" cancelText="Нет" onConfirm={() => del.mutate(r.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
+            <Button disabled={!isAdmin} size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
@@ -63,7 +65,7 @@ export function IncidentsTab({ wellId }: { wellId: number }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Card size="small" title="Новый отказ (конфигурация инцидента)">
+      {canOperate && <Card size="small" title="Новый отказ (конфигурация инцидента)">
         <Form form={form} layout="inline" initialValues={{ days_before: 60 }}>
           <Form.Item name="failure_type" label="Тип" rules={[{ required: true, message: '' }]}>
             <Select options={FAILURE_TYPES} style={{ width: 220 }} placeholder="класс отказа" />
@@ -80,7 +82,7 @@ export function IncidentsTab({ wellId }: { wellId: number }) {
             </Button>
           </Form.Item>
         </Form>
-      </Card>
+      </Card>}
 
       <PageSpin loading={isLoading} error={error}>
         <Table rowKey="id" columns={columns} dataSource={data ?? []} pagination={false} size="small" />

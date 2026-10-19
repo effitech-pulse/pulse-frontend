@@ -1,12 +1,16 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { App as AntApp, ConfigProvider } from 'antd';
-import ruRU from 'antd/locale/ru_RU';
+import { App as AntApp } from 'antd';
 import { RouterProvider } from 'react-router-dom';
 import 'antd/dist/reset.css';
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
 import './index.css';
-import { antdTheme } from '@/theme/antdTheme';
+import { ThemeProvider } from '@/theme/ThemeProvider';
+import { AuthProvider } from '@/auth/AuthProvider';
+import {FundFiltersProvider} from '@/theme/FundFilters';
+import { FundProvider } from '@/theme/FundProvider';
 import { router } from '@/router';
 
 const queryClient = new QueryClient({
@@ -20,12 +24,12 @@ if (!rootElement) throw new Error('Root element #root not found');
 
 createRoot(rootElement).render(
   <StrictMode>
-    <ConfigProvider theme={antdTheme} locale={ruRU}>
+    <ThemeProvider>
       <AntApp>
         <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
+          <AuthProvider><FundProvider><FundFiltersProvider><RouterProvider router={router} /></FundFiltersProvider></FundProvider></AuthProvider>
         </QueryClientProvider>
       </AntApp>
-    </ConfigProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

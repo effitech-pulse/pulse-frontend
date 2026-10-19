@@ -6,7 +6,7 @@ NGDU, WELL_NUMBER, ARMITS_ID, UNITEK_ID, CEX (цех). */
 import * as XLSX from 'xlsx';
 import type { WellCreate } from '@/api/types';
 
-export type CanonicalKey = 'ngdu' | 'well_number' | 'armits_id' | 'unitek_id' | 'department';
+export type CanonicalKey = 'id' | 'ngdu' | 'well_number' | 'armits_id' | 'unitek_id' | 'department';
 
 export interface CanonicalField {
   key: CanonicalKey;
@@ -15,10 +15,11 @@ export interface CanonicalField {
 }
 
 export const CANONICAL_FIELDS: CanonicalField[] = [
+ {key:'id',label:'ID Pulse (для существующих)',required:false},
   { key: 'ngdu', label: 'НГДУ', required: true },
   { key: 'well_number', label: '№ скважины', required: false },
-  { key: 'armits_id', label: 'ARMITS ID', required: true },
-  { key: 'unitek_id', label: 'UNITEK ID', required: true },
+  { key: 'armits_id', label: 'ID в Armits (связь)', required: false },
+  { key: 'unitek_id', label: 'ID в Unitek (связь)', required: false },
   { key: 'department', label: 'Цех', required: true },
 ];
 
@@ -32,6 +33,7 @@ export interface ParsedSheet {
 
 export interface PreviewRow {
   key: string;
+  id: string;
   ngdu: string;
   well_number: string;
   armits_id: string;
@@ -42,6 +44,7 @@ export interface PreviewRow {
 
 /** Синонимы заголовков для авто-сопоставления (без регистра/пробелов). */
 const SYNONYMS: Record<CanonicalKey, string[]> = {
+ id:['pulse_id','idpulse','id'],
   ngdu: ['ngdu', 'нгду'],
   well_number: ['well_number', 'wellnumber', 'скважина', 'номерскважины', 'well'],
   armits_id: ['armits_id', 'armitsid', 'армитс'],
@@ -66,21 +69,22 @@ export function autoMap(columns: string[]): ColumnMapping {
   const m: ColumnMapping = {};
   for (const f of CANONICAL_FIELDS) {
     const hit = columns.find((c) =>
-      SYNONYMS[f.key].some((syn) => norm(c) === syn || norm(c).includes(syn)),
+      SYNONYMS[f.key].some((syn) => norm(c) === norm(syn) || (f.key !== 'id' && norm(c).includes(norm(syn)))),
     );
     if (hit) m[f.key] = hit;
   }
   return m;
 }
 
-const INT_FIELDS: CanonicalKey[] = ['ngdu', 'armits_id', 'unitek_id', 'department'];
+const INT_FIELDS: CanonicalKey[] = ['id', 'ngdu', 'armits_id', 'unitek_id', 'department'];
 
 /** true, если значение поля невалидно (для подсветки ячейки). */
 export function fieldInvalid(field: CanonicalKey, value: string): boolean {
   const required = CANONICAL_FIELDS.find((f) => f.key === field)?.required ?? false;
   const v = value.trim();
   if (!v) return required;
-  if (INT_FIELDS.includes(field)) return !/^\d+$/.test(v);
+  if (field==='id') return !/^[1-9][0-9]*$/.test(v) || !Number.isSafeInteger(Number(v));
+  if (INT_FIELDS.includes(field)) return !/^-?\d+$/.test(v) || !Number.isSafeInteger(Number(v));
   return false;
 }
 
@@ -99,6 +103,7 @@ export function buildPreview(parsed: ParsedSheet, mapping: ColumnMapping): Previ
     };
     const row: PreviewRow = {
       key: `row-${i}`,
+      id: pick('id'),
       ngdu: pick('ngdu'),
       well_number: pick('well_number'),
       armits_id: pick('armits_id'),
@@ -117,8 +122,9 @@ export function toPayload(rows: PreviewRow[]): WellCreate[] {
     .filter((r) => r.errors.length === 0)
     .map((r) => ({
       ngdu: Number(r.ngdu),
-      armits_id: Number(r.armits_id),
-      unitek_id: Number(r.unitek_id),
+      ...(r.id ? {id:Number(r.id)} : {}),
+      ...(r.armits_id ? {armits_id:Number(r.armits_id)} : {}),
+      ...(r.unitek_id ? {unitek_id:Number(r.unitek_id)} : {}),
       department: Number(r.department),
       ...(r.well_number ? { well_number: r.well_number } : {}),
     }));

@@ -1,11 +1,16 @@
+import {useAuth} from '@/auth/AuthProvider';
 import {
   App,
+  Alert,
+  Modal,
+  Segmented,
+  Tag,
+  Typography,
   Button,
   Card,
   Form,
   Input,
   InputNumber,
-  Popconfirm,
   Space,
   Switch,
   Table,
@@ -13,7 +18,7 @@ import {
 import {
   CheckOutlined,
   CloseOutlined,
-  DeleteOutlined,
+  UndoOutlined,
   DownloadOutlined,
   EditOutlined,
   FileSearchOutlined,
@@ -23,11 +28,14 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useState, type DragEvent, type HTMLAttributes, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import type { Well } from '@/api/types';
-import { wellsApi } from '@/api/wells';
+import { type WellArchive, wellsApi } from '@/api/wells';
 import { toApiError } from '@/api/client';
-import { useDeleteWell, useDepartments, useNgdus, useUpdateWell, useWells } from '@/hooks/useWells';
+import { useDepartments, useNgdus, useUpdateWell, useWells } from '@/hooks/useWells';
+import {useFundFilters} from '@/theme/FundFilters';
+import { useFund } from '@/theme/FundProvider';
 import { PageSpin } from '@/components/common/PageSpin';
 import { WellImportModal } from '@/components/wells/WellImportModal';
 import { AddWellModal } from '@/components/wells/AddWellModal';
@@ -66,15 +74,28 @@ function EditableCell({ editing, dataIndex, inputType, children, ...rest }: Edit
 }
 
 export function WellsPage() {
+  const {isAdmin}=useAuth();
   const navigate = useNavigate();
+  const {fund} = useFund();
+  const {filters}=useFundFilters();
   const { message } = App.useApp();
   const [form] = Form.useForm();
+  const client=useQueryClient();
+  const [archive,setArchive]=useState<WellArchive>('current');
+  const [editingRevision,setEditingRevision]=useState<number>();
+  const [editConflict,setEditConflict]=useState(false);
+  const [lifecycle,setLifecycle]=useState<{well:Well;restore:boolean}>();
+  const [reason,setReason]=useState('');
+  const [lifecycleError,setLifecycleError]=useState('');
+  const [lifecycleConflict,setLifecycleConflict]=useState(false);
+  const [changingLifecycle,setChangingLifecycle]=useState(false);
   const [showInactive, setShowInactive] = useState(false);
-  const { data, isLoading, error } = useWells(!showInactive);
+  const activeOnly=archive==='current'&&!showInactive;
+  const { data, isLoading, error } = useWells(activeOnly,true,archive);
   const departments = useDepartments();
   const ngdus = useNgdus();
   const updateWell = useUpdateWell();
-  const deleteWell = useDeleteWell();
+
 
   const deptLabel = (code: number): string => {
     const name = departments.data?.find((d) => d.id === code)?.name;
@@ -96,14 +117,15 @@ export function WellsPage() {
   const isEditing = (well: Well) => well.id === editingKey;
   const edit = (well: Well) => {
     form.setFieldsValue(well);
+    setEditingRevision(well.revision);setEditConflict(false);
     setEditingKey(well.id);
   };
-  const cancel = () => setEditingKey(null);
+  const cancel = () => {setEditingKey(null);setEditConflict(false);};
   const save = async (id: number) => {
     const row = await form.validateFields();
     if (row.well_number === '') row.well_number = null;
-    await updateWell.mutateAsync({ id, data: row });
-    setEditingKey(null);
+    try {await updateWell.mutateAsync({ id, data: {...row,revision:editingRevision} });setEditingKey(null);setEditConflict(false);}
+    catch(e){setEditConflict(toApiError(e).code==='conflict');}
   };
 
   const closeImport = () => {
@@ -113,6 +135,8 @@ export function WellsPage() {
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(false);
+    if (!isAdmin || archive!=='current') return;
+    if (fund === 'presentation') { message.info('Показательный фонд формируется в Pulse Data'); return; }
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
     if (!XLSX_RE.test(file.name)) {
@@ -126,11 +150,11 @@ export function WellsPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const blob = await wellsApi.exportXlsx();
+      const blob = await wellsApi.exportXlsx(fund,filters,activeOnly,archive);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'wells.xlsx';
+      a.download = `wells-${fund}-${archive}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -144,11 +168,11 @@ export function WellsPage() {
     editable?: boolean;
     inputType?: CellInput;
   })[] = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+    { title: 'ID Pulse', dataIndex: 'id', key: 'id', width: 110 },
     { title: '№ скв.', dataIndex: 'well_number', key: 'well_number', editable: true, inputType: 'text',
       render: (v: string | null) => v ?? '—' },
-    { title: 'Unitek ID', dataIndex: 'unitek_id', key: 'unitek_id', editable: true, inputType: 'number' },
-    { title: 'Armits ID', dataIndex: 'armits_id', key: 'armits_id', editable: true, inputType: 'number' },
+    {title:'Ответственный',dataIndex:'responsible',key:'responsible',editable:true,inputType:'text',render:(v:string|null)=>v??'—'},
+    {title:'Состояние',key:'archive',render:(_,w)=>w.archived_at?<Tag>В архиве</Tag>:<Tag color="green">В фонде</Tag>},
     { title: 'НГДУ', dataIndex: 'ngdu', key: 'ngdu', editable: true, inputType: 'number',
       render: (v: number) => ngduLabel(v) },
     { title: 'Цех', dataIndex: 'department', key: 'department', editable: true, inputType: 'number',
@@ -161,8 +185,8 @@ export function WellsPage() {
       render: (active: boolean, well: Well) => (
         <Switch
           checked={active}
-          disabled={isEditing(well)}
-          onChange={(checked) => updateWell.mutate({ id: well.id, data: { active: checked } })}
+          disabled={!isAdmin || !!well.archived_at || isEditing(well)}
+          onChange={(checked) => updateWell.mutate({ id: well.id, data: { active: checked,revision:well.revision } })}
         />
       ),
     },
@@ -179,12 +203,9 @@ export function WellsPage() {
           </Space>
         ) : (
           <Space>
-            <Button size="small" icon={<FileSearchOutlined />} onClick={() => navigate(`/wells/${well.id}`)} />
-            <Button size="small" icon={<EditOutlined />} disabled={editingKey !== null} onClick={() => edit(well)} />
-            <Popconfirm title="Удалить скважину?" okText="Да" cancelText="Нет"
-              onConfirm={() => deleteWell.mutate(well.id)}>
-              <Button size="small" danger icon={<DeleteOutlined />} />
-            </Popconfirm>
+            <Button aria-label={`Открыть карточку ID Pulse ${well.id}`} size="small" icon={<FileSearchOutlined />} onClick={() => navigate(`/wells/${well.id}`)} />
+            <Button size="small" icon={<EditOutlined />} disabled={!isAdmin || !!well.archived_at || editingKey !== null} onClick={() => edit(well)} />
+            <Button aria-label={`${well.archived_at?'Восстановить':'В архив'} ID Pulse ${well.id}`} disabled={!isAdmin || editingKey!==null} size="small" icon={well.archived_at?<UndoOutlined />:<InboxOutlined />} onClick={()=>{setLifecycle({well,restore:!!well.archived_at});setReason('');setLifecycleError('');setLifecycleConflict(false);}} />
           </Space>
         ),
     },
@@ -201,6 +222,12 @@ export function WellsPage() {
     };
   });
 
+  async function reloadEdit(){if(editingKey===null)return;try{const latest=await wellsApi.get(editingKey);if(latest.archived_at){cancel();message.info('Скважина перенесена в архив. Сначала восстановите её.');return;}form.setFieldsValue(latest);setEditingRevision(latest.revision);setEditConflict(false);}catch(e){message.error(toApiError(e).message);}}
+  async function saveLifecycle(){
+    if(!lifecycle || changingLifecycle)return;if(!reason.trim()){setLifecycleError('Укажите причину');return;}setChangingLifecycle(true);setLifecycleError('');
+    try{await (lifecycle.restore?wellsApi.restore(lifecycle.well,reason):wellsApi.archive(lifecycle.well,reason));setLifecycle(undefined);await Promise.all(['wells','well','well-history','presentation-summary','ml-wells','incident-stats'].map(key=>client.invalidateQueries({queryKey:[key]})));message.success(lifecycle.restore?'Скважина восстановлена с прежним ID Pulse':'Скважина перенесена в архив');}
+    catch(e){const problem=toApiError(e);setLifecycleError(problem.message);setLifecycleConflict(problem.code==='conflict');}finally{setChangingLifecycle(false);}
+  }
   return (
     <div
       style={{ position: 'relative' }}
@@ -213,19 +240,22 @@ export function WellsPage() {
       }}
       onDrop={handleDrop}
     >
+      {editConflict&&<Alert type="warning" showIcon message="Карточка изменилась в другом сеансе" description="Ваши изменения ещё не сохранены. Скопируйте нужный текст, затем загрузите актуальные реквизиты." action={<Button onClick={()=>reloadEdit()}>Загрузить актуальную карточку</Button>} style={{marginBottom:16}} />}
       <Card
         extra={
-          <Space>
+          <Space wrap>
+            <Segmented aria-label="Состояние реестра" value={archive} onChange={value=>{setArchive(value as WellArchive);cancel();}} options={[{value:'current',label:'Текущие'},{value:'archived',label:'Архив'},{value:'all',label:'Все'}]} />
             <Switch
+              disabled={archive!=='current'}
               checkedChildren="все"
               unCheckedChildren="активные"
               checked={showInactive}
               onChange={setShowInactive}
             />
-            <Button icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
+            <Button disabled={!isAdmin || archive!=='current' || fund === 'presentation'} icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
               Добавить
             </Button>
-            <Button type="primary" icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
+            <Button disabled={!isAdmin || archive!=='current' || fund === 'presentation'} type="primary" icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
               Импорт из Excel
             </Button>
             <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
@@ -238,6 +268,7 @@ export function WellsPage() {
           <Form form={form} component={false}>
             <Table
               rowKey="id"
+              scroll={{x:1100}}
               components={{ body: { cell: EditableCell } }}
               columns={columns}
               dataSource={data ?? []}
@@ -270,6 +301,13 @@ export function WellsPage() {
         </div>
       )}
 
+      <Modal title={lifecycle?.restore?'Восстановить скважину':'Перенести скважину в архив'} open={!!lifecycle} onCancel={()=>{if(!changingLifecycle)setLifecycle(undefined);}} onOk={()=>saveLifecycle()} confirmLoading={changingLifecycle} okText={lifecycle?.restore?'Восстановить':'В архив'} cancelText="Отмена">
+        <div className="pulse-stack"><Typography.Text>ID Pulse {lifecycle?.well.id}. Телеметрия, проверки и заключения сохраняются. Флаг «Активна» не меняется.</Typography.Text>
+        {lifecycleError&&<Alert type="warning" message={lifecycleError} />}
+        {lifecycleConflict&&<Button onClick={async()=>{if(lifecycle){try{const latest=await wellsApi.get(lifecycle.well.id);setLifecycle({...lifecycle,well:latest});setLifecycleConflict(false);setLifecycleError((!!latest.archived_at)===!lifecycle.restore?'Состояние уже изменено. Закройте это окно.':'Проверьте актуальное состояние и повторите действие.');}catch(e){message.error(toApiError(e).message);}}}}>Обновить версию карточки</Button>}
+        <label className="pulse-stack">Причина<Input.TextArea aria-label="Причина изменения состояния скважины" value={reason} maxLength={1000} showCount autoSize={{minRows:2,maxRows:6}} disabled={changingLifecycle} onChange={e=>setReason(e.target.value)} /></label>
+        <Typography.Text type="secondary">Причина и автор будут сохранены в истории карточки. Версия: {lifecycle?.well.revision}</Typography.Text></div>
+      </Modal>
       <WellImportModal open={importOpen} onClose={closeImport} initialFile={importFile} />
       <AddWellModal open={addOpen} onClose={() => setAddOpen(false)} />
     </div>

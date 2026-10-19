@@ -1,37 +1,47 @@
 import { Skeleton, Tooltip, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { mlApi } from '@/api/ml';
+import { mlApi, type MlContribution } from '@/api/ml';
 
 /** SHAP-вклады признаков: положительный (красный) толкает риск вверх,
  *  отрицательный (зелёный) — вниз. Ширина бара ∝ |вкладу|. */
-export function ExplainBars({ wellId, topN = 6 }: { wellId: number; topN?: number }) {
+export function ExplainBars({ wellId, topN = 6, contributions, windowKind = contributions === undefined ? 'latest' : 'unknown', windowEnd = null }: {
+  wellId: number | null;
+  topN?: number;
+  contributions?: MlContribution[];
+  windowKind?: 'peak' | 'latest' | 'unknown';
+  windowEnd?: string | null;
+}) {
   const q = useQuery({
     queryKey: ['ml-explain', wellId, topN],
-    queryFn: () => mlApi.explain(wellId, topN),
+    queryFn: () => mlApi.explain(wellId!, topN),
+    enabled: contributions === undefined && wellId !== null,
   });
 
-  if (q.isLoading) return <Skeleton active paragraph={{ rows: 4 }} title={false} />;
-  if (q.isError || !q.data?.contributions.length)
+  const items = contributions?.slice(0, topN) ?? q.data?.contributions;
+  if (contributions === undefined && q.isLoading) return <Skeleton active paragraph={{ rows: 4 }} title={false} />;
+  if (!items?.length)
     return <Typography.Text type="secondary">Объяснение недоступно.</Typography.Text>;
 
-  const maxAbs = Math.max(...q.data.contributions.map((c) => Math.abs(c.shap)), 1e-9);
+  const maxAbs = Math.max(...items.map((c) => Math.abs(c.shap)), 1e-9);
+  const explanationWindow = windowKind === 'peak' ? 'TreeSHAP по окну максимального сырого score'
+    : windowKind === 'latest' ? 'TreeSHAP по последнему окну' : 'Окно объяснения не передано';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {q.data.contributions.map((c) => {
+      {items.map((c) => {
         const up = c.shap >= 0;
         const width = (Math.abs(c.shap) / maxAbs) * 100;
+        const source = c.value_source === 'computed' ? 'Рассчитано по данным' : c.value_source === 'training_median' ? 'Медиана обучения' : c.value_source === 'zero_fallback' ? 'Заполнение нулём' : 'Источник не передан';
+        const tooltip = `${c.label} · ${c.feature} = ${c.value.toFixed(3)} · ${source} · вклад ${c.shap >= 0 ? '+' : ''}${c.shap.toFixed(3)}`;
         return (
           <Tooltip
             key={c.feature}
             // подпись в строке обрезается по ширине, и производные признаки
             // («…: к уровню месторождения») выглядят одинаково — полное имя
             // показываем в подсказке первым
-            title={`${c.label} · ${c.feature} = ${c.value.toFixed(3)} · вклад ${
-              c.shap >= 0 ? '+' : ''
-            }${c.shap.toFixed(3)}`}
+            title={tooltip}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div aria-label={tooltip} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span
                 style={{
                   width: 230,
@@ -71,7 +81,7 @@ export function ExplainBars({ wellId, topN = 6 }: { wellId: number; topN?: numbe
         );
       })}
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        Красное толкает риск вверх, зелёное — вниз (TreeSHAP по последнему окну).
+        Красное толкает риск вверх, зелёное — вниз ({explanationWindow}{windowKind !== 'unknown' ? ` · ${windowEnd ?? 'дата не передана'}` : ''}).
       </Typography.Text>
     </div>
   );

@@ -19,7 +19,7 @@ import {
   type PreviewRow,
 } from '@/lib/wellImport';
 
-const EDITABLE: CanonicalKey[] = ['ngdu', 'well_number', 'armits_id', 'unitek_id', 'department'];
+const EDITABLE: CanonicalKey[] = ['id', 'ngdu', 'well_number', 'armits_id', 'unitek_id', 'department'];
 
 export function WellImportModal({
   open,
@@ -112,7 +112,7 @@ export function WellImportModal({
   };
 
   const editColumn = (field: CanonicalKey) => ({
-    title: field.toUpperCase(),
+    title: CANONICAL_FIELDS.find(f=>f.key===field)?.label ?? field,
     dataIndex: field,
     render: (_: unknown, r: PreviewRow) => (
       <Input
@@ -173,8 +173,7 @@ export function WellImportModal({
           </p>
           <p className="ant-upload-text">Перетащите .xlsx сюда или нажмите для выбора</p>
           <p className="ant-upload-hint">
-            Колонки по умолчанию: NGDU, WELL_NUMBER, ARMITS_ID, UNITEK_ID, CEX. Другие названия
-            можно сопоставить после загрузки.
+            Для новых скважин нужны НГДУ и цех; ID Pulse назначается автоматически. В выгрузке из Pulse существующие ID сохраняются, такие строки пропускаются. Внешние ID необязательны.
           </p>
         </Upload.Dragger>
       ) : (

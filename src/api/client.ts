@@ -1,13 +1,14 @@
 import axios, { AxiosError } from 'axios';
 import type { ApiError } from './types';
 
-// VITE_API_URL points at the FastAPI backend. When empty, requests are relative
+// VITE_API_URL points at the Go backend. When empty, requests are relative
 // and handled by the Vite dev proxy (see vite.config.ts).
 const baseURL = import.meta.env.VITE_API_URL ?? '';
 const apiKey = import.meta.env.VITE_API_KEY;
 
 export const apiClient = axios.create({
   baseURL,
+  withCredentials: true,
   timeout: 30_000,
   headers: {
     'Content-Type': 'application/json',
