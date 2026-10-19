@@ -1,8 +1,8 @@
-import { Alert, Card, Col, Descriptions, Empty, Progress, Row, Table, Tabs, Tag } from 'antd';
+import { Alert, Card, Col, Descriptions, Empty, Progress, Row, Table, Tabs, Tag, Space, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { RiskHistoryChart } from '@/components/ml/RiskHistoryChart';
 import { useEffect, useMemo } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useDepartments, useWell, useWellComplications } from '@/hooks/useWells';
 import { wellsApi } from '@/api/wells';
 import { useQuery } from '@tanstack/react-query';
@@ -21,7 +21,11 @@ import { TelemetryWorkspace } from '@/components/telemetry/TelemetryWorkspace';
 export function WellDetailPage() {
   const { wellId: wellIdParam } = useParams();
   const wellId = Number(wellIdParam);
-  const [search, setSearch] = useSearchParams();
+  const [search] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const requestedTab = search.get('tab');
+  const activeTab = ['telemetry', 'checks', 'failures', 'history', 'details'].includes(requestedTab ?? '') ? requestedTab! : 'overview';
 
   const selectedRun=Number(search.get('run_id')) || undefined;
   const well = useWell(wellId);
@@ -78,36 +82,32 @@ export function WellDetailPage() {
         extra={isAdmin && !well.data?.archived_at && <Link to={`/integrations?tab=wells&well=${wellId}`}>Связи с источниками</Link>}
       >
         <PageSpin loading={well.isLoading} error={well.error}>
-          <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }}>
-            <Descriptions.Item label="ID Pulse">{wellId}</Descriptions.Item>
-            <Descriptions.Item label="№ скважины"><span className="sensitive">{well.data?.well_number ?? '—'}</span></Descriptions.Item>
-            <Descriptions.Item label="НГДУ"><span className="sensitive">{well.data?.ngdu}</span></Descriptions.Item>
-            <Descriptions.Item label="Цех">{deptLabel(well.data?.department)}</Descriptions.Item>
-            <Descriptions.Item label="Активна">
-              <StatusTag status={well.data?.active ? 'ok' : 'no_data'} />
-            </Descriptions.Item>
-            <Descriptions.Item label="Ответственный">{well.data?.responsible??'Не назначен'}</Descriptions.Item>
-            <Descriptions.Item label="Версия карточки">{well.data?.revision??'—'}</Descriptions.Item>
-            <Descriptions.Item label="Классификация осложнений">
-              {classification.data?.classification ?? '—'}
-            </Descriptions.Item>
-          </Descriptions>
+          <Space wrap>
+            <Typography.Text type="secondary">№ скважины <span className="sensitive">{well.data?.well_number ?? '—'}</span></Typography.Text>
+            <Typography.Text type="secondary">НГДУ <span className="sensitive">{well.data?.ngdu ?? '—'}</span></Typography.Text>
+            <StatusTag status={well.data?.active ? 'ok' : 'no_data'} />
+          </Space>
         </PageSpin>
       </Card>
 
       <Tabs
-        activeKey={search.get('tab') ?? 'overview'}
-        onChange={tab => setSearch(p => { p.set('tab', tab); return p; }, {replace:true})}
+        activeKey={activeTab}
+        destroyInactiveTabPane={false}
+        onChange={tab => {
+          const next = new URLSearchParams(search);
+          next.set('tab', tab);
+          navigate({ pathname: location.pathname, search: next.toString(), hash: location.hash });
+        }}
         items={[
           {
             key: 'overview',
-            label: 'Обзор',
+            label: 'Риски',
             children: (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <Card title={`Риск отказа (ML · ${risk?.model_name ?? 'сохранённый результат'})`}>
                   <PageSpin loading={mlRisk.isLoading} error={mlRisk.error}>
                   {!risk || risk.risk === null ? (
-                    <span style={{ color: '#8c8c8c' }}>
+                    <span style={{ color: 'var(--pulse-muted)' }}>
                       {risk ? `${cohortStatusLabel(risk)}${risk.reason_code ? ` · ${risk.reason_code}` : ''}` : 'Сохранённой оценки риска нет.'}
                     </span>
                   ) : (
@@ -127,7 +127,7 @@ export function WellDetailPage() {
                             style={{ width: 120, margin: 0 }}
                           />
                         </div>
-                        <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 6 }}>
+                        <div style={{ color: 'var(--pulse-muted)', fontSize: 12, marginTop: 6 }}>
                           {cohortStatusLabel(risk)} · окно от{' '}
                           {risk.window_end
                             ? dayjs(risk.window_end).format('DD.MM.YYYY')
@@ -146,7 +146,7 @@ export function WellDetailPage() {
                   title="Риск по окнам наблюдения"
                   extra={
                     history ? (
-                      <span style={{ color: '#8c8c8c', fontSize: 12 }}>
+                      <span style={{ color: 'var(--pulse-muted)', fontSize: 12 }}>
                         сработало {history.windows_fired} окон из{' '}
                         {history.windows_total}
                         {history.threshold !== null ? ` · порог наблюдения ${(history.threshold * 100).toFixed(0)}%` : ' · порог решения не представлен в шкале риска'}
@@ -169,33 +169,55 @@ export function WellDetailPage() {
                     )}
                   </PageSpin>
                 </Card>
-
-                <Row gutter={16}>
-                  <Col xs={24}>
-                    <Card title="Осложнения">
-                      <PageSpin loading={complications.isLoading} error={complications.error}>
-                        <Table
-                          rowKey="id"
-                          columns={[
-                            { title: 'Код', dataIndex: 'code', key: 'code' },
-                            { title: 'Название', dataIndex: 'name', key: 'name' },
-                            { title: 'Категория', dataIndex: 'category', key: 'category' },
-                          ]}
-                          dataSource={complications.data ?? []}
-                          size="small"
-                          pagination={false}
-                        />
-                      </PageSpin>
-                    </Card>
-                  </Col>
-                </Row>
               </div>
             ),
           },
-          { key: 'failures', label: 'Отказы', children: <IncidentsTab wellId={wellId} /> },
-          {key:'history',label:'История карточки',children:<WellHistoryPanel wellId={wellId} />},
-          { key: 'checks', label: 'Проверки', children: <ManualChecks key={wellId} wellId={String(wellId)} /> },
           { key: 'telemetry', label: 'Телеметрия', children: well.data ? <TelemetryWorkspace key={wellId} wellId={String(wellId)} /> : <PageSpin loading={well.isLoading} error={well.error}><span /></PageSpin> },
+          { key: 'checks', label: 'Проверки', children: <ManualChecks key={wellId} wellId={String(wellId)} /> },
+          { key: 'failures', label: 'Отказы', children: <IncidentsTab wellId={wellId} /> },
+          { key: 'history', label: 'История', children: <WellHistoryPanel wellId={wellId} /> },
+          { key: 'details', label: 'Сведения', children: (
+            <div className="pulse-stack">
+              <Card title="Паспорт скважины">
+                <PageSpin loading={well.isLoading} error={well.error}>
+                  <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }}>
+                    <Descriptions.Item label="ID Pulse">{wellId}</Descriptions.Item>
+                    <Descriptions.Item label="№ скважины"><span className="sensitive">{well.data?.well_number ?? '—'}</span></Descriptions.Item>
+                    <Descriptions.Item label="НГДУ"><span className="sensitive">{well.data?.ngdu}</span></Descriptions.Item>
+                    <Descriptions.Item label="Цех">{deptLabel(well.data?.department)}</Descriptions.Item>
+                    <Descriptions.Item label="Активна">
+                      <StatusTag status={well.data?.active ? 'ok' : 'no_data'} />
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Ответственный">{well.data?.responsible??'Не назначен'}</Descriptions.Item>
+                    <Descriptions.Item label="Версия карточки">{well.data?.revision??'—'}</Descriptions.Item>
+                    <Descriptions.Item label="Классификация осложнений">
+                      <PageSpin loading={classification.isLoading} error={classification.error}>{classification.data?.classification ?? '—'}</PageSpin>
+                    </Descriptions.Item>
+                  </Descriptions>
+                </PageSpin>
+              </Card>
+              <Row gutter={16}>
+                <Col xs={24}>
+                  <Card title="Осложнения">
+                    <PageSpin loading={complications.isLoading} error={complications.error}>
+                      <Table
+                        rowKey="id"
+                        columns={[
+                          { title: 'Код', dataIndex: 'code', key: 'code' },
+                          { title: 'Название', dataIndex: 'name', key: 'name' },
+                          { title: 'Категория', dataIndex: 'category', key: 'category' },
+                        ]}
+                        dataSource={complications.data ?? []}
+                        size="small"
+                        pagination={false}
+                        scroll={{ x: 560 }}
+                      />
+                    </PageSpin>
+                  </Card>
+                </Col>
+              </Row>
+            </div>
+          ) },
         ]}
       />
     </div>

@@ -12,7 +12,10 @@ interface PageSpinProps {
 export function PageSpin({ loading, error, children }: PageSpinProps) {
   if (error) {
     const apiErr = toApiError(error);
-    return <Alert type="error" showIcon message={apiErr.code} description={apiErr.message} />;
+    return <Alert type="error" showIcon message={apiErr.code} description={<>
+      <div>{apiErr.message}</div>
+      {apiErr.http_request_id && <div className="pulse-error-reference">Код обращения: {apiErr.http_request_id}</div>}
+    </>} />;
   }
   if (loading) {
     return (

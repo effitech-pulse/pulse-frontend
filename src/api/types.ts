@@ -143,6 +143,8 @@ export interface ApiError {
   code: string;
   message: string;
   detail?: unknown;
+  /** Безопасный X-Request-ID конкретной HTTP-попытки; не бизнес request_id. */
+  http_request_id?: string;
 }
 
 export interface IncidentStats {

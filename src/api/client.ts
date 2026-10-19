@@ -20,15 +20,23 @@ export const apiClient = axios.create({
 export function toApiError(error: unknown): ApiError {
   if (axios.isAxiosError(error)) {
     const axErr = error as AxiosError<ApiError>;
+    const headers = axErr.response?.headers;
+    const keys = Object.keys(headers ?? {}).filter(key => key.toLowerCase() === 'x-request-id');
+    const value: unknown = keys.length === 1 ? headers?.[keys[0]] : undefined;
+    // Reject combined/duplicate headers and controls, including a final newline.
+    const http_request_id = typeof value === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(value) && !/[\r\n]/.test(value) ? value : undefined;
     if (axErr.response?.data?.message) {
-      return axErr.response.data;
+      // The header is authoritative. Never trust a body-provided correlation ID,
+      // mutate response data or replace an existing business request_id.
+      const { http_request_id: _untrustedId, ...body } = axErr.response.data;
+      return { ...body, ...(http_request_id ? { http_request_id } : {}) };
     }
     // FastAPI HTTPException кладёт человекочитаемый текст в detail
     const detail = (axErr.response?.data as { detail?: unknown } | undefined)?.detail;
     if (typeof detail === 'string') {
-      return { code: `http_${axErr.response?.status ?? 0}`, message: detail };
+      return { code: `http_${axErr.response?.status ?? 0}`, message: detail, ...(http_request_id ? { http_request_id } : {}) };
     }
-    return { code: 'network_error', message: axErr.message };
+    return { code: 'network_error', message: axErr.message, ...(http_request_id ? { http_request_id } : {}) };
   }
   return { code: 'unknown_error', message: String(error) };
 }

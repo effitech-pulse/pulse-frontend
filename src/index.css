@@ -134,6 +134,11 @@ img.app-brand-mark { width: 28px; height: 28px; flex-shrink: 0; }
 .pulse-well-page, .pulse-well-page .ant-tabs,
 .pulse-well-page .ant-tabs-content-holder, .pulse-well-page .ant-tabs-content,
 .pulse-well-page .ant-tabs-tabpane, .pulse-well-page .ant-card { min-width: 0; max-width: 100%; }
+.pulse-well-page .ant-tabs-tab-btn:focus-visible { outline: 2px solid var(--pulse-blue); outline-offset: 4px; border-radius: 2px; }
+.pulse-error-reference { margin-top: 8px; color: var(--pulse-muted); overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  .pulse-well-page .ant-tabs-ink-bar, .pulse-well-page .ant-tabs-nav-list { transition: none !important; }
+}
 .pulse-risk-history-chart { position: relative; width: 100%; max-width: 100%; min-width: 0; height: 280px; }
 .app-header-context { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .app-nav-toggle.ant-btn { display: none; }
