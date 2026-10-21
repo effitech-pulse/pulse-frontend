@@ -1,4 +1,4 @@
-import { Alert, Button, Descriptions, Drawer, Empty, List, Space, Tag, Typography } from 'antd';
+import { App, Alert, Button, Descriptions, Drawer, Empty, List, Space, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthProvider';
@@ -9,17 +9,20 @@ import { integrationsApi } from '@/api/integrations';
 import { toApiError } from '@/api/client';
 
 export function WorkspaceProfile({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { principal, mode, isAdmin } = useAuth();
+  const { principal, mode, isAdmin, logout } = useAuth();
+  const { message } = App.useApp();
   return <Drawer title="Мой профиль" open={open} onClose={onClose}>
     <Descriptions column={1} layout="vertical" items={[
       { key: 'name', label: 'Имя', children: principal?.name },
       { key: 'role', label: 'Роль', children: principal && roleLabels[principal.role] },
       { key: 'mode', label: 'Доступ', children: mode === 'local' ? 'Личная учётная запись' : 'Общее рабочее пространство' },
-      { key: 'funds', label: 'Доступные фонды', children: principal?.scope.funds.map(f => f === 'operational' ? 'Рабочий фонд' : 'Показательный фонд').join(', ') },
       { key: 'ngdu', label: 'НГДУ', children: principal?.scope.ngdus?.join(', ') ?? 'Все разрешённые НГДУ' },
       { key: 'departments', label: 'Цеха', children: principal?.scope.departments?.join(', ') ?? 'Все разрешённые цеха' },
     ]} />
-    {isAdmin && <Link to="/accounts" onClick={onClose}>Управление пользователями и доступом →</Link>}
+    <Space direction="vertical" size={20}>
+      {isAdmin && <Link to="/accounts" onClick={onClose}>Управление пользователями и доступом →</Link>}
+      {mode === 'local' && <Button onClick={() => { void logout().then(onClose).catch(error => message.error(toApiError(error).message)); }}>Выйти из аккаунта</Button>}
+    </Space>
   </Drawer>;
 }
 

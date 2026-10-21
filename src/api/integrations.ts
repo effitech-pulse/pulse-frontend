@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 
-export type SourceKind = 'json_pull' | 'json_push' | 'clickhouse' | 'postgres' | 'mysql' | 'file' | 'demo';
+export type SourceKind = 'json_pull' | 'json_push' | 'clickhouse' | 'postgres' | 'mysql' | 'file';
 export interface Mapping { field: string; parameter: string; unit: string; scale: number; offset: number; missing: string; is_set: boolean }
 export interface Source {
   well_identity?: 'pulse' | 'unitek' | 'armits';

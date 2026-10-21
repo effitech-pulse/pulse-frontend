@@ -10,7 +10,6 @@ import './index.css';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { AuthProvider } from '@/auth/AuthProvider';
 import {FundFiltersProvider} from '@/theme/FundFilters';
-import { FundProvider } from '@/theme/FundProvider';
 import { router } from '@/router';
 
 const queryClient = new QueryClient({
@@ -27,7 +26,7 @@ createRoot(rootElement).render(
     <ThemeProvider>
       <AntApp>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider><FundProvider><FundFiltersProvider><RouterProvider router={router} /></FundFiltersProvider></FundProvider></AuthProvider>
+          <AuthProvider><FundFiltersProvider><RouterProvider router={router} /></FundFiltersProvider></AuthProvider>
         </QueryClientProvider>
       </AntApp>
     </ThemeProvider>

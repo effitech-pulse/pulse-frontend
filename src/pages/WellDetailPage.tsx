@@ -1,18 +1,17 @@
-import { Alert, Card, Col, Descriptions, Empty, Progress, Row, Table, Tabs, Tag, Space, Typography } from 'antd';
+import { Alert, Card, Col, Descriptions, Empty, Row, Table, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import { RiskHistoryChart } from '@/components/ml/RiskHistoryChart';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useDepartments, useWell, useWellComplications } from '@/hooks/useWells';
 import { wellsApi } from '@/api/wells';
 import { useQuery } from '@tanstack/react-query';
 import { PageSpin } from '@/components/common/PageSpin';
-import { StatusTag } from '@/components/common/StatusTag';
+import { formatSnapshotTime } from '@/lib/displayTime';
 import { IncidentsTab } from '@/components/wells/IncidentsTab';
 import { mlRiskRow, mlHistory, cohortStatusLabel } from '@/lib/mlSnapshot';
 import { mlApi } from '@/api/ml';
 import { ExplainBars } from '@/components/ml/ExplainBars';
-import { useFund } from '@/theme/FundProvider';
 import { ManualChecks } from '@/components/telemetry/ManualChecks';
 import {WellHistoryPanel} from '@/components/wells/WellHistoryPanel';
 import {useAuth} from '@/auth/AuthProvider';
@@ -30,8 +29,6 @@ export function WellDetailPage() {
   const selectedRun=Number(search.get('run_id')) || undefined;
   const well = useWell(wellId);
   const {isAdmin}=useAuth();
-  const {fund, setFund} = useFund();
-  useEffect(() => { if (well.data && (well.data.fund_type ?? 'operational') !== fund) setFund(well.data.fund_type ?? 'operational'); }, [well.data, fund, setFund]);
   const complications = useWellComplications(wellId);
   const classification = useQuery({
     queryKey: ['well', wellId, 'classification'],
@@ -74,20 +71,17 @@ export function WellDetailPage() {
   );
 
   return (
-    <div className="pulse-well-page" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {well.data?.fund_type === 'presentation' && <Alert type="info" showIcon message="Показательный фонд" description="Синтетические обезличенные скважины. Реальная телеметрия не раскрывается в связи с NDA." />}
+    <div className="pulse-well-page pulse-stack">
       {well.data?.archived_at&&<Alert type="warning" showIcon message="Скважина в архиве" description={`Скрыта из оперативного фонда с ${new Date(well.data.archived_at).toLocaleString('ru',{timeZone:'Europe/Moscow'})} МСК. Телеметрия, проверки и заключения доступны. Для изменения карточки сначала восстановите скважину.`} />}
-      <Card
-        title={`Скважина · ID Pulse ${wellId}`}
-        extra={isAdmin && !well.data?.archived_at && <Link to={`/integrations?tab=wells&well=${wellId}`}>Связи с источниками</Link>}
-      >
-        <PageSpin loading={well.isLoading} error={well.error}>
-          <Space wrap>
-            <Typography.Text type="secondary">№ скважины <span className="sensitive">{well.data?.well_number ?? '—'}</span></Typography.Text>
-            <Typography.Text type="secondary">НГДУ <span className="sensitive">{well.data?.ngdu ?? '—'}</span></Typography.Text>
-            <StatusTag status={well.data?.active ? 'ok' : 'no_data'} />
-          </Space>
-        </PageSpin>
+      <Card className="pulse-well-heading">
+        <div className="pulse-toolbar">
+          <div><h1>Скважина · ID Pulse {wellId}</h1>
+            <PageSpin loading={well.isLoading} error={well.error}>
+              <p>№ скважины <span className="sensitive">{well.data?.well_number ?? '—'}</span><span aria-hidden="true"> · </span>НГДУ <span className="sensitive">{well.data?.ngdu ?? '—'}</span><span aria-hidden="true"> · </span>{well.data?.active ? 'Активна' : 'Неактивна'}</p>
+            </PageSpin>
+          </div>
+          {isAdmin && !well.data?.archived_at && <Link to={`/integrations?tab=wells&well=${wellId}`}>Связи с источниками</Link>}
+        </div>
       </Card>
 
       <Tabs
@@ -103,8 +97,9 @@ export function WellDetailPage() {
             key: 'overview',
             label: 'Риски',
             children: (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <Card title={`Риск отказа (ML · ${risk?.model_name ?? 'сохранённый результат'})`}>
+              <div className="pulse-stack pulse-risk-panels">
+                <Card className="pulse-risk-card"><h2>{`Риск отказа (ML · ${risk?.model_name ?? 'сохранённый результат'})`}</h2>
+                  {risk?.snapshot_id && <p className="pulse-result-meta" title={risk.as_of ?? undefined}>Сохранённый расчёт № {risk.run_id ?? '—'} · данные по {risk.as_of ? formatSnapshotTime(risk.as_of) : 'неизвестной дате'}</p>}
                   <PageSpin loading={mlRisk.isLoading} error={mlRisk.error}>
                   {!risk || risk.risk === null ? (
                     <span style={{ color: 'var(--pulse-muted)' }}>
@@ -113,25 +108,9 @@ export function WellDetailPage() {
                   ) : (
                     <Row gutter={24} align="middle">
                       <Col xs={24} md={7}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <Tag
-                            color={risk.tier === 'alert' ? '#d64545' : risk.tier === 'watch' ? '#c98a1f' : '#2e9e6b'}
-                            style={{ fontSize: 16, padding: '4px 10px' }}
-                          >
-                            {(risk.risk * 100).toFixed(1)}%
-                          </Tag>
-                          <Progress
-                            percent={risk.risk * 100}
-                            showInfo={false}
-                            strokeColor={risk.tier === 'alert' ? '#d64545' : risk.tier === 'watch' ? '#c98a1f' : '#2e9e6b'}
-                            style={{ width: 120, margin: 0 }}
-                          />
-                        </div>
-                        <div style={{ color: 'var(--pulse-muted)', fontSize: 12, marginTop: 6 }}>
-                          {cohortStatusLabel(risk)} · окно от{' '}
-                          {risk.window_end
-                            ? dayjs(risk.window_end).format('DD.MM.YYYY')
-                            : '—'}
+                        <div className="pulse-risk-value">
+                          <strong>{(risk.risk * 100).toFixed(1)}%</strong>
+                          <span>{cohortStatusLabel(risk)} · окно от {risk.window_end ? dayjs(risk.window_end).format('DD.MM.YYYY') : '—'}</span>
                         </div>
                       </Col>
                       <Col xs={24} md={17}>
@@ -139,7 +118,7 @@ export function WellDetailPage() {
                       </Col>
                     </Row>
                   )}
-                  {risk?.snapshot_id && <p>Сохранённый расчёт № {risk.run_id ?? '—'} · данные по {risk.as_of ?? 'неизвестной дате'}. {risk.provenance_status === 'historical_unknown' ? 'Происхождение исторического результата неизвестно.' : 'Происхождение результата подтверждено частично.'}</p>}
+                  {risk?.snapshot_id && <p className="pulse-result-provenance">{risk.provenance_status === 'historical_unknown' ? 'Происхождение исторического результата неизвестно.' : 'Происхождение результата подтверждено частично.'}</p>}
                   </PageSpin>
                 </Card>
                 <Card
@@ -180,13 +159,13 @@ export function WellDetailPage() {
             <div className="pulse-stack">
               <Card title="Паспорт скважины">
                 <PageSpin loading={well.isLoading} error={well.error}>
-                  <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }}>
+                  <Descriptions className="pulse-passport" size="small" column={1} colon={false}>
                     <Descriptions.Item label="ID Pulse">{wellId}</Descriptions.Item>
                     <Descriptions.Item label="№ скважины"><span className="sensitive">{well.data?.well_number ?? '—'}</span></Descriptions.Item>
                     <Descriptions.Item label="НГДУ"><span className="sensitive">{well.data?.ngdu}</span></Descriptions.Item>
                     <Descriptions.Item label="Цех">{deptLabel(well.data?.department)}</Descriptions.Item>
                     <Descriptions.Item label="Активна">
-                      <StatusTag status={well.data?.active ? 'ok' : 'no_data'} />
+                      {well.data ? (well.data.active ? 'Да' : 'Нет') : '—'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Ответственный">{well.data?.responsible??'Не назначен'}</Descriptions.Item>
                     <Descriptions.Item label="Версия карточки">{well.data?.revision??'—'}</Descriptions.Item>
@@ -210,6 +189,7 @@ export function WellDetailPage() {
                         dataSource={complications.data ?? []}
                         size="small"
                         pagination={false}
+                        locale={{ emptyText: <span className="pulse-muted">Нет данных</span> }}
                         scroll={{ x: 560 }}
                       />
                     </PageSpin>

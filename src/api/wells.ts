@@ -19,8 +19,8 @@ export interface WellHistory {events:WellEvent[];has_more:boolean}
 const V1 = '/api/v1';
 
 export const wellsApi = {
-  list: (activeOnly = true, fund?: string, filters?:FundFilters, archive:WellArchive = 'current') =>
-    apiClient.get<Well[]>(`${V1}/wells`, { params: { active_only: activeOnly, fund, ...filters, archive } }).then((r) => r.data),
+  list: (activeOnly = true, filters?:FundFilters, archive:WellArchive = 'current') =>
+    apiClient.get<Well[]>(`${V1}/wells`, { params: { active_only: activeOnly, ...filters, archive } }).then((r) => r.data),
   get: (wellId: number) => apiClient.get<Well>(`${V1}/wells/${wellId}`,{params:{include_archived:true}}).then((r) => r.data),
   update: (wellId: number, data: WellUpdate) =>
     apiClient.patch<Well>(`${V1}/wells/${wellId}`, data).then((r) => r.data),
@@ -41,8 +41,8 @@ export const wellsApi = {
     apiClient.post<Well>(`${V1}/wells`, well).then((r) => r.data),
   createBulk: (wells: WellCreate[]) =>
     apiClient.post<WellImportResult>(`${V1}/wells/bulk`, wells).then((r) => r.data),
-  exportXlsx: (fund?: string, filters?:FundFilters, activeOnly = false, archive:WellArchive = 'current') =>
-    apiClient.get(`${V1}/wells/export`, { responseType: 'blob', params: {identity:'pulse',lifecycle:true, fund,...filters,active_only:activeOnly,archive} }).then((r) => r.data as Blob),
+  exportXlsx: (filters?:FundFilters, activeOnly = false, archive:WellArchive = 'current') =>
+    apiClient.get(`${V1}/wells/export`, { responseType: 'blob', params: {identity:'pulse',lifecycle:true,...filters,active_only:activeOnly,archive} }).then((r) => r.data as Blob),
   predictions: (wellId: number, limit = 100) =>
     apiClient
       .get<Prediction[]>(`${V1}/wells/${wellId}/predictions`, { params: { limit } })
@@ -67,7 +67,8 @@ export const departmentsApi = {
 };
 
 export const ngduApi = {
-  list: () => apiClient.get<Ngdu[]>(`${V1}/ngdu`).then((r) => r.data),
+  // Зарезервированный ID Connector сохраняется для прав и связей; меняется только UI-название.
+  list: () => apiClient.get<Ngdu[]>(`${V1}/ngdu`).then((r) => r.data.map(item => item.id === -900 ? {...item, name: 'Pulse Connector'} : item)),
   create: (item: { id: number; name: string }) =>
     apiClient.post<Ngdu>(`${V1}/ngdu`, item).then((r) => r.data),
   update: (id: number, name: string) =>

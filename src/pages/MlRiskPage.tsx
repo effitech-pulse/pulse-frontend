@@ -1,344 +1,88 @@
-import {useAuth} from '@/auth/AuthProvider';
-import { PresentationOverview } from '@/components/telemetry/PresentationOverview';
-import { useWells } from '@/hooks/useWells';
-import { useFund } from '@/theme/FundProvider';
-import { Alert, Button, Card, Col, Modal, Progress, Row, Segmented, Statistic, Table, Tag, Tooltip } from 'antd';
-import {
-  PlayCircleOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
+import { Alert, Button, Card, Collapse, Descriptions, Modal, Select, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
-import { useFundFilters } from '@/theme/FundFilters';
-import { mlRows, mlScopedRows, mlSnapshotNotice, cohortStatusLabel, mlAlertReviewPath } from '@/lib/mlSnapshot';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/auth/AuthProvider';
+import { useWells } from '@/hooks/useWells';
+import { useFundFilters } from '@/theme/FundFilters';
+import { mlRows, mlScopedRows, mlSnapshotNotice, cohortStatusLabel, mlAlertReviewPath } from '@/lib/mlSnapshot';
+import { filterMonitoringAlerts, type AlertModelFilter, type AlertProcessingFilter } from '@/lib/monitoringAlerts';
+import { formatSnapshotTime } from '@/lib/displayTime';
 import { mlApi, type MlDisplayWell } from '@/api/ml';
-import { toApiError } from '@/api/client';
 import { PageSpin } from '@/components/common/PageSpin';
 import { ExplainBars } from '@/components/ml/ExplainBars';
-import { useMlRun } from '@/hooks/useMlRun';
-import dayjs from 'dayjs';
+import { FundFilterBar } from '@/components/layout/FundFilterBar';
 import { ReviewPanel } from '@/components/telemetry/ReviewPanel';
+import { useMlRun } from '@/hooks/useMlRun';
 import { FAILURE_TYPE_RU } from '@/lib/labels';
 
-const ALERT_STATUS_RU = {
-  new: { label: 'новая', color: 'red' },
-  confirmed: { label: 'подтверждена', color: 'orange' },
-  inconclusive: { label: 'нужны данные', color: 'gold' },
-  acknowledged: { label: 'в работе', color: 'blue' },
-  false_positive: { label: 'ложная', color: 'default' },
+const PROCESSING = {
+  new: { label: 'Новая', color: 'blue' }, acknowledged: { label: 'В работе', color: 'gold' },
+  confirmed: { label: 'Подтверждена', color: 'green' }, false_positive: { label: 'Ложная', color: 'default' },
+  inconclusive: { label: 'Нужны данные', color: 'gold' },
 } as const;
+const MODELS = [
+  {value:'attention',label:'Тревоги и наблюдения'}, {value:'all',label:'Все оценки'}, {value:'alert',label:'Тревога'},
+  {value:'watch',label:'Наблюдение'}, {value:'normal',label:'Норма'}, {value:'unscored',label:'Без оценки'},
+];
 
-function riskColor(risk: number, threshold: number, high = 1.0): string {
-  if (risk >= high) return '#d64545';
-  if (risk >= threshold) return '#c98a1f';
-  return '#8c8c8c';
-}
-
-export function MlRiskPage() { const {fund} = useFund(); const ml=useQuery({queryKey:['ml-wells'],queryFn:()=>mlApi.wells(false)}); if(ml.isLoading)return <PageSpin loading><span /></PageSpin>; if(ml.isError)return <PageSpin loading={false} error={ml.error}><span /></PageSpin>; return fund === 'presentation' && ml.data?.profile !== 'cohort' ? <PresentationOverview /> : <OperationalMlRiskPage />; }
-function OperationalMlRiskPage() {
- const {isAdmin}=useAuth();
- const {filters}=useFundFilters();
- const [search]=useSearchParams();
- const selectedRun=Number(search.get('run_id')) || undefined;
-  const [filter, setFilter] = useState<'all' | 'alerts'>('all');
+export function MlRiskPage() {
+  const { isAdmin } = useAuth();
+  const { filters } = useFundFilters();
+  const [search, setSearch] = useSearchParams();
+  const selectedRun = Number(search.get('run_id')) || undefined;
+  const model = (MODELS.some(item => item.value === search.get('model')) ? search.get('model') : 'attention') as AlertModelFilter;
+  const processing = (['new','acknowledged','confirmed','false_positive','inconclusive','unlinked'].includes(search.get('processing') ?? '') ? search.get('processing') : 'all') as AlertProcessingFilter;
   const [explainWell, setExplainWell] = useState<MlDisplayWell | null>(null);
-
-  const wellsQ = useQuery({
-    queryKey: selectedRun ? ['ml-snapshot',selectedRun] : ['ml-wells'],
-    queryFn: () => selectedRun ? mlApi.snapshot(selectedRun) : mlApi.wells(false),
-  });
-  const metricsQ = useQuery({ queryKey: ['ml-metrics'], queryFn: mlApi.metrics,enabled:isAdmin && !!wellsQ.data && wellsQ.data.profile !== 'cohort' });
-  const { running, lastRun, start } = useMlRun();
-
+  function selectFilter(key: string, value: string) { const next = new URLSearchParams(search); if (value === (key === 'model' ? 'attention' : 'all')) next.delete(key); else next.set(key, value); setSearch(next, {replace:true}); }
+  const wellsQ = useQuery({ queryKey: selectedRun ? ['ml-snapshot',selectedRun] : ['ml-wells'], queryFn: () => selectedRun ? mlApi.snapshot(selectedRun) : mlApi.wells(false) });
   const cohort = wellsQ.data?.profile === 'cohort';
-  const threshold = wellsQ.data && wellsQ.data.profile !== 'cohort' ? wellsQ.data.alert_threshold : null;
-  const highThreshold = wellsQ.data && wellsQ.data.profile !== 'cohort' ? wellsQ.data.high_threshold : null;
-  const registry = useWells();
+  const metricsQ = useQuery({ queryKey: ['ml-metrics'], queryFn: mlApi.metrics, enabled: isAdmin && !!wellsQ.data && !cohort });
+  const { running, lastRun, start } = useMlRun();
+  const registry = useWells(false, true, 'all');
   const wells = mlScopedRows(mlRows(wellsQ.data), registry.data ?? [], filters, cohort);
+  const registryById = useMemo(() => new Map((registry.data ?? []).map(well => [well.id, well])), [registry.data]);
+  const shown = filterMonitoringAlerts(wells, model, processing);
   const notice = mlSnapshotNotice(wellsQ.data, lastRun);
-  const alerts = useMemo(() => wells.filter((w) => w.tier === 'alert'), [wells]);
-  const watches = useMemo(() => wells.filter((w) => w.tier === 'watch'), [wells]);
+  const readableNotice = wellsQ.data?.profile === 'cohort' && wellsQ.data.as_of ? notice?.replace(wellsQ.data.as_of, formatSnapshotTime(wellsQ.data.as_of)) : notice;
   const reviewPath = explainWell ? mlAlertReviewPath(explainWell) : null;
-  const shown =
-    filter === 'alerts' ? wells.filter((w) => w.tier !== null) : wells;
-
-  const stage1 = cohort ? undefined : metricsQ.data?.models.find((m) => m.name.startsWith('stage1'));
-  const report = stage1?.metrics.report;
-  const perWell = stage1?.calibration?.per_well;
-
+  const stage1 = cohort ? undefined : metricsQ.data?.models.find(item => item.name.startsWith('stage1'));
+  const report = stage1?.metrics.report, perWell = stage1?.calibration?.per_well;
+  const recall = perWell?.recall ?? report?.class_recall['1'];
+  const precision = perWell?.precision ?? report?.class_precision['1'];
+  const metadata = (row: MlDisplayWell) => row.metadata ?? (row.app_well_id != null ? registryById.get(row.app_well_id) : undefined);
   const columns: ColumnsType<MlDisplayWell> = [
-    {
-      title: 'Скважина',
-      dataIndex: 'app_well_id',
-      key: 'app_well_id',
-      width: 110,
-      render: (id: number, r) =>
-        r.app_well_id != null ? (
-          <Link to={`/wells/${r.app_well_id}${r.run_id != null ? `?run_id=${r.run_id}` : ''}`} onClick={(e) => e.stopPropagation()}>
-            <b>{id}</b>
-          </Link>
-        ) : (
-          <span>Не сопоставлена</span>
-        ),
-    },
-    { title: 'НГДУ', dataIndex: 'oilfield', key: 'oilfield', width: 110,
-      render: (v: string | null) => <span className="sensitive">{v}</span> },
-    {
-      title: 'Риск отказа',
-      dataIndex: 'risk',
-      key: 'risk',
-      sorter: (a, b) => (a.risk ?? -1) - (b.risk ?? -1),
-      defaultSortOrder: cohort ? undefined : 'descend',
-      render: (risk: number | null, r) => risk === null ? <Tag>{cohortStatusLabel(r)}</Tag> : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 220 }}>
-          <Tag color={cohort ? (r.tier === 'alert' ? '#d64545' : r.tier === 'watch' ? '#c98a1f' : '#8c8c8c') : riskColor(risk, threshold!, highThreshold!)} style={{ minWidth: 64, textAlign: 'center' }}>
-            {(risk * 100).toFixed(1)}%
-          </Tag>
-          <Progress
-            percent={risk * 100}
-            size="small"
-            showInfo={false}
-            strokeColor={cohort ? (r.tier === 'alert' ? '#d64545' : r.tier === 'watch' ? '#c98a1f' : '#8c8c8c') : riskColor(risk, threshold!, highThreshold!)}
-            style={{ width: 70, margin: 0 }}
-          />
-          {r.data_ok === false && (
-            <Tooltip title="Связь с установкой терялась — текущий риск посчитан по неполному ряду">
-              <Tag color="default" style={{ cursor: 'help' }}>нет связи</Tag>
-            </Tooltip>
-          )}
-          {r.tier && (
-            <Tooltip
-              title={
-                `Ярус сохранён моделью для этого запуска. ` +
-                `${r.windows_fired ?? '—'} из ${r.windows_total ?? '—'} окон сработало по правилу решения.`
-              }
-            >
-              <Tag color={r.tier === 'alert' ? '#d64545' : '#c98a1f'} style={{ cursor: 'help' }}>
-                {r.tier === 'alert' ? 'тревога' : 'наблюдение'} · {r.windows_fired} окон
-              </Tag>
-            </Tooltip>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: 'Статус тревоги',
-      key: 'alert_status',
-      width: 190,
-      render: (_: unknown, r) => {
-        if (r.alert_id == null || !r.alert_status) return null;
-        const st = ALERT_STATUS_RU[r.alert_status];
-        return (
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Tag color={st.color}>{st.label}</Tag>
-            <Button size="small" onClick={() => setExplainWell(r)}>Обработка</Button>
-          </div>
-        );
-      },
-    },
-    {
-      title: 'Последнее окно',
-      dataIndex: 'window_end',
-      key: 'window_end',
-      width: 140,
-      render: (v: string | null) => (v ? dayjs(v).format('DD.MM.YYYY') : '—'),
-    },
-    {
-      title: 'Исход по КРС (постфактум)',
-      key: 'true',
-      render: (_: unknown, r) =>
-        r.true_failure_type_name ? (
-          <span>
-            {FAILURE_TYPE_RU[r.true_failure_type_name] ?? r.true_failure_type_name}
-            {r.true_failure_at ? ` · ${dayjs(r.true_failure_at).format('DD.MM.YYYY')}` : ''}
-          </span>
-        ) : (
-          <Tag>{cohort ? 'Нет зарегистрированного исхода' : 'норма'}</Tag>
-        ),
-    },
+    { title: 'Скважина', key: 'well', width: 165, render: (_, row) => row.app_well_id != null ? <Link to={`/wells/${row.app_well_id}${row.run_id != null ? `?run_id=${row.run_id}` : ''}`}>№ {metadata(row)?.well_number ?? '—'}<small className="pulse-cell-meta">ID Pulse {row.app_well_id}</small></Link> : 'Не сопоставлена' },
+    { title: 'Модель', key: 'model', width: 150, sorter: (a,b) => (a.risk ?? -1) - (b.risk ?? -1), render: (_,row) => <><span className={row.risk === null ? 'pulse-muted' : row.tier === 'alert' ? 'pulse-danger' : row.tier === 'watch' ? 'pulse-warning' : 'pulse-success'}>{cohortStatusLabel(row)}</span>{row.risk !== null && <small className="pulse-cell-meta">Риск {(row.risk * 100).toFixed(1)}%</small>}</> },
+    { title: 'Обработка', key: 'processing', width: 145, render: (_,row) => row.alert_id != null && row.alert_status ? <Tag color={PROCESSING[row.alert_status]?.color ?? 'default'}>{PROCESSING[row.alert_status]?.label ?? 'Статус не передан'}</Tag> : <span className="pulse-muted">Нет записи обработки</span> },
+    { title: 'Основание / окно', key: 'reason', render: (_,row) => <>{row.rule_findings.length ? row.rule_findings.join(' · ') : row.risk === null ? row.reason_code ?? 'Нет оценки' : `${row.windows_fired ?? '—'} из ${row.windows_total ?? '—'} окон сработало`}<small className="pulse-cell-meta">{row.window_end ? formatSnapshotTime(row.window_end) : 'Дата окна не передана'}{row.data_ok === false ? ' · есть пропуски' : row.data_ok === null ? ' · полнота неизвестна' : ''}</small></> },
+    { title: 'Ответственный за скважину', key: 'owner', width: 170, render: (_,row) => metadata(row)?.responsible || 'Не назначен' },
+    { title: 'Действие', key: 'action', width: 115, render: (_,row) => <Button type="link" onClick={() => setExplainWell(row)}>{row.alert_status === 'new' ? 'Проверить' : row.alert_status === 'acknowledged' ? 'Продолжить' : 'Открыть'}</Button> },
   ];
-
-  if (wellsQ.isLoading)
-    return (
-      <PageSpin loading>
-        <span />
-      </PageSpin>
-    );
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Row gutter={16}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic title="Скважин с оценкой" value={wells.filter(w => w.risk !== null).length} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title={highThreshold === null ? 'Тревога · сохранённый ярус' : `Тревога (порог ${(highThreshold * 100).toFixed(0)}%)`}
-              value={alerts.length}
-              valueStyle={{ color: '#d64545' }}
-              prefix={<WarningOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title={threshold === null ? 'Наблюдение · сохранённый ярус' : `Наблюдение (порог ${(threshold * 100).toFixed(0)}%)`}
-              value={watches.length}
-              valueStyle={{ color: '#c98a1f' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Recall по скважинам (CV)"
-              value={
-                perWell
-                  ? Math.round(perWell.recall * 100)
-                  : report
-                    ? Math.round((report.class_recall['1'] ?? 0) * 100)
-                    : '—'
-              }
-              suffix="%"
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title={
-                <Tooltip
-                  title={
-                    'Измерено на выборке проекта, где отказали 41% скважин. ' +
-                    'В действующем фонде отказы реже (около 13% за квартал), ' +
-                    'поэтому ожидаемая точность ниже: ~46% для яруса «тревога» ' +
-                    'и ~34% для «наблюдения». Полнота от состава фонда не зависит.'
-                  }
-                >
-                  <span style={{ borderBottom: '1px dashed #bfbfbf', cursor: 'help' }}>
-                    Precision на выборке (41% отказных)
-                  </span>
-                </Tooltip>
-              }
-              value={
-                perWell
-                  ? Math.round(perWell.precision * 100)
-                  : report
-                    ? Math.round((report.class_precision['1'] ?? 0) * 100)
-                    : '—'
-              }
-              suffix="%"
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      <Card
-        className="pulse-responsive-card"
-        title={cohort ? 'Риск отказа по скважинам · сохранённый результат' : `Риск отказа по скважинам · модель ${stage1?.name ?? '—'}`}
-        extra={
-          <div className="pulse-ml-actions">
-            {!cohort && lastRun && (
-              <span style={{ color: '#8c8c8c', fontSize: 12 }}>
-                прогон {dayjs(lastRun.started_at).format('DD.MM HH:mm')} (
-                {lastRun.trigger === 'scheduled' ? 'авто' : 'вручную'})
-              </span>
-            )}
-            <Segmented
-              value={filter}
-              onChange={(v) => setFilter(v as 'all' | 'alerts')}
-              options={[
-                { label: 'Все', value: 'all' },
-                { label: `Тревога+наблюдение (${alerts.length + watches.length})`, value: 'alerts' },
-              ]}
-            />
-            <Button
-              disabled={!isAdmin}
-              icon={<PlayCircleOutlined />}
-              loading={running || wellsQ.data?.running || start.isPending}
-              onClick={() => start.mutate()}
-            >
-              {running ? 'Идёт прогон...' : 'Прогнать'}
-            </Button>
-          </div>
-        }
-      >
-        {notice && <Alert type="info" message={notice} style={{marginBottom:16}} />}
-        {wellsQ.isError ? (
-          <div style={{ color: '#c98a1f' }}>
-            {toApiError(wellsQ.error).message}
-          </div>
-        ) : (
-          <Table
-            rowKey={w => w.app_well_id ?? w.well_id!}
-            size="middle"
-            scroll={{x:1050}}
-            columns={columns}
-            dataSource={shown}
-            pagination={{ pageSize: 15, showTotal: (t) => `Всего: ${t}` }}
-            onRow={(r) => ({ onClick: () => setExplainWell(r), style: { cursor: 'pointer' } })}
-          />
-        )}
-      </Card>
-
-      <Modal
-        open={explainWell !== null}
-        onCancel={() => setExplainWell(null)}
-        footer={
-          explainWell?.app_well_id ? (
-            <Link to={`/wells/${explainWell.app_well_id}${explainWell.run_id != null ? `?run_id=${explainWell.run_id}` : ''}`}>
-              <Button type="primary">Открыть карточку скважины</Button>
-            </Link>
-          ) : null
-        }
-        width={620}
-        title={
-          explainWell
-            ? `${explainWell.app_well_id != null ? `Скважина · ID Pulse ${explainWell.app_well_id}` : 'Скважина не сопоставлена'} · ${explainWell.risk === null ? cohortStatusLabel(explainWell) : `риск ${(explainWell.risk * 100).toFixed(1)}% — почему?`}`
-            : ''
-        }
-      >
-        {explainWell && (
-          <>
-            {reviewPath !== null && <ReviewPanel key={reviewPath} path={reviewPath} />}
-            {/* Стадия 0: сработавшие правила — основания рядом с вкладом
-                признаков. Технолог должен видеть не только «что подняло риск»,
-                но и «какое правило сработало» */}
-            {explainWell.rule_findings.length > 0 && (
-              <div style={{ marginBottom: 14 }}>
-                {explainWell.rule_findings.map((r) => (
-                  <Tag key={r} color="#8c6d1f" style={{ marginBottom: 4 }}>
-                    {r}
-                  </Tag>
-                ))}
-              </div>
-            )}
-            {explainWell.data_ok === false && (
-              <Alert
-                type="warning"
-                showIcon
-                style={{ marginBottom: 14 }}
-                message="Последнее окно неполное: связь с установкой терялась"
-                description={
-                  'Текущий риск посчитан по неполному ряду и может быть занижен. ' +
-                  'Ярус скважины при этом остаётся: он опирается на всю историю ' +
-                  'наблюдения, а не на последнее окно.'
-                }
-              />
-            )}
-            {explainWell.risk === null ? <Alert type="info" message={cohortStatusLabel(explainWell)} description={explainWell.reason_code} /> : <ExplainBars wellId={explainWell.well_id} contributions={explainWell.contributions} windowKind={explainWell.explanation_window_kind} windowEnd={explainWell.explanation_window_end} />}
-          </>
-        )}
-      </Modal>
+  return <div className="pulse-stack pulse-monitoring-page pulse-monitoring-alerts">
+    <div className="pulse-page-heading pulse-toolbar"><div><h1>Тревоги</h1><p>Оценка модели и статус обработки отображаются раздельно</p></div>{isAdmin && <Button type="primary" loading={running || wellsQ.data?.running || start.isPending} onClick={() => start.mutate()}>Запустить расчёт</Button>}</div>
+    <FundFilterBar hasExtraFilters={model !== 'attention' || processing !== 'all'} onReset={() => { const next = new URLSearchParams(search); next.delete('model'); next.delete('processing'); setSearch(next, {replace:true}); }} />
+    <div className="pulse-monitoring-filters">
+      <label><span>Оценка модели</span><Select aria-label="Фильтр оценки модели" value={model} options={MODELS} onChange={value => selectFilter('model',value)} /></label>
+      <label><span>Обработка</span><Select aria-label="Фильтр обработки тревоги" value={processing} options={[{value:'all',label:'Все состояния'},...Object.entries(PROCESSING).map(([value,state])=>({value,label:state.label})),{value:'unlinked',label:'Без записи обработки'}]} onChange={value=>selectFilter('processing',value)} /></label>
+      <Typography.Text type="secondary">Тревог: {wells.filter(row=>row.tier==='alert'&&row.risk!==null).length} · Под наблюдением: {wells.filter(row=>row.tier==='watch'&&row.risk!==null).length} · Без оценки: {wells.filter(row=>row.risk===null).length}</Typography.Text>
     </div>
-  );
+    {readableNotice && <p className="pulse-monitoring-caption" title={notice ?? undefined}>{readableNotice}</p>}
+    <Card className="pulse-monitoring-table-card"><PageSpin loading={wellsQ.isLoading || (!cohort && registry.isLoading)} error={wellsQ.error || (!cohort ? registry.error : undefined)}>
+      <Table<MlDisplayWell> rowKey={row=>row.app_well_id ?? row.well_id!} columns={columns} dataSource={shown} scroll={{x:1080}} pagination={{pageSize:15,showSizeChanger:false,showTotal:total=>`Количество: ${total}`}} locale={{emptyText: <span className="pulse-muted">{model === 'attention' ? 'Тревог и наблюдений в выбранной выборке нет' : 'Нет доступных оценок по выбранным фильтрам'}</span>}} />
+    </PageSpin>{wellsQ.isError && <Button onClick={()=>void wellsQ.refetch()}>Повторить</Button>}</Card>
+    <Card className="pulse-monitoring-note"><h2>Оценка модели не меняется при обработке тревоги</h2><p>Ответственный за обработку, комментарии и заключение сохраняются в форме проверки. Ответственный в списке указан по паспорту скважины.</p></Card>
+    {isAdmin && !cohort && <Collapse items={[{key:'metrics',label:'Метрики модели · историческая CV',children:<PageSpin loading={metricsQ.isLoading} error={metricsQ.error}><Descriptions column={{xs:1,md:2}} items={[{key:'model',label:'Модель',children:stage1?.name ?? '—'},{key:'recall',label:'Recall',children:recall == null ? '—' : `${(recall*100).toFixed(1)}%`},{key:'precision',label:'Precision',children:precision == null ? '—' : `${(precision*100).toFixed(1)}%`}]} /><p className="pulse-monitoring-caption">Историческая CV не является временной приёмкой и не подтверждает качество на текущем фонде.</p></PageSpin>}]} />}
+    <Modal open={explainWell !== null} onCancel={()=>setExplainWell(null)} width={720} title={explainWell ? `Скважина · ID Pulse ${explainWell.app_well_id ?? 'не сопоставлена'}` : ''} footer={explainWell?.app_well_id != null ? <Link to={`/wells/${explainWell.app_well_id}${explainWell.run_id != null ? `?run_id=${explainWell.run_id}` : ''}`}><Button type="primary">Открыть карточку скважины</Button></Link> : null}>
+      {explainWell && <div className="pulse-stack pulse-monitoring-review">
+        {reviewPath !== null && <ReviewPanel key={reviewPath} path={reviewPath} />}
+        <div><Typography.Text strong>{cohortStatusLabel(explainWell)}{explainWell.risk !== null ? ` · риск ${(explainWell.risk*100).toFixed(1)}%` : ''}</Typography.Text><p className="pulse-monitoring-caption">Сохранённый ярус и заключение технолога независимы.</p></div>
+        {explainWell.rule_findings.length > 0 && <Space wrap>{explainWell.rule_findings.map(finding=><Tag key={finding}>{finding}</Tag>)}</Space>}
+        {explainWell.data_ok === false && <Alert type="warning" showIcon message="В последнем окне есть пропуски" description="Ярус опирается на историю наблюдения. Полнота последнего окна не подтверждает текущую связь с установкой." />}
+        {explainWell.risk === null ? <Alert type="info" message={cohortStatusLabel(explainWell)} description={explainWell.reason_code} /> : <ExplainBars wellId={explainWell.well_id} contributions={explainWell.contributions} windowKind={explainWell.explanation_window_kind} windowEnd={explainWell.explanation_window_end} />}
+        <Typography.Text type="secondary">Зарегистрированный исход по КРС: {explainWell.true_failure_type_name ? FAILURE_TYPE_RU[explainWell.true_failure_type_name] ?? explainWell.true_failure_type_name : 'Не передан'}{explainWell.true_failure_at ? ` · ${formatSnapshotTime(explainWell.true_failure_at)}` : ''}</Typography.Text>
+      </div>}
+    </Modal>
+  </div>;
 }

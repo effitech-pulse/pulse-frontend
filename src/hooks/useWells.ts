@@ -3,13 +3,11 @@ import { App } from 'antd';
 import { type WellArchive, departmentsApi, ngduApi, runsApi, wellsApi } from '@/api/wells';
 import { toApiError } from '@/api/client';
 import {useFundFilters} from '@/theme/FundFilters';
-import { useFund } from '@/theme/FundProvider';
 import type { WellUpdate } from '@/api/types';
 
 export const useWells = (activeOnly = true, applyFilters = true, archive:WellArchive = 'current') => {
-  const {fund} = useFund();
   const {filters}=useFundFilters();const selected=applyFilters?filters:undefined;
-  return useQuery({queryKey:['wells', activeOnly, fund, selected, archive], queryFn:async () => (await wellsApi.list(activeOnly,fund,selected,archive)).filter(w => (w.fund_type ?? 'operational') === fund)});
+  return useQuery({queryKey:['wells', activeOnly, selected, archive], queryFn:() => wellsApi.list(activeOnly,selected,archive)});
 };
 
 export const useUpdateWell = () => {
@@ -22,7 +20,6 @@ export const useUpdateWell = () => {
       qc.invalidateQueries({ queryKey: ['wells'] });
       qc.invalidateQueries({ queryKey: ['well'] });
       qc.invalidateQueries({ queryKey: ['well-history'] });
-      qc.invalidateQueries({ queryKey: ['presentation-summary'] });
     },
     onError: (e) => message.error(toApiError(e).message),
   });

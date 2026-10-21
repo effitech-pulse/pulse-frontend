@@ -19,7 +19,8 @@ function loadComponent(relative, boundaries) {
  mod.require=id=>Object.hasOwn(boundaries,id)?boundaries[id]:require(id);
  mod._compile(js,filename);return mod.exports;
 }
-const {ExplainBars}=loadComponent('../src/components/ml/ExplainBars.tsx',{'@/api/ml':{mlApi:{explain:()=>{throw new Error('unexpected external request');}}}});
+const displayTime = await import('../src/lib/displayTime.ts');
+const {ExplainBars}=loadComponent('../src/components/ml/ExplainBars.tsx',{'@/lib/displayTime': displayTime, '@/api/ml':{mlApi:{explain:()=>{throw new Error('unexpected external request');}}}});
 function render(props, client=new QueryClient()) {
  return renderToStaticMarkup(React.createElement(QueryClientProvider,{client},React.createElement(ExplainBars,props)));
 }
@@ -74,7 +75,6 @@ test('real queue selector exposes only new cohort alert linkage and removes hand
 // Actual native/Ant button semantics used by the mobile header control.
 test('navigation toggle exposes correct open/close accessible state and controls target',()=>{
  const boundaries={
-  '@/theme/FundProvider':{useFund:()=>({fund:'operational',setFund:()=>{}})},
   '@/theme/ThemeProvider':{useTheme:()=>({dark:false,toggle:()=>{}})},
   '@/auth/AuthProvider':{useAuth:()=>({principal:null,isAdmin:false})},
   '@/api/client':{toApiError:e=>({message:String(e)})},

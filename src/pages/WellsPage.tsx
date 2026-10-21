@@ -6,6 +6,7 @@ import {
   Segmented,
   Tag,
   Typography,
+  Tooltip,
   Button,
   Card,
   Form,
@@ -28,14 +29,17 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useState, type DragEvent, type HTMLAttributes, type ReactNode } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import dayjs from 'dayjs';
+import { mlApi } from '@/api/ml';
+import { cohortStatusLabel, mlRows } from '@/lib/mlSnapshot';
+import { filterWellWorkbook } from '@/lib/wellExport';
 import type { Well } from '@/api/types';
 import { type WellArchive, wellsApi } from '@/api/wells';
 import { toApiError } from '@/api/client';
 import { useDepartments, useNgdus, useUpdateWell, useWells } from '@/hooks/useWells';
 import {useFundFilters} from '@/theme/FundFilters';
-import { useFund } from '@/theme/FundProvider';
 import { PageSpin } from '@/components/common/PageSpin';
 import { WellImportModal } from '@/components/wells/WellImportModal';
 import { AddWellModal } from '@/components/wells/AddWellModal';
@@ -73,10 +77,14 @@ function EditableCell({ editing, dataIndex, inputType, children, ...rest }: Edit
   );
 }
 
-export function WellsPage() {
+export type WellAssessmentFilter = 'all' | 'alert' | 'watch' | 'normal' | 'unscored';
+
+export function WellsPage({ management = false, assessment = 'all' }: { management?: boolean; assessment?: WellAssessmentFilter }) {
   const {isAdmin}=useAuth();
   const navigate = useNavigate();
-  const {fund} = useFund();
+  const [search, setSearch] = useSearchParams();
+  const ml = useQuery({ queryKey: ['ml-wells'], queryFn: () => mlApi.wells(false) });
+  const assessments = new Map(mlRows(ml.data).map(row => [row.app_well_id, row]));
   const {filters}=useFundFilters();
   const { message } = App.useApp();
   const [form] = Form.useForm();
@@ -89,7 +97,7 @@ export function WellsPage() {
   const [lifecycleError,setLifecycleError]=useState('');
   const [lifecycleConflict,setLifecycleConflict]=useState(false);
   const [changingLifecycle,setChangingLifecycle]=useState(false);
-  const [showInactive, setShowInactive] = useState(false);
+  const [showInactive, setShowInactive] = useState(!management);
   const activeOnly=archive==='current'&&!showInactive;
   const { data, isLoading, error } = useWells(activeOnly,true,archive);
   const departments = useDepartments();
@@ -135,8 +143,7 @@ export function WellsPage() {
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(false);
-    if (!isAdmin || archive!=='current') return;
-    if (fund === 'presentation') { message.info('Показательный фонд формируется в Pulse Data'); return; }
+    if (!management || !isAdmin || archive!=='current' || ml.data?.profile === 'cohort') return;
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
     if (!XLSX_RE.test(file.name)) {
@@ -150,11 +157,12 @@ export function WellsPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const blob = await wellsApi.exportXlsx(fund,filters,activeOnly,archive);
+      let blob = await wellsApi.exportXlsx(filters,activeOnly,archive);
+      if (!management && assessment !== 'all') blob = new Blob([filterWellWorkbook(await blob.arrayBuffer(), monitorRows.map(well => well.id))], { type: blob.type });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `wells-${fund}-${archive}.xlsx`;
+      a.download = `wells-${archive}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -225,15 +233,25 @@ export function WellsPage() {
   async function reloadEdit(){if(editingKey===null)return;try{const latest=await wellsApi.get(editingKey);if(latest.archived_at){cancel();message.info('Скважина перенесена в архив. Сначала восстановите её.');return;}form.setFieldsValue(latest);setEditingRevision(latest.revision);setEditConflict(false);}catch(e){message.error(toApiError(e).message);}}
   async function saveLifecycle(){
     if(!lifecycle || changingLifecycle)return;if(!reason.trim()){setLifecycleError('Укажите причину');return;}setChangingLifecycle(true);setLifecycleError('');
-    try{await (lifecycle.restore?wellsApi.restore(lifecycle.well,reason):wellsApi.archive(lifecycle.well,reason));setLifecycle(undefined);await Promise.all(['wells','well','well-history','presentation-summary','ml-wells','incident-stats'].map(key=>client.invalidateQueries({queryKey:[key]})));message.success(lifecycle.restore?'Скважина восстановлена с прежним ID Pulse':'Скважина перенесена в архив');}
+    try{await (lifecycle.restore?wellsApi.restore(lifecycle.well,reason):wellsApi.archive(lifecycle.well,reason));setLifecycle(undefined);await Promise.all(['wells','well','well-history','ml-wells','incident-stats'].map(key=>client.invalidateQueries({queryKey:[key]})));message.success(lifecycle.restore?'Скважина восстановлена с прежним ID Pulse':'Скважина перенесена в архив');}
     catch(e){const problem=toApiError(e);setLifecycleError(problem.message);setLifecycleConflict(problem.code==='conflict');}finally{setChangingLifecycle(false);}
   }
+  const monitorColumns: ColumnsType<Well> = [
+    { title: 'Скважина', key: 'well', width: 180, render: (_, well) => <Link to={`/wells/${well.id}${assessments.get(well.id)?.run_id != null ? `?run_id=${assessments.get(well.id)!.run_id}` : ''}`}>№ {well.well_number ?? '—'}<small className="pulse-cell-meta">ID Pulse {well.id}</small></Link> },
+    { title: 'Цех', key: 'department', width: 150, render: (_, well) => <span className="sensitive">{deptLabel(well.department)}</span> },
+    { title: 'Оценка модели', key: 'assessment', width: 180, render: (_, well) => { const result = assessments.get(well.id); return <span className={result?.risk == null ? 'pulse-muted' : result.tier === 'alert' ? 'pulse-danger' : result.tier === 'watch' ? 'pulse-warning' : 'pulse-success'}>{result ? cohortStatusLabel(result) : ml.isError ? 'Не удалось загрузить' : ml.isLoading ? 'Загрузка…' : 'Без оценки'}</span>; } },
+    { title: 'Режим / данные', key: 'data', render: (_, well) => { const result = assessments.get(well.id); return <>{well.active ? 'Активна в реестре' : 'Неактивна в реестре'}<small className="pulse-cell-meta">{result?.data_ok === false ? 'В последнем окне есть пропуски' : result?.data_ok === true ? 'Последнее окно полное' : 'Качество окна неизвестно'}</small></>; } },
+    { title: 'Период данных', key: 'updated', width: 145, render: (_, well) => { const date = assessments.get(well.id)?.window_end; return date ? dayjs(date).format('DD.MM.YYYY') : '—'; } },
+    { title: 'Действие', key: 'open', width: 110, align: 'right', render: (_, well) => <Link to={`/wells/${well.id}${assessments.get(well.id)?.run_id != null ? `?run_id=${assessments.get(well.id)!.run_id}` : ''}`}>Открыть</Link> },
+  ];
+  const monitorRows = (data ?? []).filter(well => { const result = assessments.get(well.id); return assessment === 'all' || (assessment === 'unscored' ? result?.risk == null : assessment === 'normal' ? result?.risk != null && result.tier === null : result?.risk != null && result.tier === assessment); });
+  const page = Math.max(1, Number(search.get('page')) || 1);
   return (
-    <div
+    <div className="pulse-wells-table"
       style={{ position: 'relative' }}
       onDragOver={(e) => {
         e.preventDefault();
-        if (!dragging) setDragging(true);
+        if (management && isAdmin && ml.data?.profile !== 'cohort' && !dragging) setDragging(true);
       }}
       onDragLeave={(e) => {
         if (e.currentTarget === e.target) setDragging(false);
@@ -241,24 +259,27 @@ export function WellsPage() {
       onDrop={handleDrop}
     >
       {editConflict&&<Alert type="warning" showIcon message="Карточка изменилась в другом сеансе" description="Ваши изменения ещё не сохранены. Скопируйте нужный текст, затем загрузите актуальные реквизиты." action={<Button onClick={()=>reloadEdit()}>Загрузить актуальную карточку</Button>} style={{marginBottom:16}} />}
+      {ml.isError && !management && <Alert type="error" message="Не удалось загрузить оценки модели" description={toApiError(ml.error).message} action={<Button onClick={() => void ml.refetch()}>Повторить</Button>} />}
       <Card
+        className="pulse-registry-card"
         extra={
           <Space wrap>
             <Segmented aria-label="Состояние реестра" value={archive} onChange={value=>{setArchive(value as WellArchive);cancel();}} options={[{value:'current',label:'Текущие'},{value:'archived',label:'Архив'},{value:'all',label:'Все'}]} />
             <Switch
+              aria-label="Показывать неактивные скважины"
               disabled={archive!=='current'}
               checkedChildren="все"
               unCheckedChildren="активные"
               checked={showInactive}
               onChange={setShowInactive}
             />
-            <Button disabled={!isAdmin || archive!=='current' || fund === 'presentation'} icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
+            {management && isAdmin && <Tooltip title={ml.data?.profile === 'cohort' ? 'Состав задаёт Pulse Connector' : undefined}><span><Button disabled={archive!=='current' || ml.isLoading || ml.data?.profile === 'cohort'} icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
               Добавить
-            </Button>
-            <Button disabled={!isAdmin || archive!=='current' || fund === 'presentation'} type="primary" icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
+            </Button></span></Tooltip>}
+            {management && isAdmin && <Tooltip title={ml.data?.profile === 'cohort' ? 'Состав задаёт Pulse Connector' : undefined}><span><Button disabled={archive!=='current' || ml.isLoading || ml.data?.profile === 'cohort'} type="primary" icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
               Импорт из Excel
-            </Button>
-            <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
+            </Button></span></Tooltip>}
+            <Button disabled={!management && assessment !== 'all' && (!ml.isSuccess || isLoading || !!error)} icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
               Экспорт в Excel
             </Button>
           </Space>
@@ -268,18 +289,20 @@ export function WellsPage() {
           <Form form={form} component={false}>
             <Table
               rowKey="id"
-              scroll={{x:1100}}
+              loading={!management && ml.isLoading}
+              scroll={{x:management ? 1100 : 950}}
               components={{ body: { cell: EditableCell } }}
-              columns={columns}
-              dataSource={data ?? []}
+              columns={management ? columns : monitorColumns}
+              dataSource={management ? data ?? [] : monitorRows}
               size="middle"
-              pagination={{ pageSize: 20 }}
+              pagination={{ pageSize: 20, current: Math.min(page, Math.max(1, Math.ceil((management ? data?.length ?? 0 : monitorRows.length) / 20))), showSizeChanger: false, showTotal: total => `Количество: ${total}`, onChange: page => { const next = new URLSearchParams(search); next.set('page', String(page)); setSearch(next); } }}
             />
           </Form>
         </PageSpin>
       </Card>
 
-      {dragging && (
+      {!management && <p className="pulse-list-note">При возврате из карточки сохраняются фильтры и страница списка. Активность в реестре не подтверждает текущую работу установки.</p>}
+      {dragging && management && (
         <div
           style={{
             position: 'absolute',

@@ -13,6 +13,7 @@ const antd = require('antd');
 const { createMemoryRouter, RouterProvider } = require('react-router-dom');
 const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
 const snapshot = await import('../src/lib/mlSnapshot.ts');
+const displayTime = await import('../src/lib/displayTime.ts');
 function load(relative, boundaries = {}, transform = source => source) {
   const filename = fileURLToPath(new URL(relative, import.meta.url));
   const js = ts.transpileModule(transform(readFileSync(filename, 'utf8')), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -68,6 +69,7 @@ function setup(url = '/wells/42', { well = defaultWell, outcome = defaultOutcome
     'react-router-dom': { ...require('react-router-dom'), useNavigate: () => router.navigate },
     antd: { ...antd, Tabs: props => { tabs = props; return React.createElement(antd.Tabs, props); } },
     '@/hooks/useWells': { useWell: () => ({ data: well, isLoading: false, error }), useDepartments: () => ({ data: [{ id: 3, name: 'Цех 3' }] }), useWellComplications: () => ({ data: [{ id: 1, code: 'C1', name: 'Осложнение из паспорта', category: 'Категория' }], isLoading: false }) },
+    '@/lib/displayTime': displayTime,
     '@/api/wells': { wellsApi: { classification: unexpected } },
     '@/api/ml': { mlApi: { byAppWell: unexpected, appHistory: unexpected } },
     '@/lib/mlSnapshot': snapshot,
@@ -80,7 +82,6 @@ function setup(url = '/wells/42', { well = defaultWell, outcome = defaultOutcome
     '@/components/telemetry/ManualChecks': { ManualChecks: () => React.createElement('span', null, 'Сохранённые проверки') },
     '@/components/telemetry/TelemetryWorkspace': { TelemetryWorkspace: () => React.createElement('span', null, 'Существующая телеметрия') },
     '@/auth/AuthProvider': { useAuth: () => ({ isAdmin: false }) },
-    '@/theme/FundProvider': { useFund: () => ({ fund: 'operational', setFund: () => {} }) },
   });
   router = createMemoryRouter([{ path: '/wells/:wellId', element: React.createElement(WellDetailPage) }], { initialEntries: [url] });
   const render = () => renderToStaticMarkup(React.createElement(QueryClientProvider, { client }, React.createElement(RouterProvider, { router })));

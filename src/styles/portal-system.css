@@ -1,0 +1,62 @@
+/* Figma implemented: 833:3147/4032 integrations, 833:3319/4204 system. */
+.pulse-system-page { gap: 20px; }
+.pulse-system-page .pulse-page-heading p { margin-top: 20px; font-size: 14px; line-height: 20px; }
+.pulse-system-page .pulse-toolbar h2,
+.pulse-system-page .pulse-toolbar .ant-typography { margin: 0; font-size: 18px; line-height: 24px; font-weight: 500; }
+.pulse-system-page .ant-card { border-radius: 4px; border-color: var(--pulse-border); box-shadow: none; }
+.pulse-system-page .ant-card-head { min-height: 0; border-bottom: 0; padding: 20px 20px 0; }
+.pulse-system-page .ant-card-head-title { font-size: 16px; line-height: 21px; font-weight: 500; padding: 0; white-space: normal; }
+.pulse-system-page .ant-card-body { padding: 20px; }
+.pulse-system-page .pulse-system-table-card .ant-card-body { padding-top: 16px; }
+.pulse-system-tabs > .ant-tabs-nav { margin-bottom: 20px; }
+.pulse-system-tabs > .ant-tabs-nav::before { border: 0; }
+.pulse-system-tabs > .ant-tabs-nav .ant-tabs-nav-list { gap: 8px; }
+.pulse-system-tabs > .ant-tabs-nav .ant-tabs-tab { margin: 0; padding: 0; border: 1px solid var(--pulse-border); border-radius: 4px; background: var(--pulse-surface); }
+.pulse-system-tabs > .ant-tabs-nav .ant-tabs-tab-btn { padding: 10px 16px; font-size: 13px; line-height: 18px; font-weight: 500; }
+.pulse-system-tabs > .ant-tabs-nav .ant-tabs-tab-active { background: var(--pulse-action, #2f6fed); border-color: var(--pulse-action, #2f6fed); }
+.pulse-system-tabs > .ant-tabs-nav .ant-tabs-tab-active .ant-tabs-tab-btn { color: #fff; text-shadow: none; }
+.pulse-system-tabs > .ant-tabs-nav .ant-tabs-ink-bar { display: none; }
+.pulse-system-tabs .ant-tabs-tabpane > .ant-alert { margin-bottom: 20px; }
+.pulse-system-tabs .pulse-stack { gap: 20px; }
+.pulse-system-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.pulse-system-metric { display: flex; flex-direction: column; gap: 16px; padding: 20px; background: var(--pulse-surface); border: 1px solid var(--pulse-border); border-radius: 4px; min-width: 0; }
+.pulse-system-metric span, .pulse-system-metric small { color: var(--pulse-muted); font-size: 12px; line-height: 17px; }
+.pulse-system-metric strong { color: var(--pulse-ink); font-size: 28px; font-weight: 500; line-height: 40px; font-variant-numeric: tabular-nums; }
+.pulse-system-page .ant-table { font-size: 13px; line-height: 20px; }
+.pulse-system-page .ant-table-thead > tr > th { padding: 10px 8px; background: var(--pulse-canvas); color: var(--pulse-muted); font-size: 12px; font-weight: 500; }
+.pulse-system-page .ant-table-tbody > tr > td { padding: 12px 8px; border-color: var(--pulse-border); }
+.pulse-system-page .ant-table-cell::before { display: none; }
+.pulse-system-page .ant-tag { border: 0; padding: 3px 12px; border-radius: 4px; font-size: 13px; }
+.pulse-system-source-link { display: inline-block; padding: 0; background: none; border: 0; color: var(--pulse-blue); font: inherit; cursor: pointer; text-align: left; }
+.pulse-system-source-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pulse-system-page .pulse-system-source-link .pulse-cell-meta { color: var(--pulse-muted); font-size: 12px; text-decoration: none; }
+.pulse-system-callout { padding: 16px; border-radius: 4px; background: var(--pulse-selected, #edf3ff); font-size: 13px; line-height: 20px; }
+.pulse-system-callout > .ant-btn { height: auto; padding: 0; font-weight: 500; }
+.pulse-system-callout strong { color: var(--pulse-blue); font-size: 13px; font-weight: 500; }
+.pulse-system-callout p { margin: 4px 0 0; color: var(--pulse-muted); font-size: 12px; line-height: 17px; }
+.pulse-system-page .pulse-system-footnote { font-size: 12px; line-height: 17px; max-width: 85ch; }
+.pulse-system-page .ant-select { min-width: 184px; }
+.pulse-system-overlay .ant-drawer-title { font-size: 18px; font-weight: 500; }
+.pulse-system-overlay .ant-card { border-radius: 4px; border-color: var(--pulse-border); box-shadow: none; }
+.pulse-system-overlay .ant-steps { margin-bottom: 4px; }
+.pulse-system-page :focus-visible, .pulse-system-overlay :focus-visible { outline: 2px solid var(--pulse-blue); outline-offset: 3px; }
+:root[data-theme='dark'] .pulse-system-callout { background: #1d3553; }
+@media (max-width: 1100px) { .pulse-system-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .pulse-system-page .pulse-page-heading p { margin-top: 8px; }
+  .pulse-system-metric { padding: 16px; gap: 8px; }
+  .pulse-system-page .ant-card-head { padding: 16px 16px 0; }
+  .pulse-system-page .ant-card-body { padding: 16px; }
+  .pulse-system-page .pulse-toolbar > .ant-space { width: 100%; }
+  .pulse-system-page .ant-btn { min-height: 44px; }
+  .pulse-system-tabs > .ant-tabs-nav .ant-tabs-tab-btn { padding: 12px; }
+  .pulse-system-page .pulse-toolbar .ant-space { gap: 8px !important; }
+  .pulse-system-overlay .ant-steps-item-title { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-system-page *, .pulse-system-overlay * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+.pulse-system-overlay .ant-drawer-body, .pulse-system-overlay .ant-modal-body { overscroll-behavior: contain; }
+.pulse-system-page .pulse-system-source-link { overflow-wrap: anywhere; }
+.pulse-system-page .ant-table-cell { font-variant-numeric: tabular-nums; }

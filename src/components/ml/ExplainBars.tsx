@@ -1,6 +1,7 @@
 import { Skeleton, Tooltip, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { mlApi, type MlContribution } from '@/api/ml';
+import { formatSnapshotTime } from '@/lib/displayTime';
 
 /** SHAP-вклады признаков: положительный (красный) толкает риск вверх,
  *  отрицательный (зелёный) — вниз. Ширина бара ∝ |вкладу|. */
@@ -44,7 +45,7 @@ export function ExplainBars({ wellId, topN = 6, contributions, windowKind = cont
             <div aria-label={tooltip} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span
                 style={{
-                  width: 230,
+                  width: 'min(45%, 230px)',
                   fontSize: 13,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -54,13 +55,13 @@ export function ExplainBars({ wellId, topN = 6, contributions, windowKind = cont
               >
                 {c.label}
               </span>
-              <div style={{ flex: 1, background: '#f0f2f5', borderRadius: 4, height: 10 }}>
+              <div style={{ flex: 1, background: 'var(--pulse-canvas)' , borderRadius: 4, height: 10 }}>
                 <div
                   style={{
                     width: `${width}%`,
                     height: '100%',
                     borderRadius: 4,
-                    background: up ? '#d64545' : '#2e9e6b',
+                    background: up ? 'var(--pulse-danger)' : 'var(--pulse-success)',
                   }}
                 />
               </div>
@@ -69,7 +70,7 @@ export function ExplainBars({ wellId, topN = 6, contributions, windowKind = cont
                   width: 64,
                   textAlign: 'right',
                   fontSize: 12,
-                  color: up ? '#d64545' : '#2e9e6b',
+                  color: up ? 'var(--pulse-danger)' : 'var(--pulse-success)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -80,8 +81,8 @@ export function ExplainBars({ wellId, topN = 6, contributions, windowKind = cont
           </Tooltip>
         );
       })}
-      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        Красное толкает риск вверх, зелёное — вниз ({explanationWindow}{windowKind !== 'unknown' ? ` · ${windowEnd ?? 'дата не передана'}` : ''}).
+      <Typography.Text title={windowEnd ?? undefined} type="secondary" style={{ fontSize: 12 }}>
+        Красное толкает риск вверх, зелёное — вниз ({explanationWindow}{windowKind !== 'unknown' ? ` · ${windowEnd ? formatSnapshotTime(windowEnd) : 'дата не передана'}` : ''}).
       </Typography.Text>
     </div>
   );

@@ -1,12 +1,9 @@
-import { App, Button, Dropdown, Grid, Layout, Menu, Select, Space, Spin, Tooltip, Result } from 'antd';
+import { Button, Layout, Menu, Space, Spin, Tooltip, Result } from 'antd';
 import { Suspense, useEffect, useState } from 'react';
-import { ApartmentOutlined, BarChartOutlined, DashboardOutlined, TeamOutlined, HistoryOutlined, FileSearchOutlined, AlertOutlined, ApiOutlined, BulbOutlined, MoonOutlined, UserOutlined, DownOutlined, BellOutlined, LogoutOutlined, SettingOutlined, MenuOutlined } from '@ant-design/icons';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useFund, type FundType } from '@/theme/FundProvider';
-import { FundFilterBar } from './FundFilterBar';
+import { ApartmentOutlined, BarChartOutlined, DashboardOutlined, HistoryOutlined, FileSearchOutlined, AlertOutlined, ApiOutlined, BulbOutlined, MoonOutlined, UserOutlined, BellOutlined, SettingOutlined, MenuOutlined } from '@ant-design/icons';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { WorkspaceEvents, WorkspaceProfile } from './WorkspaceMenu';
 import { useAuth } from '@/auth/AuthProvider';
-import { toApiError } from '@/api/client';
 import { useTheme } from '@/theme/ThemeProvider';
 
 const { Sider, Header, Content } = Layout;
@@ -34,11 +31,8 @@ export function NavigationToggle({collapsed, onToggle}: {collapsed:boolean; onTo
 }
 
 export function AppLayout() {
-  const { principal, isAdmin, mode, logout } = useAuth();
-  const { message } = App.useApp();
-  const location = useLocation(), navigate = useNavigate();
-  const { fund, setFund } = useFund();
-  const screens = Grid.useBreakpoint();
+  const { principal, isAdmin, mode } = useAuth();
+  const location = useLocation();
   const { dark, toggle } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false), [eventsOpen, setEventsOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -62,14 +56,11 @@ export function AppLayout() {
     </Sider>
     <Layout className="app-main">
       <Header className="app-header"><div className="app-header-context"><NavigationToggle collapsed={collapsed} onToggle={()=>setCollapsed(v=>!v)} /><div className="app-breadcrumb">{group} / {title}</div></div><Space size={12}>
-        <Select aria-label="Выбор фонда" className="app-fund-select" value={fund} variant="borderless" style={{width:screens.md ? 185 : 145}} options={[{value:'operational',label:'Рабочий фонд'},{value:'presentation',label:'Показательный фонд'}].filter(o=>principal?.scope.funds.includes(o.value as FundType))} onChange={(value:FundType)=>{setFund(value);if(location.pathname.startsWith('/wells/'))navigate('/');}} />
         <Tooltip title={dark?'Светлая тема':'Тёмная тема'}><Button className="app-icon-button" aria-label="Переключить тему" onClick={toggle} icon={dark?<BulbOutlined />:<MoonOutlined />} /></Tooltip>
         <Tooltip title="Новые тревоги и ошибки сбора"><Button className="app-icon-button" type="text" aria-label="Требуют внимания" icon={<BellOutlined />} onClick={()=>setEventsOpen(true)} /></Tooltip>
-        <Dropdown trigger={['click']} menu={{items:[{key:'profile',icon:<UserOutlined />,label:'Мой профиль'},...(isAdmin?[{key:'accounts',icon:<TeamOutlined />,label:'Пользователи и доступ'}]:[]),...(mode==='local'?[{key:'logout',icon:<LogoutOutlined />,label:'Выйти'}]:[])],onClick:({key})=>{if(key==='profile')setProfileOpen(true);if(key==='accounts')navigate('/accounts');if(key==='logout')void logout().catch(e=>message.error(toApiError(e).message));}}}><Button className="app-account" aria-label="Меню пользователя"><UserOutlined /><span>{name}</span><DownOutlined /></Button></Dropdown>
+
       </Space></Header>
       <Content className={`app-content${location.pathname.startsWith('/analytics')?' app-content-full':''}`}>
-        {['/structure','/ml-risk'].includes(location.pathname)&&<div className="pulse-page-heading"><h1>{title}</h1><p>{selectedKey==='/structure'?'Найдите объект по номеру, подразделению или идентификатору':'Оценки модели и очередь проверки технологом'}</p></div>}
-        {['/structure','/ml-risk'].includes(location.pathname)&&<FundFilterBar />}
         <Suspense fallback={<div className="app-loading"><Spin size="large" /></div>}>{forbidden?<Result status="403" title="Раздел доступен администратору" />:<Outlet />}</Suspense>
       </Content>
     </Layout>

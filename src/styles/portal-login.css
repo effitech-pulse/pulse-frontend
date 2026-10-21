@@ -1,0 +1,54 @@
+/* Figma login Light837:1281 / Dark837:2825, mobile838:1301 / 838:2863. */
+.pulse-login { min-height: 100dvh; width: 100%; padding: 80px; display: grid; grid-template-columns: 480px minmax(0, 500px); justify-content: center; align-items: center; gap: 120px; box-sizing: border-box; background: var(--pulse-canvas); color: var(--pulse-ink); }
+.pulse-login-product { min-height: calc(100dvh - 160px); padding: 40px; display: flex; flex-direction: column; gap: 28px; box-sizing: border-box; background: #edf3ff; }
+:root[data-theme='dark'] .pulse-login-product { background: #1d3455; }
+.pulse-login-brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.pulse-login-brand span { font-size: 28px; line-height: 40px; font-weight: 500; }
+.pulse-login-brand img { flex: 0 0 auto; }
+.pulse-login p { margin: 0; }
+.pulse-login-purpose { font-size: 22px; line-height: 1.4; }
+.pulse-login-description { color: var(--pulse-muted); font-size: 16px; line-height: 1.4; }
+.pulse-login-credit { margin-top: auto !important; padding-top: 28px; color: var(--pulse-muted); font-size: 14px; line-height: 1.4; }
+.pulse-login-access { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; min-width: 0; width: 100%; max-width: 500px; }
+.pulse-login-access h1 { margin: 0; font-size: 28px; line-height: 1.4; font-weight: 500; }
+.pulse-login-instruction, .pulse-login-access-hint { color: var(--pulse-muted); font-size: 14px; line-height: 1.4; }
+.pulse-login-form { width: 100%; display: flex; flex-direction: column; gap: 20px; }
+.pulse-login-form .ant-form-item { margin-bottom: 0; }
+.pulse-login-form .ant-form-item-label { padding-bottom: 8px; }
+.pulse-login-form .ant-form-item-label label { height: 20px; color: var(--pulse-ink); font-size: 13px; line-height: 20px; font-weight: 500; }
+.pulse-login-form .ant-input, .pulse-login-form .ant-input-affix-wrapper { min-height: 44px; border-radius: 4px; }
+.pulse-login-form .ant-input-affix-wrapper .ant-input { min-height: 0; }
+.pulse-login .ant-btn { height: 40px; border-radius: 4px; padding-inline: 16px; font-size: 13px; font-weight: 500; box-shadow: none; }
+.pulse-login .ant-btn-primary { background: #2f6fed; color: #fff; }
+.pulse-login-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; width: 100%; }
+.pulse-login-actions .ant-btn:first-child { min-width: 112px; }
+.pulse-login-actions .ant-btn:last-child { min-width: 144px; }
+.pulse-login-request { min-width: 160px; }
+.pulse-login-divider { height: 1px; width: 100%; background: var(--pulse-border); }
+.pulse-login-error { width: 100%; background: transparent; padding: 0; border: 0; color: var(--pulse-danger); }
+.pulse-login-error .ant-alert-message { color: var(--pulse-danger); font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.pulse-login .pulse-login-theme { position: absolute; top: 12px; right: 24px; width: 40px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.pulse-login :focus-visible, .pulse-login-help :focus-visible { outline: 2px solid var(--pulse-blue); outline-offset: 3px; }
+.pulse-login-help .ant-modal-body { color: var(--pulse-muted); line-height: 20px; overscroll-behavior: contain; }
+.pulse-login-help .ant-modal-title { font-size: 20px; line-height: 28px; font-weight: 500; }
+.pulse-login-help .ant-modal-footer { text-align: left; margin-top: 28px; }
+@media (max-width: 1250px) {
+  .pulse-login { padding: 64px 40px; grid-template-columns: minmax(320px, 440px) minmax(0, 500px); gap: 64px; }
+  .pulse-login-product { min-height: calc(100dvh - 128px); padding: 32px; }
+  .pulse-login-brand span { font-size: 24px; line-height: 34px; }
+}
+@media (max-width: 900px) {
+  .pulse-login { padding: 64px 24px 32px; grid-template-columns: minmax(0, 1fr); gap: 32px; justify-items: center; align-items: start; }
+  .pulse-login-product { width: 100%; max-width: 500px; min-height: 0; padding: 24px; gap: 20px; }
+  .pulse-login-brand { gap: 16px; }
+  .pulse-login-brand span { font-size: 24px; line-height: 40px; }
+  .pulse-login-purpose { font-size: 20px; }
+  .pulse-login-description { font-size: 14px; line-height: 1.5; }
+  .pulse-login-credit { display: none; }
+  .pulse-login .ant-btn { min-height: 44px; }
+  .pulse-login-actions { gap: 12px; }
+  .pulse-login-help .ant-modal-content { padding: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .pulse-login *, .pulse-login-help * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+.pulse-login-form .ant-form-item { min-height: 76px; }
+.pulse-login-access-hint { min-height: 40px; }
