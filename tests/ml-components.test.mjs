@@ -48,6 +48,7 @@ test('each contribution tooltip exposes computed, imputed and unknown sources wh
 
 const snapshots=await import('../src/lib/mlSnapshot.ts');
 const {ReviewPanel}=loadComponent('../src/components/telemetry/ReviewPanel.tsx',{
+ '@/hooks/useFileJobs':{usePrivateFileRequest:()=>async fn=>fn(),fileProblem:e=>e},
  '@/auth/AuthProvider':{useAuth:()=>({canOperate:false})},
  '@/api/reviews':{reviewsApi:{get:()=>{throw new Error('unexpected external request');}}},
  '@/api/client':{toApiError:e=>({message:String(e)})},

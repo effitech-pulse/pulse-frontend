@@ -15,11 +15,15 @@ import { ExplainBars } from '@/components/ml/ExplainBars';
 import { ManualChecks } from '@/components/telemetry/ManualChecks';
 import {WellHistoryPanel} from '@/components/wells/WellHistoryPanel';
 import {useAuth} from '@/auth/AuthProvider';
+import {validPulseId} from '@/lib/fileJobs';
 import { TelemetryWorkspace } from '@/components/telemetry/TelemetryWorkspace';
 
 export function WellDetailPage() {
   const { wellId: wellIdParam } = useParams();
-  const wellId = Number(wellIdParam);
+  const exactWellId=wellIdParam&&validPulseId(wellIdParam)?wellIdParam:'';
+  // Legacy APIs use safe JS numbers; private file routes always use the original string.
+  const parsedWellId=Number(exactWellId);
+  const wellId=Number.isSafeInteger(parsedWellId)?parsedWellId:0;
   const [search] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -75,12 +79,12 @@ export function WellDetailPage() {
       {well.data?.archived_at&&<Alert type="warning" showIcon message="Скважина в архиве" description={`Скрыта из оперативного фонда с ${new Date(well.data.archived_at).toLocaleString('ru',{timeZone:'Europe/Moscow'})} МСК. Телеметрия, проверки и заключения доступны. Для изменения карточки сначала восстановите скважину.`} />}
       <Card className="pulse-well-heading">
         <div className="pulse-toolbar">
-          <div><h1>Скважина · ID Pulse {wellId}</h1>
+          <div><h1>Скважина · ID Pulse {exactWellId}</h1>
             <PageSpin loading={well.isLoading} error={well.error}>
-              <p>№ скважины <span className="sensitive">{well.data?.well_number ?? '—'}</span><span aria-hidden="true"> · </span>НГДУ <span className="sensitive">{well.data?.ngdu ?? '—'}</span><span aria-hidden="true"> · </span>{well.data?.active ? 'Активна' : 'Неактивна'}</p>
+              <p>№ скважины <span className="sensitive">{well.data?.well_number ?? '—'}</span><span aria-hidden="true"> · </span>НГДУ <span className="sensitive">{well.data?.ngdu ?? '—'}</span><span aria-hidden="true"> · </span>{well.data ? (well.data.active ? 'Активна' : 'Неактивна') : 'Статус не передан'}</p>
             </PageSpin>
           </div>
-          {isAdmin && !well.data?.archived_at && <Link to={`/integrations?tab=wells&well=${wellId}`}>Связи с источниками</Link>}
+          {isAdmin && !!well.data && !well.data.archived_at && <Link to={`/integrations?tab=wells&well=${wellId}`}>Связи с источниками</Link>}
         </div>
       </Card>
 
@@ -152,7 +156,7 @@ export function WellDetailPage() {
             ),
           },
           { key: 'telemetry', label: 'Телеметрия', children: well.data ? <TelemetryWorkspace key={wellId} wellId={String(wellId)} /> : <PageSpin loading={well.isLoading} error={well.error}><span /></PageSpin> },
-          { key: 'checks', label: 'Проверки', children: <ManualChecks key={wellId} wellId={String(wellId)} /> },
+          { key: 'checks', label: 'Проверки', children: <ManualChecks key={exactWellId} wellId={exactWellId} periodEnabled={wellId>0} /> },
           { key: 'failures', label: 'Отказы', children: <IncidentsTab wellId={wellId} /> },
           { key: 'history', label: 'История', children: <WellHistoryPanel wellId={wellId} /> },
           { key: 'details', label: 'Сведения', children: (
@@ -160,7 +164,7 @@ export function WellDetailPage() {
               <Card title="Паспорт скважины">
                 <PageSpin loading={well.isLoading} error={well.error}>
                   <Descriptions className="pulse-passport" size="small" column={1} colon={false}>
-                    <Descriptions.Item label="ID Pulse">{wellId}</Descriptions.Item>
+                    <Descriptions.Item label="ID Pulse">{exactWellId}</Descriptions.Item>
                     <Descriptions.Item label="№ скважины"><span className="sensitive">{well.data?.well_number ?? '—'}</span></Descriptions.Item>
                     <Descriptions.Item label="НГДУ"><span className="sensitive">{well.data?.ngdu}</span></Descriptions.Item>
                     <Descriptions.Item label="Цех">{deptLabel(well.data?.department)}</Descriptions.Item>

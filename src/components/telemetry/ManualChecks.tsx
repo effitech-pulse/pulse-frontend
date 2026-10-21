@@ -6,22 +6,27 @@ import { useSearchParams } from 'react-router-dom';
 import { integrationsApi, type ManualCheck, type TelemetryScore } from '@/api/integrations';
 import { ReviewPanel } from './ReviewPanel';
 import { toApiError } from '@/api/client';
+import {parseFileCheckLink} from '@/lib/fileJobs';
+import {FileJobsHistory} from './FileJobs';
 
 const dates = (s: string) => new Date(s).toLocaleString('ru-RU', {timeZone: 'Europe/Moscow'});
 const verdicts = {alert: 'Тревога', watch: 'Наблюдение', norm: 'Норма', insufficient: 'Недостаточно данных'};
 export function CheckVerdict({result}: {result: TelemetryScore}) {
   return <Tag color={{alert: 'red', watch: 'gold', norm: 'green', insufficient: 'default'}[result.verdict]}>{verdicts[result.verdict] ?? 'Нет заключения'}</Tag>;
 }
-export function ManualChecks({wellId}: {wellId: string}) {
+export function ManualChecks({wellId,periodEnabled=true}: {wellId: string;periodEnabled?:boolean}) {
   const [search, setSearch] = useSearchParams();
   const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
   const before = cursors[cursors.length - 1];
-  const id = search.get('check');
-  const list = useQuery({queryKey: ['manual-checks', wellId, before], queryFn: () => integrationsApi.checks(wellId, before)});
+  const selected=parseFileCheckLink(search.get('check'));
+  const id=selected.kind==='period'?selected.id:null;
+  const list = useQuery({queryKey: ['manual-checks', wellId, before], queryFn: () => integrationsApi.checks(wellId, before),enabled:periodEnabled});
   const detail = useQuery({queryKey: ['manual-check', wellId, id], queryFn: () => integrationsApi.savedCheck(wellId, id!), enabled: !!id});
   const open = (value?: string) => setSearch(p => { if (value) p.set('check', value); else p.delete('check'); return p; });
   const v = detail.data, r = v?.result;
   return <div className="pulse-stack">
+    <h2>Проверки за период</h2>
+    {selected.kind==='invalid'&&<Alert type="warning" message="Некорректная ссылка на проверку"/>}
     <Typography.Text type="secondary">Сохранённые ручные проверки телеметрии. Для новой проверки выберите период от 30 суток во вкладке «Телеметрия» → «⋯» → «Проверить моделью».</Typography.Text>
     {list.isError && <Alert type="error" message={toApiError(list.error).message} action={<Button onClick={() => list.refetch()}>Повторить</Button>} />}
     <Table<ManualCheck> rowKey="id" loading={list.isLoading} dataSource={list.data} pagination={false} scroll={{x: 760}} locale={{emptyText: <Empty description="Сохранённых проверок пока нет" />}} columns={[
@@ -31,6 +36,7 @@ export function ManualChecks({wellId}: {wellId: string}) {
       {title: 'Модель', render: (_, row) => row.result.model_name ?? 'Версия не передана'},
     ]} />
     <Space><Button disabled={cursors.length === 1} onClick={() => setCursors(c => c.slice(0,-1))}>Назад</Button><Button disabled={list.data?.length !== 25} onClick={() => setCursors(c => [...c, list.data!.at(-1)!.id])}>Далее</Button><Button onClick={() => list.refetch()} loading={list.isFetching}>Обновить</Button></Space>
+    <FileJobsHistory key={wellId} wellId={wellId}/>
     <Drawer title={`Ручная проверка · ID Pulse ${wellId}`} open={!!id && search.get('tab') === 'checks'} onClose={() => open()} width={960}>
       {detail.isLoading && <Typography.Text>Загрузка проверки…</Typography.Text>}
       {detail.isError && <Alert type="error" message={toApiError(detail.error).message} action={<Button onClick={() => detail.refetch()}>Повторить</Button>} />}

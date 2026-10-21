@@ -1,22 +1,29 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Spin } from 'antd';
 import { LoginPage } from '@/auth/LoginPage';
 import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { accessApi, type AuthState } from '@/api/access';
 import { apiClient, toApiError } from '@/api/client';
-interface AuthContextValue extends AuthState {isAdmin:boolean;canOperate:boolean;logout:()=>Promise<void>}
-const AuthContext=createContext<AuthContextValue>({mode:'legacy',principal:null,isAdmin:false,canOperate:false,logout:async()=>{}});
+import {PrivateEpoch} from '@/lib/privateEpoch';
+interface AuthContextValue extends AuthState {isAdmin:boolean;canOperate:boolean;logout:()=>Promise<void>;privateEpoch:number;privateBlocked:boolean;capturePrivate:()=>{value:number;current:()=>boolean};denyPrivate:()=>void;refreshSession:()=>Promise<void>}
+const fallbackEpoch=new PrivateEpoch();
+const AuthContext=createContext<AuthContextValue>({mode:'legacy',principal:null,isAdmin:false,canOperate:false,logout:async()=>{},privateEpoch:0,privateBlocked:true,capturePrivate:()=>fallbackEpoch.capture(),denyPrivate:()=>{},refreshSession:async()=>{}});
 export const useAuth=()=>useContext(AuthContext);
 export function AuthProvider({children}:{children:ReactNode}) {
  const client=useQueryClient();const [state,setState]=useState<AuthState>();const [error,setError]=useState('');const [busy,setBusy]=useState(false);
- async function refresh(){setError('');try{setState(await accessApi.me());}catch(e){if(axios.isAxiosError(e)&&e.response?.status===401){setState({mode:'local',principal:null});}else setError(toApiError(e).message);}}
- useEffect(()=>{void refresh();},[]);
- useEffect(()=>{const id=apiClient.interceptors.response.use(r=>r,e=>{if(e.response?.status===401 && !e.config?.url?.endsWith('/auth/login')) {void client.cancelQueries();client.clear();setState(v=>v?.mode==='local'?{mode:'local',principal:null}:v);}return Promise.reject(e);});return()=>apiClient.interceptors.response.eject(id);},[client]);
- async function login(values:{login:string;password:string}){setBusy(true);setError('');try{const next=await accessApi.login(values.login,values.password);await client.cancelQueries();client.clear();setState(next);}catch(e){setError(toApiError(e).message);}finally{setBusy(false);}}
- async function logout(){await accessApi.logout();await client.cancelQueries();client.clear();setState({mode:'local',principal:null});}
+ const epoch=useRef(new PrivateEpoch());const [version,setVersion]=useState(0);const [privateBlocked,setPrivateBlocked]=useState(false);const signature=useRef('');const refreshSequence=useRef(0);
+ function invalidate(){epoch.current.invalidate();setVersion(epoch.current.capture().value);void client.cancelQueries();client.clear();}
+ function accept(next:AuthState){const sig=JSON.stringify(next);if(signature.current!==sig){signature.current=sig;invalidate();}setState(next);}
+ async function refresh(){const sequence=++refreshSequence.current;const ticket=epoch.current.capture();setError('');try{const next=await accessApi.me();if(sequence===refreshSequence.current&&ticket.current())accept(next);}catch(e){if(sequence!==refreshSequence.current||!ticket.current())return;if(axios.isAxiosError(e)&&e.response?.status===401){accept({mode:'local',principal:null});}else setError(toApiError(e).message);}}
+ useEffect(()=>{void refresh();const focus=()=>{if(document.visibilityState!=='hidden')void refresh();};window.addEventListener('focus',focus);window.addEventListener('online',focus);return()=>{window.removeEventListener('focus',focus);window.removeEventListener('online',focus);};},[]);
+ useEffect(()=>{const id=apiClient.interceptors.response.use(r=>r,e=>{if(e.response?.status===401 && !e.config?.url?.endsWith('/auth/login')) {refreshSequence.current++;invalidate();signature.current='';setState({mode:'local',principal:null});}return Promise.reject(e);});return()=>apiClient.interceptors.response.eject(id);},[client]);
+ async function login(values:{login:string;password:string}){setBusy(true);setError('');refreshSequence.current++;invalidate();try{const next=await accessApi.login(values.login,values.password);setPrivateBlocked(false);accept(next);}catch(e){setError(toApiError(e).message);}finally{setBusy(false);}}
+ async function logout(){refreshSequence.current++;invalidate();signature.current='';setState({mode:'local',principal:null});try{await accessApi.logout();}catch(e){setError(toApiError(e).message);}}
+ function denyPrivate(){setPrivateBlocked(true);invalidate();}
  if(!state && !error)return <div style={{padding:80,textAlign:'center'}}><Spin size="large" /></div>;
  if(!state || !state.principal)return <LoginPage mode={state?.mode} error={error} busy={busy} onLogin={login} onRetry={refresh} />;
  const isAdmin=state.principal.role==='admin';
- return <AuthContext.Provider value={{...state,isAdmin,canOperate:isAdmin||state.principal.role==='technologist',logout}}>{children}</AuthContext.Provider>;
+ return <AuthContext.Provider value={{...state,isAdmin,canOperate:isAdmin||state.principal.role==='technologist',logout,privateEpoch:version,privateBlocked,capturePrivate:()=>epoch.current.capture(),denyPrivate,refreshSession:refresh}}><PrivateSession key={version}>{children}</PrivateSession></AuthContext.Provider>;
 }
+function PrivateSession({children}:{children:ReactNode}){return <>{children}</>;}

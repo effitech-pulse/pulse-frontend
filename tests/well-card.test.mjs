@@ -1,3 +1,4 @@
+import * as fileJobs from '../src/lib/fileJobs.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -66,6 +67,7 @@ function setup(url = '/wells/42', { well = defaultWell, outcome = defaultOutcome
   let router;
   const unexpected = () => { throw Error('Unexpected API/ML recompute'); };
   const { WellDetailPage } = load('../src/pages/WellDetailPage.tsx', {
+    '@/lib/fileJobs':fileJobs,
     'react-router-dom': { ...require('react-router-dom'), useNavigate: () => router.navigate },
     antd: { ...antd, Tabs: props => { tabs = props; return React.createElement(antd.Tabs, props); } },
     '@/hooks/useWells': { useWell: () => ({ data: well, isLoading: false, error }), useDepartments: () => ({ data: [{ id: 3, name: 'Цех 3' }] }), useWellComplications: () => ({ data: [{ id: 1, code: 'C1', name: 'Осложнение из паспорта', category: 'Категория' }], isLoading: false }) },

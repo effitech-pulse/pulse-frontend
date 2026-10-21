@@ -6,6 +6,8 @@ import type { MlContribution } from '@/api/ml';
 import { RiskHistoryChart } from '@/components/ml/RiskHistoryChart';
 import { ExplainBars } from '@/components/ml/ExplainBars';
 import { formatSnapshotTime } from '@/lib/displayTime';
+import {useFileCapabilities} from '@/hooks/useFileJobs';
+import {FileJobUpload} from '@/components/telemetry/FileJobUpload';
 
 export interface UploadResult {
   filename: string;
@@ -61,7 +63,18 @@ export function FileCheckResult({ result }: { result: UploadResult }) {
   </div>;
 }
 
-export function UploadCheckPage() {
+export function UploadCheckPage(){
+  const capability=useFileCapabilities();
+  const {privateBlocked}=useAuth();
+  const durableOpened=useRef(false);
+  if(capability.enabled)durableOpened.current=true;
+  if(privateBlocked)return <Alert type="warning" message="Проверка недоступна"/>;
+  if(durableOpened.current)return <FileJobUpload available={capability.enabled}/>;
+  if(capability.isLoading)return <Spin/>;
+  return <LegacyUploadCheckPage/>;
+}
+
+function LegacyUploadCheckPage() {
   const { isAdmin } = useAuth();
   const [loading,setLoading] = useState(false);
   const [error,setError] = useState<{message:string;http_request_id?:string}|null>(null);

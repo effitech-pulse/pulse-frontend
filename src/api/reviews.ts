@@ -6,6 +6,6 @@ export interface ReviewEvent {revision: number; created_at: string; actor: {id: 
 export interface Review {state: ReviewState; events: ReviewEvent[]; has_more: boolean}
 export interface ReviewInput {request_id: string; revision: number; status: ReviewStatus; owner: string; conclusion: ReviewConclusion; comment: string}
 export const reviewsApi = {
-  get: async (path: string, before?: number) => (await apiClient.get<Review>(path, {params:{before}})).data,
-  save: async (path: string, input: ReviewInput) => (await apiClient.put<Review>(path, input)).data,
+  get: async (path: string, before?: number,signal?:AbortSignal) => (await apiClient.get<Review>(path, {params:{before},signal})).data,
+  save: async (path: string, input: ReviewInput,signal?:AbortSignal) => (await apiClient.put<Review>(path, input,{signal})).data,
 };
