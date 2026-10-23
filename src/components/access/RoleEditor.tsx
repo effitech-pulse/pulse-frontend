@@ -1,0 +1,9 @@
+import { Checkbox, Input } from 'antd';
+import { useState } from 'react';
+import type { PermissionDefinition, RoleChange } from '@/api/access';
+export function RoleEditor({ value, onChange, catalog, disabled }: {
+    value: RoleChange;
+    onChange: (patch: Partial<RoleChange>) => void;
+    catalog: PermissionDefinition[];
+    disabled: boolean;
+}) { const [search, setSearch] = useState(''); const visible = catalog.filter(p => `${p.name} ${p.key}`.toLowerCase().includes(search.toLowerCase())); return <div className="access-form"><p className="access-note">{value.id === null ? 'Новая роль' : value.name}</p><label>Название<Input value={value.name} disabled={disabled} onChange={e => onChange({ name: e.target.value })}/></label><label>Описание<Input.TextArea value={value.description} disabled={disabled} onChange={e => onChange({ description: e.target.value })}/></label><label>Поиск разрешения<Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Название или ключ разрешения"/></label><h2>Разрешения</h2>{visible.map((p, index) => <div key={p.key}>{(index === 0 || visible[index - 1].resource !== p.resource) && <h2>{p.name.split(' · ')[0]}</h2>}<Checkbox disabled={disabled} checked={value.permission_keys.includes(p.key)} onChange={e => onChange({ permission_keys: e.target.checked ? [...value.permission_keys, p.key] : value.permission_keys.filter(k => k !== p.key) })}>{p.name} · {p.key}</Checkbox>{p.requires.length > 0 && <p className="access-note">Требуются: {p.requires.join(', ')}</p>}</div>)}<div className="pulse-system-callout"><strong>Предпосылки разрешений</strong><p>Состав прав задаётся явно. Если нужной предпосылки нет, операция останется недоступной. Полномочия не добавляются скрыто.</p></div><p className="access-note">Название роли не меняет область скважин. Зависимые назначения: —. Удаление используемой роли проверяет сервер.</p></div>; }

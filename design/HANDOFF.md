@@ -290,3 +290,37 @@ canonical fields / assignments / counts / compatibility matched. Preview search
 Последующие проверки: frontend tests/build, grants/transfers/empty assignments,
 membership cursor preservation, stale preview, last manager, 401 cleanup,
 Light/Dark, keyboard/zoom/contrast/reduced motion и runtime visual match.
+
+### Task 9 · runtime source checkpoint · 23.10.2026
+
+React source реализует `/system/access?tab=users|groups|roles`; `/accounts`
+перенаправляет туда. Списки и редакторы используют actual source Users
+`880:1502` / `890:3428`, Groups `880:1645` / `890:3595`, Roles `880:1788` /
+`890:3752`; user editor `880:1931` / `890:3919`, role `880:1932` / `890:4002`,
+group `880:1933` / `890:4064`, Preview `880:1934` / `890:4152`, mobile
+`880:1936` / `880:1937`. Новый source не создавался. Использованы существующий
+shell, Roboto, semantic tokens и Ant Design; изображения макетов не входят в UI.
+
+На изолированной SPA с перехватом HTTP проверены Light/Dark списков, редакторов
+и Preview; ширины 390/1024/1280/1440, 44px controls, local table scroll,
+viewport-bounded drawer и footer; keyboard tablist, focus trap, Escape, dirty
+close/Back, server search, unknown counts/loading, empty/error/forbidden,
+409 draft/receipt invalidation без retry/write, disabled, legacy scope/model,
+401/epoch cleanup. Source snapshots сопоставлены по композиции, отступам,
+типографике, токенам и порядку полей. Runtime rows, названия подразделений и
+размер каталога зависят от API; при отсутствии reference label выводится точный
+ID. Невидимые permissions не вызывают дополнительных management queries.
+Числа примеров Figma не переносятся в ответы сервера.
+
+Evidence хранится во внешней workspace-задаче
+`rbac-configurable-2026-10-23/execution/plan/task-9-browser/`: реальные SPA
+screenshots, воспроизводимый Playwright script и `evidence.json`. Это source/
+mocked HTTP checkpoint. **Live acceptance с настоящими management endpoints
+ожидает изолированный backend gate6; итоговое независимое frontend review
+выполняется по поручению координатора.** Рабочий runtime и БД не изменялись.
+
+Профиль в прежней строке показывает actual modern roles/groups, включая пустые;
+legacy enum используется только для legacy/absent model. Декоративные loading
+icons скрыты от accessibility tree, Verify/Apply имеют стабильные русские имена
+и aria-busy. Финальная mock-матрица: 24 сценария, 36 screenshots с проверкой
+целевой геометрии drawer до съёмки; browser page errors — 0.

@@ -35,3 +35,8 @@ test('401/logout/epoch changes reject delayed callbacks; a current 409 retains d
  for(const reason of ['401','logout','epoch-change']){const epoch=new PrivateEpoch();const ticket=epoch.capture();let draft='private preview';epoch.subscribe(()=>{draft='';});epoch.invalidate();if(ticket.current())draft='late result';assert.equal(ticket.current(),false,reason);assert.equal(draft,'');}
  const epoch=new PrivateEpoch();const ticket=epoch.capture();const draft='unsaved';assert.equal(ticket.current(),true);assert.equal(draft,'unsaved');
 });
+test('access management route admits roles-only and groups-only readers independently',()=>{
+ assert.equal(routeAccess(modern(['roles.read']),'/system/access'),true);
+ assert.equal(routeAccess(modern(['groups.read']),'/system/access'),true);
+ assert.equal(routeAccess(modern([]),'/system/access'),false);
+});

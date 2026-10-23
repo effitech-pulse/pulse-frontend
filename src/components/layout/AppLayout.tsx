@@ -18,7 +18,7 @@ const TOOLS = [
   { key: '/audit', icon: <HistoryOutlined />, label: <Link to="/audit">Журнал</Link>, title: 'Журнал действий' },
   { key: '/integrations', icon: <ApiOutlined />, label: <Link to="/integrations">Интеграции</Link>, title: 'Источники данных' },
   { key: '/analytics', icon: <BarChartOutlined />, label: <Link to="/analytics">Аналитика</Link>, title: 'Аналитика' },
-  { key: '/accounts', icon: <SettingOutlined />, label: <Link to="/accounts">Система</Link>, title: 'Пользователи и доступ' },
+  { key: '/system/access', icon: <SettingOutlined />, label: <Link to="/system/access">Система</Link>, title: 'Управление доступом' },
 ];
 const ITEMS = [...MONITORING, ...TOOLS];
 

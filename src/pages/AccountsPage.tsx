@@ -1,57 +1,260 @@
-import { Alert, App, Button, Card, Drawer, Form, Input, Radio, Select, Space, Switch, Table, Tag, Typography } from 'antd';
+import { Alert, App, Button, Drawer, Skeleton, Space } from 'antd';
+import { LoadingOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
-import { accessApi, roleLabels, type Account } from '@/api/access';
+import { useEffect, useRef, useState } from 'react';
+import { useBlocker, useSearchParams } from 'react-router-dom';
+import axios from 'axios';
+import { managementApi, type Account, type AccessChange, type AccessPreviewResponse, type GroupChange, type RoleChange, type UserChange } from '@/api/access';
 import { useAuth } from '@/auth/AuthProvider';
 import { toApiError } from '@/api/client';
-import { useDepartments, useNgdus } from '@/hooks/useWells';
-import { accountInputFromDraft, type AccountDraft as Draft } from '@/lib/accountInput';
+import { acceptPreview, applyReceipt, createDraft, previewTicket, rejectApply, updateDraft, userChange, validateUserChange, type AccessDraft } from '@/lib/accessDraft';
+import { UsersPanel, AccessError } from '@/components/access/UsersPanel';
+import { GroupsPanel } from '@/components/access/GroupsPanel';
+import { RolesPanel } from '@/components/access/RolesPanel';
+import { UserAccessDrawer } from '@/components/access/UserAccessDrawer';
+import { GroupEditor } from '@/components/access/GroupEditor';
+import { RoleEditor } from '@/components/access/RoleEditor';
+import { AccessPreview } from '@/components/access/AccessPreview';
 import '@/styles/portal-system.css';
-export function AccountsPage(){
- const {mode,principal}=useAuth();const {message}=App.useApp();const client=useQueryClient();
- const users=useQuery({queryKey:['accounts'],queryFn:accessApi.users,enabled:mode==='local'});
- const ngdus=useNgdus(),departments=useDepartments();
- const [editing,setEditing]=useState<Account|null>();const [saving,setSaving]=useState(false);const [error,setError]=useState('');const [form]=Form.useForm<Draft>();
- const [statusFilter,setStatusFilter]=useState<'active'|'disabled'|'all'>('active');
- const visibleUsers=(users.data??[]).filter(u=>statusFilter==='all'||u.active===(statusFilter==='active'));
- const role=Form.useWatch('role',form),ngduMode=Form.useWatch('ngduMode',form),departmentMode=Form.useWatch('departmentMode',form);
- function open(account:Account|null){setEditing(account);setError('');form.resetFields();form.setFieldsValue(account?{...account,scope:{...account.scope,ngdus:account.scope.ngdus??[],departments:account.scope.departments??[]},password:undefined,ngduMode:account.scope.ngdus===null?'all':'selected',departmentMode:account.scope.departments===null?'all':'selected'}:{login:'',name:'',role:'viewer',active:true,revision:0,scope:{funds:['presentation'],ngdus:[],departments:[]},ngduMode:'all',departmentMode:'all'});}
- async function save(v:Draft){setSaving(true);setError('');try{const input=accountInputFromDraft(v,editing);if(editing)await accessApi.update(editing.id,input);else await accessApi.create(input);setEditing(undefined);form.resetFields();await client.invalidateQueries({queryKey:['accounts']});message.success('Учётная запись сохранена. Прежние сеансы пользователя отозваны.');}catch(e){setError(toApiError(e).message);}finally{setSaving(false);}}
- return <div className="pulse-stack pulse-system-page pulse-system-accounts">
- <div className="pulse-page-heading"><h1>Система</h1><p>Пользователи, роли и область доступа.</p></div>
- <div className="pulse-system-section-tabs"><Button type="primary" aria-current="page">Пользователи</Button></div>
- <div className="pulse-toolbar"><h2>Учётные записи</h2><Space wrap><Select aria-label="Статус пользователей" value={statusFilter} onChange={setStatusFilter} options={[{value:'active',label:'Активные'},{value:'disabled',label:'Отключённые'},{value:'all',label:'Все пользователи'}]} /><Button type="primary" disabled={mode!=='local'} onClick={()=>open(null)}>Добавить пользователя</Button></Space></div>
- {mode==='legacy'?<Alert type="info" showIcon message="Персональный вход ещё не включён" description="Для перехода создайте первого администратора серверной командой adminuser, затем включите AUTH_MODE=local. После этого здесь появится управление пользователями, ролями и областью доступа." />:null}
- <Card className="pulse-system-table-card" title="Пользователи">
- {users.isError&&<Alert type="error" message={toApiError(users.error).message} />}
- <Table<Account> rowKey="id" loading={users.isLoading} dataSource={visibleUsers} scroll={{x:900}} locale={{emptyText:users.isError?'Пользователи не загружены':statusFilter==='disabled'?'Нет отключённых пользователей':'Нет пользователей в выбранной группе'}} columns={[
- {title:'Пользователь',width:280,render:(_,u)=><div><button className="pulse-system-source-link" onClick={()=>open(u)}>{u.name}</button><span className="pulse-cell-meta">{u.login}{u.id===principal?.account_id?' · вы':''}</span></div>},
- {title:'Роль',dataIndex:'role',render:(r:Account['role'])=>roleLabels[r]},
- {title:'Область доступа',render:(_,u)=>u.role==='admin'?'Весь фонд':<><div>{u.scope.funds.includes('presentation')?'Pulse Connector':'Нет доступа к текущим скважинам'}</div><Typography.Text type="secondary">НГДУ: {u.scope.ngdus===null?'все':u.scope.ngdus.join(', ')||'нет доступа'} · Цеха: {u.scope.departments===null?'все':u.scope.departments.join(', ')||'нет доступа'}</Typography.Text></>},
- {title:'Статус',dataIndex:'active',render:(a:boolean)=><Tag color={a?'green':undefined}>{a?'Активен':'Отключён'}</Tag>},
- {title:'Действия',render:(_,u)=><Button type="text" onClick={()=>open(u)}>Настроить →</Button>},
- ]} />
- </Card>
- <div className="pulse-system-callout"><strong>Доступ к скважинам</strong><p>Технолог выполняет проверки и оформляет заключения. Наблюдатель просматривает данные. Администратор управляет системой и всем фондом. Изменение учётной записи завершает её действующие сеансы.</p></div>
- <Typography.Text className="pulse-system-footnote" type="secondary">Роли Pulse хранятся отдельно от способа входа. Подготовлена связь с внешней учётной записью для последующего подключения Keycloak и других провайдеров OIDC. Само подключение SSO ещё не настроено.</Typography.Text>
- <Drawer className="pulse-system-overlay" title={editing?'Настройка пользователя':'Новый пользователь'} width="min(520px, 100vw)" open={editing!==undefined} onClose={()=>{if(!saving){setEditing(undefined);form.resetFields();}}} destroyOnClose>
- <Form form={form} layout="vertical" onFinish={save}>
- {error&&<Alert type="error" message={error} style={{marginBottom:16}} />}
- <Form.Item name="revision" hidden><Input /></Form.Item>
- <Form.Item name="login" label="Логин" rules={[{required:true},{pattern:/^[a-zA-Z0-9][a-zA-Z0-9._@-]{2,79}$/,message:'3–80 латинских букв, цифр, точка, дефис, @ или _'}]}><Input autoComplete="username" spellCheck={false} /></Form.Item>
- <Form.Item name="name" label="Имя и фамилия" rules={[{required:true}]}><Input autoComplete="name" maxLength={120} /></Form.Item>
- <Form.Item name="role" label="Роль" rules={[{required:true}]}><Select options={Object.entries(roleLabels).map(([value,label])=>({value,label}))} /></Form.Item>
- <Form.Item name="active" label="Учётная запись активна" valuePropName="checked"><Switch /></Form.Item>
- {role!=='admin'&&<>
- <Typography.Paragraph type="secondary">Pulse Connector · доступ ограничивается разрешёнными скважинами, НГДУ и цехами.</Typography.Paragraph>
- <Form.Item name="ngduMode" label="НГДУ"><Radio.Group options={[{value:'all',label:'Все'},{value:'selected',label:'Выбранные'}]} /></Form.Item>
- {ngduMode==='selected'&&<Form.Item name={['scope','ngdus']}><Select mode="multiple" allowClear placeholder="Пустой список запрещает доступ" options={ngdus.data?.map(r=>({value:r.id,label:`${r.name} (${r.id})`}))} /></Form.Item>}
- <Form.Item name="departmentMode" label="Цеха"><Radio.Group options={[{value:'all',label:'Все'},{value:'selected',label:'Выбранные'}]} /></Form.Item>
- {departmentMode==='selected'&&<Form.Item name={['scope','departments']}><Select mode="multiple" allowClear placeholder="Пустой список запрещает доступ" options={departments.data?.map(r=>({value:r.id,label:`${r.name} (${r.id})`}))} /></Form.Item>}
- </>}
- <Form.Item name="password" label={editing?'Новый пароль (оставьте пустым, чтобы сохранить)':'Пароль'} rules={[{required:!editing,message:'Введите пароль'},{validator:(_,value)=>!value||(Array.from(value).length>=15&&new TextEncoder().encode(value).length<=72)?Promise.resolve():Promise.reject(new Error('Минимум 15 символов, максимум 72 байта UTF-8'))}]}><Input.Password autoComplete="new-password" /></Form.Item>
- <Space><Button type="primary" htmlType="submit" loading={saving}>Сохранить</Button><Button disabled={saving} onClick={()=>open(editing??null)}>Сбросить форму</Button></Space>
- </Form>
- </Drawer>
- </div>;
+type Tab = 'users' | 'groups' | 'roles';
+const tabs: {
+    key: Tab;
+    label: string;
+    permission: 'users.read' | 'groups.read' | 'roles.read';
+}[] = [{ key: 'users', label: 'Пользователи', permission: 'users.read' }, { key: 'groups', label: 'Группы пользователей', permission: 'groups.read' }, { key: 'roles', label: 'Роли', permission: 'roles.read' }];
+export function AccountsPage() {
+    const auth = useAuth();
+    const { can, principal, privateEpoch, capturePrivate, refreshSession } = auth;
+    const client = useQueryClient();
+    const { message, modal } = App.useApp();
+    const [params, setParams] = useSearchParams();
+    const available = tabs.filter(t => can(t.permission));
+    const tab = available.find(t => t.key === params.get('tab'))?.key ?? available[0]?.key;
+    const modern = auth.mode === 'local' && principal?.access_model === 'rbac_v1' && !auth.privateBlocked;
+    const [draft, setDraft] = useState<AccessDraft | null>(null);
+    const draftRef = useRef(draft);
+    draftRef.current = draft;
+    const [account, setAccount] = useState<Account | null>(null);
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<unknown>();
+    const [forbidden, setForbidden] = useState(false);
+    const [uncertain, setUncertain] = useState(false);
+    const [previewMode, setPreviewMode] = useState(false);
+    const [previewSearch, setPreviewSearch] = useState('');
+    const [previewPage, setPreviewPage] = useState<AccessPreviewResponse | null>(null);
+    const [previewHistory, setPreviewHistory] = useState<string[]>([]);
+    const [baselineReady, setBaselineReady] = useState(false);
+    const [departmentPending, setDepartmentPending] = useState(false);
+    const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+    useEffect(() => () => clearTimeout(searchTimer.current), []);
+    const bypassNavigation = useRef(false);
+    const blockingModal = useRef(false);
+    const sequence = useRef(0);
+    const opener = useRef<HTMLElement | null>(null);
+    const errorRef = useRef<HTMLDivElement>(null);
+    const blocker = useBlocker(({ currentLocation, nextLocation }) => { if (bypassNavigation.current) {
+        bypassNavigation.current = false;
+        return false;
+    } return !busy && draftRef.current?.dirty === true && (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search); });
+    useEffect(() => { if (blocker.state !== 'blocked' || blockingModal.current)
+        return; blockingModal.current = true; modal.confirm({ rootClassName: 'access-confirm-modal', title: 'Закрыть без сохранения?', content: 'Несохранённые изменения будут потеряны.', okText: 'Закрыть', cancelText: 'Продолжить редактирование', onOk: () => { blockingModal.current = false; blocker.proceed(); }, onCancel: () => { blockingModal.current = false; blocker.reset(); } }); }, [blocker, modal]);
+    const catalog = useQuery({ queryKey: ['access', 'permissions', privateEpoch], queryFn: managementApi.permissions, enabled: modern && available.length > 0, retry: false });
+    useEffect(() => { if (modern && tab && params.get('tab') !== tab) {
+        const p = new URLSearchParams(params);
+        p.set('tab', tab);
+        setParams(p, { replace: true });
+    } }, [modern, tab, params, setParams]);
+    useEffect(() => { if (error)
+        errorRef.current?.focus(); }, [error]);
+    const entity = params.get('entity');
+    const entityID = params.get('id');
+    useEffect(() => {
+        clearTimeout(searchTimer.current);
+        setBusy(false);
+        if (!modern || !entity) {
+            sequence.current++;
+            setDraft(null);
+            setPreviewMode(false);
+            setPassword('');
+            setLoading(false);
+            return;
+        }
+        if (!['users', 'groups', 'roles'].includes(entity) || !available.some(t => t.key === entity)) {
+            sequence.current++;
+            setDraft(null);
+            setPassword('');
+            setPreviewPage(null);
+            setForbidden(true);
+            setError(new Error('Доступ к карточке закрыт'));
+            setLoading(false);
+            return;
+        }
+        const ticket = capturePrivate();
+        const n = ++sequence.current;
+        setLoading(true);
+        setDraft(null);
+        setError(undefined);
+        setForbidden(false);
+        setUncertain(false);
+        setPassword('');
+        setPreviewMode(false);
+        setPreviewPage(null);
+        setAccount(null);
+        setBaselineReady(entityID === 'new');
+        setDepartmentPending(false);
+        async function load() {
+            try {
+                let change: AccessChange;
+                if (entity === 'users') {
+                    if (entityID === 'new') {
+                        if (!can('users.create'))
+                            throw new Error('Создание пользователя недоступно');
+                        change = { user: { id: null, revision: '0', name: '', login: '', active: true, role_ids: [], group_ids: [], reset_password: true } };
+                    }
+                    else {
+                        const u = await managementApi.user(entityID!);
+                        if (!ticket.current() || n !== sequence.current)
+                            return;
+                        setAccount(u);
+                        change = userChange(u, {});
+                    }
+                }
+                else if (entity === 'roles') {
+                    const r = entityID === 'new' ? null : await managementApi.role(entityID!);
+                    change = { role: r ? { id: params.get('copy') === '1' ? null : r.id, revision: params.get('copy') === '1' ? '0' : r.revision, name: params.get('copy') === '1' ? `${r.name} (копия)` : r.name, description: r.description, permission_keys: r.permission_keys, delete: false } : { id: null, revision: '0', name: '', description: '', permission_keys: [], delete: false } };
+                }
+                else {
+                    const g = entityID === 'new' ? null : await managementApi.group(entityID!);
+                    change = { group: g ? { ...g, member_ids: [], delete: false } : { id: null, revision: '0', name: '', description: '', role_ids: [], member_ids: [], delete: false } };
+                }
+                if (ticket.current() && n === sequence.current)
+                    setDraft(createDraft(change, privateEpoch));
+            }
+            catch (e) {
+                if (ticket.current() && n === sequence.current) {
+                    setError(e);
+                    setForbidden(axios.isAxiosError(e) && e.response?.status === 403);
+                }
+            }
+            finally {
+                if (ticket.current() && n === sequence.current)
+                    setLoading(false);
+            }
+        }
+        void load();
+    }, [entity, entityID, params.get('copy'), privateEpoch, modern]);
+    function open(kind: Tab, id: string | null, copy = false) { opener.current = document.activeElement as HTMLElement; const p = new URLSearchParams(params); p.set('tab', kind); p.set('entity', kind); p.set('id', id ?? 'new'); if (copy)
+        p.set('copy', '1');
+    else
+        p.delete('copy'); setParams(p); }
+    function closeNow() { bypassNavigation.current = true; clearTimeout(searchTimer.current); sequence.current++; setPassword(''); setDraft(null); setPreviewPage(null); const p = new URLSearchParams(params); p.delete('entity'); p.delete('id'); p.delete('copy'); setParams(p); setTimeout(() => opener.current?.focus(), 0); }
+    function close() { if (busy)
+        return; if (draft?.dirty || password)
+        modal.confirm({ rootClassName: 'access-confirm-modal', title: 'Закрыть без сохранения?', content: 'Несохранённые изменения будут потеряны.', okText: 'Закрыть', cancelText: 'Продолжить редактирование', onOk: closeNow });
+    else
+        closeNow(); }
+    function edit(change: AccessChange) { setDraft(d => d ? updateDraft(d, change) : d); setError(undefined); setPreviewPage(null); }
+    function userPatch(patch: Partial<UserChange>) { if (draft?.change.user)
+        edit({ user: { ...draft.change.user, ...patch } }); }
+    function rolePatch(patch: Partial<RoleChange>) { if (draft?.change.role)
+        edit({ role: { ...draft.change.role, ...patch } }); }
+    function groupPatch(patch: Partial<GroupChange>) { if (draft?.change.group)
+        edit({ group: { ...draft.change.group, ...patch } }); }
+    const writable = draft?.change.user ? can(draft.change.user.id === null ? 'users.create' : 'users.update') : draft?.change.role ? can('roles.manage', 'access.manage_global') : draft?.change.group ? can('groups.manage', 'access.manage_global') : false;
+    async function preview(search = '', cursor?: string, history: string[] = []) {
+        const current = draftRef.current;
+        if (!current || busy)
+            return;
+        const ticket = capturePrivate();
+        const n = ++sequence.current;
+        const dt = previewTicket(current);
+        setBusy(true);
+        setError(undefined);
+        try {
+            const c = current.change;
+            if (c.user) {
+                validateUserChange(c.user, password, departmentPending);
+            }
+            else if (!(c.role ?? c.group)?.name.trim())
+                throw new Error('Введите название.');
+            const response = await managementApi.preview(current.change, { search, cursor, graph_revision: current.conflict ? undefined : current.preview?.graph_revision, limit: 25 });
+            if (!ticket.current() || n !== sequence.current || dt.version !== draftRef.current?.version)
+                return;
+            setDraft(d => d ? acceptPreview(d, response, dt, privateEpoch) : d);
+            setPreviewPage(response);
+            setPreviewMode(true);
+            setPreviewSearch(search);
+            setPreviewHistory(history);
+        }
+        catch (e) {
+            if (ticket.current() && n === sequence.current) {
+                setError(e);
+                if (axios.isAxiosError(e) && e.response?.status === 403) {
+                    setForbidden(true);
+                    setDraft(null);
+                    setPassword('');
+                    setPreviewPage(null);
+                }
+                else
+                    setDraft(d => d ? rejectApply(d, axios.isAxiosError(e) ? e.response?.status ?? 0 : 0) : d);
+            }
+        }
+        finally {
+            if (ticket.current() && n === sequence.current)
+                setBusy(false);
+        }
+    }
+    async function apply() { if (!draft || busy)
+        return; const ticket = capturePrivate(); const n = ++sequence.current; setBusy(true); setError(undefined); try {
+        const result = await managementApi.apply(applyReceipt(draft, privateEpoch), password || undefined);
+        if (!ticket.current() || n !== sequence.current)
+            return;
+        if (result.user)
+            client.setQueryData(['access', 'committed-user', result.user.access_id], result.user);
+        closeNow();
+        message.success('Изменения сохранены. Затронутые сеансы завершены.');
+        await client.invalidateQueries({ queryKey: ['access'] });
+        await refreshSession();
+    }
+    catch (e) {
+        if (ticket.current() && n === sequence.current) {
+            setError(e);
+            const status = axios.isAxiosError(e) ? e.response?.status ?? 0 : 0;
+            setDraft(d => d ? rejectApply(d, status) : d);
+            if (status === 403) {
+                setForbidden(true);
+                setDraft(null);
+                setPassword('');
+                setPreviewPage(null);
+            }
+            if (!status) {
+                setUncertain(true);
+            }
+        }
+    }
+    finally {
+        if (ticket.current() && n === sequence.current)
+            setBusy(false);
+    } }
+    if (!modern)
+        return <Alert type="info" message="Управление доступом пока недоступно" description="Для постоянных ролей и групп требуется включённая серверная модель доступа. Прежний режим не поддерживает этот редактор."/>;
+    return <div className="pulse-stack pulse-system-page access-page"><div className="pulse-page-heading"><h1>Управление доступом</h1><p>Пользователи, группы и роли. Доступ к данным определяется подразделением пользователя.</p></div>
+ {available.length > 1 && <div role="tablist" aria-label="Управление доступом" className="access-tabs">{available.map((t, index) => <Button key={t.key} id={`access-tab-${t.key}`} role="tab" aria-selected={tab === t.key} aria-controls={`access-panel-${t.key}`} tabIndex={tab === t.key ? 0 : -1} type={tab === t.key ? 'primary' : 'default'} onClick={() => { const p = new URLSearchParams(); p.set('tab', t.key); setParams(p); }} onKeyDown={e => { const next = e.key === 'Home' ? 0 : e.key === 'End' ? available.length - 1 : e.key === 'ArrowRight' ? (index + 1) % available.length : e.key === 'ArrowLeft' ? (index + available.length - 1) % available.length : -1; if (next >= 0) {
+        e.preventDefault();
+        const p = new URLSearchParams();
+        p.set('tab', available[next].key);
+        setParams(p);
+        document.getElementById(`access-tab-${available[next].key}`)?.focus();
+    } }}>{t.label}</Button>)}</div>}
+ <section role="tabpanel" id={`access-panel-${tab}`} aria-labelledby={available.length > 1 ? `access-tab-${tab}` : undefined}>{tab === 'users' ? <UsersPanel open={id => open('users', id)}/> : tab === 'groups' ? <GroupsPanel open={id => open('groups', id)}/> : tab === 'roles' ? <RolesPanel open={(id, copy) => open('roles', id, copy)}/> : <Alert type="warning" message="Нет доступа к разделу"/>}</section>
+ <div className="pulse-system-callout"><strong>Роль — действия. Подразделение — данные.</strong><p>Группа объединяет сотрудников для назначения ролей и не меняет доступные каждому НГДУ и цех.</p></div>
+ <Drawer closable={false} rootClassName="pulse-system-overlay access-overlay" title={previewMode ? 'Проверка изменений' : entity === 'users' ? 'Настройка пользователя' : entity === 'groups' ? 'Настройка группы' : 'Настройка роли'} width={`min(${previewMode ? 960 : entity === 'users' ? 600 : 760}px, 100vw)`} open={!!entity} onClose={close} keyboard={!busy} maskClosable={!busy} destroyOnClose footer={<Space wrap>{!forbidden && draft && writable && !uncertain && (previewMode ? <><Button aria-label="Применить изменения" type="primary" loading={busy ? {icon:<LoadingOutlined aria-hidden="true"/>} : false} aria-busy={busy} disabled={!draft.preview || draft.conflict} onClick={() => void apply()}>Применить изменения</Button><Button disabled={busy} onClick={() => { setPreviewMode(false); setPreviewPage(null); }}>Вернуться к редактированию</Button></> : <><Button aria-label="Проверить изменения" type="primary" loading={busy ? {icon:<LoadingOutlined aria-hidden="true"/>} : false} aria-busy={busy} disabled={draft.change.group && !baselineReady || catalog.isPending || catalog.isError} onClick={() => void preview()}>Проверить изменения</Button>{(draft.change.role?.id || draft.change.group?.id) && <Button danger disabled={busy || !!draft.change.group && !baselineReady} onClick={() => { if (draft.change.role)
+        rolePatch({ delete: !draft.change.role.delete }); if (draft.change.group)
+        groupPatch({ delete: !draft.change.group.delete }); }}>{(draft.change.role ?? draft.change.group)?.delete ? 'Отменить удаление' : 'Удалить'}</Button>}</>)}<Button disabled={busy} onClick={close}>Отмена</Button></Space>}>
+ {error != null && <div ref={errorRef} tabIndex={-1}><Alert type="error" message={forbidden ? 'Доступ к сведениям закрыт' : toApiError(error).message} description={draft?.conflict ? 'Черновик сохранён. Данные изменились. Проверьте последствия повторно.' : uncertain ? 'Результат записи неизвестен. Закройте карточку и перечитайте данные перед дальнейшей записью.' : undefined} action={draft?.conflict ? <Button disabled={busy} onClick={() => void preview()}>Обновить предпросмотр</Button> : undefined}/></div>}
+ {loading ? <Skeleton active/> : draft && !forbidden ? previewMode ? <AccessPreview preview={previewPage} loading={busy} search={previewSearch} onSearch={search => { setPreviewSearch(search); clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => void preview(search), 300); }} onNext={() => { if (previewPage?.next_cursor)
+        void preview(previewSearch, previewPage.next_cursor, [...previewHistory, previewPage.next_cursor]); }} onBack={() => { const h = previewHistory.slice(0, -1); void preview(previewSearch, h.at(-1), h); }} hasBack={previewHistory.length > 0} catalog={catalog.data ?? []} userChange={!!draft.change.user}/> : <>{catalog.isError && <AccessError error={catalog.error} retry={() => void catalog.refetch()}/>} {draft.change.user ? <UserAccessDrawer value={draft.change.user} account={account} password={password} onPassword={v => { setPassword(v); userPatch({ reset_password: !!v || draft.change.user!.id === null }); }} onChange={userPatch} onDepartmentPending={setDepartmentPending} onClose={close} catalog={catalog.data ?? []}/> : draft.change.role ? <RoleEditor value={draft.change.role} onChange={rolePatch} catalog={catalog.data ?? []} disabled={!writable}/> : <GroupEditor value={draft.change.group!} onChange={groupPatch} disabled={!writable} baselineReady={baselineReady} onBaseline={ids => { setBaselineReady(true); groupPatch({ member_ids: ids }); }}/>}{(draft.change.role ?? draft.change.group)?.delete && <Alert type="warning" message="Выбрано удаление. Сервер проверит зависимые назначения."/>}</> : null}
+ </Drawer></div>;
 }

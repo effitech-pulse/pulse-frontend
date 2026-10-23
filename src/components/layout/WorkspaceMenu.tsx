@@ -2,25 +2,35 @@ import { App, Alert, Button, Descriptions, Drawer, Empty, List, Space, Tag, Typo
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthProvider';
-import { roleLabels } from '@/api/access';
+import { roleLabels, type Principal } from '@/api/access';
 import { mlNewAlerts } from '@/lib/mlSnapshot';
 import { mlApi } from '@/api/ml';
 import { integrationsApi } from '@/api/integrations';
 import { toApiError } from '@/api/client';
 
+/** The modern self projection is authoritative, including zero-permission roles/groups. */
+export function profileAccessSummary(principal: Principal | null) {
+  if (principal?.access_model === 'rbac_v1') return {
+    label: 'Роли', roles: principal.roles?.map(role => role.name).join(', ') || 'Роли не назначены',
+    groups: principal.groups?.map(group => group.name).join(', ') || 'Группы не назначены',
+  };
+  return {label:'Роль',roles:principal && (principal.access_model === undefined || principal.access_model === 'legacy') ? roleLabels[principal.role] : 'Сведения о ролях недоступны',groups:null};
+}
+
 export function WorkspaceProfile({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { principal, mode, can, logout } = useAuth();
+  const { principal, mode, canAny, logout } = useAuth();
   const { message } = App.useApp();
+  const access=profileAccessSummary(principal);
   return <Drawer title="Мой профиль" open={open} onClose={onClose}>
     <Descriptions column={1} layout="vertical" items={[
       { key: 'name', label: 'Имя', children: principal?.name },
-      { key: 'role', label: 'Роль', children: principal && roleLabels[principal.role] },
+      { key: 'role', label: access.label, children: <div><div>{access.roles}</div>{access.groups!==null&&<div>Группы: {access.groups}</div>}</div> },
       { key: 'mode', label: 'Доступ', children: mode === 'local' ? 'Личная учётная запись' : 'Общее рабочее пространство' },
       { key: 'ngdu', label: 'НГДУ', children: principal?.scope.ngdus?.join(', ') ?? 'Все разрешённые НГДУ' },
       { key: 'departments', label: 'Цеха', children: principal?.scope.departments?.join(', ') ?? 'Все разрешённые цеха' },
     ]} />
     <Space direction="vertical" size={20}>
-      {can('users.read') && <Link to="/accounts" onClick={onClose}>Управление пользователями и доступом →</Link>}
+      {canAny(['users.read'],['groups.read'],['roles.read']) && <Link to="/system/access" onClick={onClose}>Управление пользователями и доступом →</Link>}
       {mode === 'local' && <Button onClick={() => { void logout().then(onClose).catch(error => message.error(toApiError(error).message)); }}>Выйти из аккаунта</Button>}
     </Space>
   </Drawer>;
