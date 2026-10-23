@@ -344,3 +344,13 @@ raw permission keys actor, существующие selections и fragments со
 композиция, токены и theme mappings сохранены; новые макеты не создавались.
 Это исправленный source checkpoint для того же reviewer; live backend
 acceptance и его итоговый verdict по-прежнему ожидаются.
+
+
+Focused followup FR-01-R/FR-10: наблюдаемая смена graph revision инвалидирует
+также первый in-flight Preview без receipt; Change сохраняется. Новый Preview
+может вернуть более свежий граф, чем self-profile, и принимается без сравнения
+с устаревшим closure. Icon-only actions НГДУ/цехов имеют русские contextual
+aria-label (действие, название, ID); сами icons остаются декоративными.
+Три narrow browser cases / 0 page errors и два rendered-name tests находятся
+во внешнем `execution/plan/frontend-fixes-followup-browser/`. Source composition
+не менялась; live acceptance по-прежнему pending backend gate.

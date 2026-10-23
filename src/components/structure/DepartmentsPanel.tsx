@@ -25,7 +25,7 @@ export function DepartmentsPanel() {
       render: (_: unknown, dep: Department) => (
         <Space>
           <Button
-            size="small"
+            size="small" aria-label={`Редактировать цех «${dep.name}» (${dep.id})`}
             disabled={!canFull('references.update')} icon={<EditOutlined aria-hidden="true" />}
             onClick={() => {
               setEditing(dep);
@@ -34,7 +34,7 @@ export function DepartmentsPanel() {
           />
           <Popconfirm title="Удалить цех?" okText="Да" cancelText="Нет"
             onConfirm={() => del.mutate(dep.id)}>
-            <Button size="small" danger disabled={!canFull('references.delete')} icon={<DeleteOutlined aria-hidden="true" />} />
+            <Button size="small" aria-label={`Удалить цех «${dep.name}» (${dep.id})`} danger disabled={!canFull('references.delete')} icon={<DeleteOutlined aria-hidden="true" />} />
           </Popconfirm>
         </Space>
       ),

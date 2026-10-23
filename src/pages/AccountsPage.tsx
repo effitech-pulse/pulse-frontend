@@ -53,6 +53,7 @@ export function AccountsPage() {
     const blockingModal = useRef(false);
     const sequence = useRef(0);
     const applying = useRef(false);
+    const observedGraph = useRef(principal?.graph_revision);
     const opener = useRef<HTMLElement | null>(null);
     const errorRef = useRef<HTMLDivElement>(null);
     const blocker = useBlocker(({ currentLocation, nextLocation }) => { if (bypassNavigation.current) {
@@ -88,14 +89,20 @@ export function AccountsPage() {
         } else if (error) errorRef.current?.focus();
     }, [error]);
     useEffect(() => {
+        const graph = principal?.graph_revision;
+        if (graph === observedGraph.current) return;
+        observedGraph.current = graph;
+        if (graph === undefined) return;
+        // A graph refresh also invalidates the first in-flight Preview, before a receipt exists.
+        // Requests started afterwards may return a newer graph than this self-profile snapshot.
+        if (!applying.current) {
+            sequence.current++;
+            setBusy(false);
+        }
         const current = draftRef.current;
-        if (current?.preview && principal?.graph_revision !== undefined && current.preview.graph_revision !== principal.graph_revision) {
+        if (current && current.preview?.graph_revision !== graph) {
             setDraft(d => d ? rejectApply(d, 409) : d);
             setError(new Error('Граф доступа изменился. Обновите предпросмотр.'));
-            if (!applying.current) {
-                sequence.current++;
-                setBusy(false);
-            }
         }
     }, [principal?.graph_revision]);
     const entity = params.get('entity');

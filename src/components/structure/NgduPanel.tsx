@@ -25,7 +25,7 @@ export function NgduPanel() {
       render: (_: unknown, item: Ngdu) => (
         <Space>
           <Button
-            size="small"
+            size="small" aria-label={`Редактировать НГДУ «${item.name}» (${item.id})`}
             disabled={!canFull('references.update')} icon={<EditOutlined aria-hidden="true" />}
             onClick={() => {
               setEditing(item);
@@ -34,7 +34,7 @@ export function NgduPanel() {
           />
           <Popconfirm title="Удалить НГДУ?" okText="Да" cancelText="Нет"
             onConfirm={() => del.mutate(item.id)}>
-            <Button size="small" danger disabled={!canFull('references.delete')} icon={<DeleteOutlined aria-hidden="true" />} />
+            <Button size="small" aria-label={`Удалить НГДУ «${item.name}» (${item.id})`} danger disabled={!canFull('references.delete')} icon={<DeleteOutlined aria-hidden="true" />} />
           </Popconfirm>
         </Space>
       ),
