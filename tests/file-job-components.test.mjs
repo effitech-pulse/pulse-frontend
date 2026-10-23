@@ -1,3 +1,5 @@
+import {legacyAuth} from './auth-fixture.mjs';
+import * as authorization from '../src/auth/authorization.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -9,7 +11,7 @@ import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import * as logic from '../src/lib/fileJobs.ts';
 const require=createRequire(import.meta.url);
-function load(relative,boundaries){const filename=fileURLToPath(new URL(relative,import.meta.url));const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{esModuleInterop:true,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>Object.hasOwn(boundaries,id)?boundaries[id]:require(id);mod._compile(code,filename);return mod.exports;}
+function load(relative,boundaries){const filename=fileURLToPath(new URL(relative,import.meta.url));const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{esModuleInterop:true,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries,id)?boundaries[id]:require(id);mod._compile(code,filename);return mod.exports;}
 const {SavedFileCheckResult}=load('../src/components/telemetry/FileJobResult.tsx',{'./ReviewPanel':{ReviewPanel:()=>React.createElement('div',{'data-review':true})},'@/api/fileJobs':{fileJobPath:(well,job)=>`/api/v1/wells/${well}/file-check-jobs/${job}`}});
 const check={id:'q1_'+'a'.repeat(32),job_id:'a'.repeat(32),well_id:'9223372036854775807',source_kind:'uploaded_file',start:'2026-01-01',end:'2026-02-01',created_at:'2026-02-01',input_sha256:'hash',points_count:'9223372036854775807',resolution:'',result:{verdict:'insufficient',latest_risk:null,peak_risk:null}};
 test('saved insufficient projection keeps int64 and review without false zero risk or legacy session copy',()=>{
@@ -29,7 +31,7 @@ test('actual API adapter uses dedicated paths and exact well string for submit/r
 test('eligible technologist can reach capability-gated file page while viewer remains forbidden',()=>{
  for(const role of ['technologist','viewer']){
  const router=require('react-router-dom');
- const {AppLayout}=load('../src/components/layout/AppLayout.tsx',{'@/auth/AuthProvider':{useAuth:()=>({principal:{name:'Test'},isAdmin:false,canOperate:role==='technologist',mode:'local'})},'@/theme/ThemeProvider':{useTheme:()=>({dark:false,toggle:()=>{}})},'./WorkspaceMenu':{WorkspaceProfile:()=>null,WorkspaceEvents:()=>null},'react-router-dom':{...router,Outlet:()=>React.createElement('div',{'data-file-entry':true})}});
+ const {AppLayout}=load('../src/components/layout/AppLayout.tsx',{'@/auth/AuthProvider':{useAuth:()=>legacyAuth(role)},'@/theme/ThemeProvider':{useTheme:()=>({dark:false,toggle:()=>{}})},'./WorkspaceMenu':{WorkspaceProfile:()=>null,WorkspaceEvents:()=>null},'react-router-dom':{...router,Outlet:()=>React.createElement('div',{'data-file-entry':true})}});
  const html=renderToStaticMarkup(React.createElement(router.MemoryRouter,{initialEntries:['/upload-check']},React.createElement(AppLayout)));
  if(role==='technologist')assert.match(html,/data-file-entry/);else assert.doesNotMatch(html,/data-file-entry/);
  }

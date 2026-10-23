@@ -1,3 +1,5 @@
+import {legacyAuth} from './auth-fixture.mjs';
+import * as authorization from '../src/auth/authorization.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -15,7 +17,7 @@ function renderRegistry(role, management = false, registryError = null, assessme
   const filename = fileURLToPath(new URL('../src/pages/WellsPage.tsx', import.meta.url));
   const code = ts.transpileModule(readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;
   const boundaries = {
-    '@/auth/AuthProvider': { useAuth: () => ({ isAdmin: role === 'admin' }) },
+    '@/auth/AuthProvider': { useAuth: () => legacyAuth(role) },
     '@/lib/wellExport': { filterWellWorkbook: () => { throw Error('Unexpected export'); } },
     '@/api/wells': { wellsApi: {} },
     '@/api/client': { toApiError: error => error },
@@ -28,7 +30,7 @@ function renderRegistry(role, management = false, registryError = null, assessme
     '@/components/wells/AddWellModal': { AddWellModal: () => null },
   };
   const mod = new Module(filename); mod.filename = filename; mod.paths = Module._nodeModulePaths(path.dirname(filename));
-  mod.require = id => Object.hasOwn(boundaries, id) ? boundaries[id] : require(id);
+  mod.require = id => id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries, id) ? boundaries[id] : require(id);
   mod._compile(code, filename);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   client.setQueryData(['ml-wells'], {});

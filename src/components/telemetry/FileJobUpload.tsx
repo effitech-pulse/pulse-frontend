@@ -18,11 +18,11 @@ export function FileJobUpload({available=true}:{available?:boolean}){
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;fileSequence.current++;attemptFile.current=undefined;};},[]);
  function fail(message:string){setError({message});requestAnimationFrame(()=>summary.current?.focus());}
  function invalidatePreview(){fileSequence.current++;setPreviewSnapshot(undefined);setPreviewing(false);setError(undefined);}
- function choose(candidate:File){if(inFlight.current)return false;if(!/\.(csv|xlsx)$/i.test(candidate.name)){fail('Выберите CSV или XLSX.');return false;}if(candidate.size>20*1024*1024){fail('Размер файла превышает 20 МБ.');return false;}
+ function choose(candidate:File){if(!available||!auth.can('filechecks.run')||inFlight.current)return false;if(!/\.(csv|xlsx)$/i.test(candidate.name)){fail('Выберите CSV или XLSX.');return false;}if(candidate.size>20*1024*1024){fail('Размер файла превышает 20 МБ.');return false;}
   fileRef.current=candidate;setFile(candidate);invalidatePreview();patch({format:/\.xlsx$/i.test(candidate.name)?'xlsx':'csv',delimiter:/\.xlsx$/i.test(candidate.name)?'':',',sheet:'',time_column:'',mappings:[]});return false;
  }
  async function inspect(){
-  if(!file||previewing)return;
+  if(!available||!auth.can('filechecks.run')||!file||previewing)return;
   const capturedFile=file,capturedSpec=spec,key=previewParseKey(capturedSpec);
   const sequence=++fileSequence.current;const ticket=auth.capturePrivate();
   const current=()=>alive.current&&ticket.current()&&sequence===fileSequence.current&&fileRef.current===capturedFile&&previewParseKey(specRef.current)===key;
@@ -45,14 +45,14 @@ export function FileJobUpload({available=true}:{available?:boolean}){
   const current=specRef.current;const old=current.mappings.find(m=>m.field===field)??{field,parameter:'',unit:'',scale:1,offset:0,missing:'',is_set:false};
   patch({mappings:[...current.mappings.filter(m=>m.field!==field),{...old,...value}]});
  }
- async function submit(){if(!available||!file||inFlight.current||previewing)return;const validation=validateFileDraft(well,file,spec);if(validation){fail(validation);return;}if(!preview||!previewSnapshot||previewSnapshot.file!==fileRef.current||previewSnapshot.key!==previewParseKey(specRef.current)){fail('Сначала откройте локальный просмотр и проверьте колонки.');return;}
+ async function submit(){if(!auth.can('filechecks.run')||!available||!file||inFlight.current||previewing)return;const validation=validateFileDraft(well,file,spec);if(validation){fail(validation);return;}if(!preview||!previewSnapshot||previewSnapshot.file!==fileRef.current||previewSnapshot.key!==previewParseKey(specRef.current)){fail('Сначала откройте локальный просмотр и проверьте колонки.');return;}
   if(attemptFile.current&&attemptFile.current!==file){fail('Для другого файла начните новую операцию явно.');return;}attemptFile.current=file;
   const ticket=auth.capturePrivate();inFlight.current=true;setLoading(true);setError(undefined);
   try{const accepted=await submission.current.submit(JSON.stringify({well,spec}),key=>request(signal=>fileJobsApi.submit(well,file,spec,key,signal)));if(accepted&&alive.current&&ticket.current())setJob(accepted);}
   catch(problem){if(alive.current&&ticket.current()){if(problem instanceof Error&&problem.message==='new_operation_required')fail('Настройки операции изменились. Для нового запуска нажмите «Начать новую операцию».');else{setError(fileProblem(problem));requestAnimationFrame(()=>summary.current?.focus());}}}
   finally{inFlight.current=false;if(alive.current&&ticket.current())setLoading(false);}
  }
- const disabled=loading||!!job||!available;
+ const disabled=loading||!!job||!available||!auth.can('filechecks.run');
  const uploadProps={accept:'.csv,.xlsx',multiple:false,showUploadList:false,disabled,beforeUpload:choose};
  return <div className="pulse-stack pulse-monitoring-page pulse-monitoring-file">
   <div className="pulse-page-heading pulse-toolbar"><div><h1>Проверка телеметрии</h1><p>Сохранённая проверка · только разрешённые синтетические файлы</p></div><Upload {...uploadProps}><Button type="primary" disabled={disabled}>Выбрать файл</Button></Upload></div>

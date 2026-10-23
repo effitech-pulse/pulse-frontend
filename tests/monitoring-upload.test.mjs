@@ -1,3 +1,5 @@
+import {legacyAuth} from './auth-fixture.mjs';
+import * as authorization from '../src/auth/authorization.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -14,8 +16,8 @@ function setup(post,isAdmin=true){
  Upload.Dragger=props=>React.createElement(antd.Upload.Dragger,props);
  const filename=fileURLToPath(new URL('../src/pages/UploadCheckPage.tsx',import.meta.url));
  const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{esModuleInterop:true,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
- const boundaries={'@/hooks/useFileJobs':{useFileCapabilities:()=>({enabled:false,isLoading:false})},'@/components/telemetry/FileJobUpload':{FileJobUpload:()=>null},react:{...React,useState:initial=>{const index=stateIndex++;return[initial,value=>changes[index].push(value)];}},antd:{...antd,Upload},'@/auth/AuthProvider':{useAuth:()=>({isAdmin})},'@/api/client':{apiClient:{post},toApiError:error=>({message:error.message,http_request_id:'Request_0123456789'})},'@/lib/displayTime':{formatSnapshotTime:value=>value},'@/components/ml/RiskHistoryChart':{RiskHistoryChart:()=>null},'@/components/ml/ExplainBars':{ExplainBars:()=>null}};
- const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>Object.hasOwn(boundaries,id)?boundaries[id]:require(id);mod._compile(code,filename);
+ const boundaries={'@/hooks/useFileJobs':{useFileCapabilities:()=>({enabled:false,isLoading:false})},'@/components/telemetry/FileJobUpload':{FileJobUpload:()=>null},react:{...React,useState:initial=>{const index=stateIndex++;return[initial,value=>changes[index].push(value)];}},antd:{...antd,Upload},'@/auth/AuthProvider':{useAuth:()=>legacyAuth(isAdmin?'admin':'viewer')},'@/api/client':{apiClient:{post},toApiError:error=>({message:error.message,http_request_id:'Request_0123456789'})},'@/lib/displayTime':{formatSnapshotTime:value=>value},'@/components/ml/RiskHistoryChart':{RiskHistoryChart:()=>null},'@/components/ml/ExplainBars':{ExplainBars:()=>null}};
+ const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries,id)?boundaries[id]:require(id);mod._compile(code,filename);
  renderToStaticMarkup(React.createElement(mod.exports.UploadCheckPage));return{beforeUpload,changes};
 }
 test('new upload clears previous result before real multipart boundary and concurrent submit is ignored',async()=>{

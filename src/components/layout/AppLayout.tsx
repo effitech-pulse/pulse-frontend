@@ -3,6 +3,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { ApartmentOutlined, BarChartOutlined, DashboardOutlined, HistoryOutlined, FileSearchOutlined, AlertOutlined, ApiOutlined, BulbOutlined, MoonOutlined, UserOutlined, BellOutlined, SettingOutlined, MenuOutlined } from '@ant-design/icons';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { WorkspaceEvents, WorkspaceProfile } from './WorkspaceMenu';
+import {routeAccess} from '@/auth/authorization';
 import { useAuth } from '@/auth/AuthProvider';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -20,7 +21,7 @@ const TOOLS = [
   { key: '/accounts', icon: <SettingOutlined />, label: <Link to="/accounts">Система</Link>, title: 'Пользователи и доступ' },
 ];
 const ITEMS = [...MONITORING, ...TOOLS];
-const RESTRICTED = ['/accounts', '/audit', '/integrations', '/analytics', '/upload-check'];
+
 
 /** Existing sidebar, exposed through a native keyboard-operable header control. */
 export function NavigationToggle({collapsed, onToggle}: {collapsed:boolean; onToggle:()=>void}) {
@@ -31,13 +32,12 @@ export function NavigationToggle({collapsed, onToggle}: {collapsed:boolean; onTo
 }
 
 export function AppLayout() {
-  const { principal, isAdmin, canOperate, mode } = useAuth();
+  const { principal, mode } = useAuth();
   const location = useLocation();
   const { dark, toggle } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false), [eventsOpen, setEventsOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const fileEntry=location.pathname==='/upload-check'&&canOperate;
-  const forbidden = !isAdmin && !fileEntry && RESTRICTED.some(path => location.pathname.startsWith(path));
+  const forbidden = !routeAccess(principal, location.pathname);
   useEffect(() => {
     if (new URLSearchParams(location.search).has('blur')) document.body.dataset.blur = '1';
     else delete document.body.dataset.blur;
@@ -51,7 +51,7 @@ export function AppLayout() {
     <Sider width={224} breakpoint="lg" collapsedWidth={0} collapsed={collapsed} onCollapse={setCollapsed} trigger={null} className="app-sidebar">
       <div className="app-sidebar-inner" aria-hidden={collapsed} ref={element=>{if(element)element.toggleAttribute('inert',collapsed);}}>
         <Link to="/" className="app-brand" aria-label="Пульс скважины — обзор фонда"><img className="app-brand-mark" src="/figma/pulse-symbol.svg" alt="" aria-hidden="true" /><span><strong>Пульс скважины</strong><small>Мониторинг УЭЦН</small></span></Link>
-        <nav id="pulse-main-navigation" aria-label="Основная навигация"><div className="app-nav-label">Мониторинг</div><Menu mode="inline" selectedKeys={[selectedKey]} items={MONITORING} /><div className="app-nav-label app-nav-label-tools">Инструменты</div><Menu mode="inline" selectedKeys={[selectedKey]} items={TOOLS.filter(i => isAdmin || (i.key==='/upload-check'&&canOperate) || !RESTRICTED.includes(i.key))} /></nav>
+        <nav id="pulse-main-navigation" aria-label="Основная навигация"><div className="app-nav-label">Мониторинг</div><Menu mode="inline" selectedKeys={[selectedKey]} items={MONITORING.filter(i => routeAccess(principal,i.key))} /><div className="app-nav-label app-nav-label-tools">Инструменты</div><Menu mode="inline" selectedKeys={[selectedKey]} items={TOOLS.filter(i => routeAccess(principal,i.key))} /></nav>
         <div className="app-sidebar-bottom"><button className="app-profile-card" onClick={() => setProfileOpen(true)}><UserOutlined /><span><strong>{name}</strong><small>Мой профиль</small></span></button><div className="app-company"><span>Разработано</span><span>ООО «ЭффиТех»</span></div></div>
       </div>
     </Sider>
@@ -62,7 +62,7 @@ export function AppLayout() {
 
       </Space></Header>
       <Content className={`app-content${location.pathname.startsWith('/analytics')?' app-content-full':''}`}>
-        <Suspense fallback={<div className="app-loading"><Spin size="large" /></div>}>{forbidden?<Result status="403" title="Раздел доступен администратору" />:<Outlet />}</Suspense>
+        <Suspense fallback={<div className="app-loading"><Spin size="large" /></div>}>{forbidden?<Result status="403" title="Доступ ограничен" />:<Outlet />}</Suspense>
       </Content>
     </Layout>
     <WorkspaceProfile open={profileOpen} onClose={()=>setProfileOpen(false)} /><WorkspaceEvents open={eventsOpen} onClose={()=>setEventsOpen(false)} />

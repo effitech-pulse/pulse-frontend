@@ -32,18 +32,18 @@ export function WellDetailPage() {
 
   const selectedRun=Number(search.get('run_id')) || undefined;
   const well = useWell(wellId);
-  const {isAdmin}=useAuth();
+  const {can}=useAuth();
   const complications = useWellComplications(wellId);
   const classification = useQuery({
     queryKey: ['well', wellId, 'classification'],
     queryFn: () => wellsApi.classification(wellId),
-    enabled: wellId > 0,
+    enabled: can('risks.read') && wellId > 0,
   });
 
   const mlRisk = useQuery({
     queryKey: ['well-risk', wellId, selectedRun],
     queryFn: () => mlApi.byAppWell(wellId, selectedRun),
-    enabled: wellId > 0,
+    enabled: can('risks.read') && wellId > 0,
     retry: false,
   });
   const departments = useDepartments();
@@ -59,7 +59,7 @@ export function WellDetailPage() {
   const riskHistory = useQuery({
     queryKey: ['ml-history', wellId, selectedRun],
     queryFn: () => mlApi.appHistory(wellId, 400, selectedRun),
-    enabled: wellId > 0 && !!mlRisk.data && !('status' in mlRisk.data),
+    enabled: can('risks.read') && wellId > 0 && !!mlRisk.data && !('status' in mlRisk.data),
     retry: false,
   });
   const risk = mlRisk.data ? mlRiskRow(mlRisk.data) : null;
@@ -84,7 +84,7 @@ export function WellDetailPage() {
               <p>№ скважины <span className="sensitive">{well.data?.well_number ?? '—'}</span><span aria-hidden="true"> · </span>НГДУ <span className="sensitive">{well.data?.ngdu ?? '—'}</span><span aria-hidden="true"> · </span>{well.data ? (well.data.active ? 'Активна' : 'Неактивна') : 'Статус не передан'}</p>
             </PageSpin>
           </div>
-          {isAdmin && !!well.data && !well.data.archived_at && <Link to={`/integrations?tab=wells&well=${wellId}`}>Связи с источниками</Link>}
+          {can('integrations.read') && !!well.data && !well.data.archived_at && <Link to={`/integrations?tab=wells&well=${wellId}`}>Связи с источниками</Link>}
         </div>
       </Card>
 
@@ -99,6 +99,7 @@ export function WellDetailPage() {
         items={[
           {
             key: 'overview',
+            disabled:!can('risks.read'),
             label: 'Риски',
             children: (
               <div className="pulse-stack pulse-risk-panels">
@@ -155,10 +156,10 @@ export function WellDetailPage() {
               </div>
             ),
           },
-          { key: 'telemetry', label: 'Телеметрия', children: well.data ? <TelemetryWorkspace key={wellId} wellId={String(wellId)} /> : <PageSpin loading={well.isLoading} error={well.error}><span /></PageSpin> },
-          { key: 'checks', label: 'Проверки', children: <ManualChecks key={exactWellId} wellId={exactWellId} periodEnabled={wellId>0} /> },
-          { key: 'failures', label: 'Отказы', children: <IncidentsTab wellId={wellId} /> },
-          { key: 'history', label: 'История', children: <WellHistoryPanel wellId={wellId} /> },
+          { key: 'telemetry', disabled:!can('telemetry.read'), label: 'Телеметрия', children: can('telemetry.read') && well.data ? <TelemetryWorkspace key={wellId} wellId={String(wellId)} /> : <PageSpin loading={well.isLoading} error={well.error}><span /></PageSpin> },
+          { key: 'checks', disabled:!can('checks.read')&&!can('filechecks.read'), label: 'Проверки', children: <ManualChecks key={exactWellId} wellId={exactWellId} periodEnabled={wellId>0} /> },
+          { key: 'failures', disabled:!can('incidents.read'), label: 'Отказы', children: <IncidentsTab wellId={wellId} /> },
+          { key: 'history', disabled:!can('wells.history.read'), label: 'История', children: <WellHistoryPanel wellId={wellId} /> },
           { key: 'details', label: 'Сведения', children: (
             <div className="pulse-stack">
               <Card title="Паспорт скважины">

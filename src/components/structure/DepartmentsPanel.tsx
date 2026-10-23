@@ -1,3 +1,4 @@
+import {useAuth} from '@/auth/AuthProvider';
 import { Button, Popconfirm, Space, Table, Typography } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -8,6 +9,7 @@ import { PageSpin } from '@/components/common/PageSpin';
 import { DepartmentModal } from '@/components/departments/DepartmentModal';
 
 export function DepartmentsPanel() {
+  const {can}=useAuth();
   const { data, isLoading, error } = useDepartments();
   const del = useDeleteDepartment();
   const [editing, setEditing] = useState<Department | null>(null);
@@ -24,7 +26,7 @@ export function DepartmentsPanel() {
         <Space>
           <Button
             size="small"
-            icon={<EditOutlined />}
+            disabled={!can('references.update')} icon={<EditOutlined />}
             onClick={() => {
               setEditing(dep);
               setOpen(true);
@@ -32,7 +34,7 @@ export function DepartmentsPanel() {
           />
           <Popconfirm title="Удалить цех?" okText="Да" cancelText="Нет"
             onConfirm={() => del.mutate(dep.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
+            <Button size="small" danger disabled={!can('references.delete')} icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
@@ -42,7 +44,7 @@ export function DepartmentsPanel() {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditing(null); setOpen(true); }}>
+        <Button type="primary" disabled={!can('references.create')} icon={<PlusOutlined />} onClick={() => { setEditing(null); setOpen(true); }}>
           Добавить цех
         </Button>
       </div>

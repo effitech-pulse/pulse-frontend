@@ -80,10 +80,10 @@ function EditableCell({ editing, dataIndex, inputType, children, ...rest }: Edit
 export type WellAssessmentFilter = 'all' | 'alert' | 'watch' | 'normal' | 'unscored';
 
 export function WellsPage({ management = false, assessment = 'all' }: { management?: boolean; assessment?: WellAssessmentFilter }) {
-  const {isAdmin}=useAuth();
+  const {can}=useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useSearchParams();
-  const ml = useQuery({ queryKey: ['ml-wells'], queryFn: () => mlApi.wells(false) });
+  const ml = useQuery({ enabled:can('risks.read'), queryKey: ['ml-wells'], queryFn: () => mlApi.wells(false) });
   const assessments = new Map(mlRows(ml.data).map(row => [row.app_well_id, row]));
   const {filters}=useFundFilters();
   const { message } = App.useApp();
@@ -143,7 +143,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(false);
-    if (!management || !isAdmin || archive!=='current' || ml.data?.profile === 'cohort') return;
+    if (!management || !can('wells.import') || archive!=='current' || ml.data?.profile === 'cohort') return;
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
     if (!XLSX_RE.test(file.name)) {
@@ -155,6 +155,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
   };
 
   const handleExport = async () => {
+    if(!can('wells.export'))return;
     setExporting(true);
     try {
       let blob = await wellsApi.exportXlsx(filters,activeOnly,archive);
@@ -193,7 +194,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
       render: (active: boolean, well: Well) => (
         <Switch
           checked={active}
-          disabled={!isAdmin || !!well.archived_at || isEditing(well)}
+          disabled={!can('wells.update') || !!well.archived_at || isEditing(well)}
           onChange={(checked) => updateWell.mutate({ id: well.id, data: { active: checked,revision:well.revision } })}
         />
       ),
@@ -212,8 +213,8 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
         ) : (
           <Space>
             <Button aria-label={`Открыть карточку ID Pulse ${well.id}`} size="small" icon={<FileSearchOutlined />} onClick={() => navigate(`/wells/${well.id}`)} />
-            <Button size="small" icon={<EditOutlined />} disabled={!isAdmin || !!well.archived_at || editingKey !== null} onClick={() => edit(well)} />
-            <Button aria-label={`${well.archived_at?'Восстановить':'В архив'} ID Pulse ${well.id}`} disabled={!isAdmin || editingKey!==null} size="small" icon={well.archived_at?<UndoOutlined />:<InboxOutlined />} onClick={()=>{setLifecycle({well,restore:!!well.archived_at});setReason('');setLifecycleError('');setLifecycleConflict(false);}} />
+            <Button size="small" icon={<EditOutlined />} disabled={!can('wells.update') || !!well.archived_at || editingKey !== null} onClick={() => edit(well)} />
+            <Button aria-label={`${well.archived_at?'Восстановить':'В архив'} ID Pulse ${well.id}`} disabled={!can(well.archived_at?'wells.restore':'wells.archive') || editingKey!==null} size="small" icon={well.archived_at?<UndoOutlined />:<InboxOutlined />} onClick={()=>{setLifecycle({well,restore:!!well.archived_at});setReason('');setLifecycleError('');setLifecycleConflict(false);}} />
           </Space>
         ),
     },
@@ -232,7 +233,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
 
   async function reloadEdit(){if(editingKey===null)return;try{const latest=await wellsApi.get(editingKey);if(latest.archived_at){cancel();message.info('Скважина перенесена в архив. Сначала восстановите её.');return;}form.setFieldsValue(latest);setEditingRevision(latest.revision);setEditConflict(false);}catch(e){message.error(toApiError(e).message);}}
   async function saveLifecycle(){
-    if(!lifecycle || changingLifecycle)return;if(!reason.trim()){setLifecycleError('Укажите причину');return;}setChangingLifecycle(true);setLifecycleError('');
+    if(!lifecycle || !can(lifecycle.restore?'wells.restore':'wells.archive') || changingLifecycle)return;if(!reason.trim()){setLifecycleError('Укажите причину');return;}setChangingLifecycle(true);setLifecycleError('');
     try{await (lifecycle.restore?wellsApi.restore(lifecycle.well,reason):wellsApi.archive(lifecycle.well,reason));setLifecycle(undefined);await Promise.all(['wells','well','well-history','ml-wells','incident-stats'].map(key=>client.invalidateQueries({queryKey:[key]})));message.success(lifecycle.restore?'Скважина восстановлена с прежним ID Pulse':'Скважина перенесена в архив');}
     catch(e){const problem=toApiError(e);setLifecycleError(problem.message);setLifecycleConflict(problem.code==='conflict');}finally{setChangingLifecycle(false);}
   }
@@ -251,7 +252,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
       style={{ position: 'relative' }}
       onDragOver={(e) => {
         e.preventDefault();
-        if (management && isAdmin && ml.data?.profile !== 'cohort' && !dragging) setDragging(true);
+        if (management && can('wells.import') && ml.data?.profile !== 'cohort' && !dragging) setDragging(true);
       }}
       onDragLeave={(e) => {
         if (e.currentTarget === e.target) setDragging(false);
@@ -273,13 +274,13 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
               checked={showInactive}
               onChange={setShowInactive}
             />
-            {management && isAdmin && <Tooltip title={ml.data?.profile === 'cohort' ? 'Состав задаёт Pulse Connector' : undefined}><span><Button disabled={archive!=='current' || ml.isLoading || ml.data?.profile === 'cohort'} icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
+            {management && can('wells.create') && <Tooltip title={ml.data?.profile === 'cohort' ? 'Состав задаёт Pulse Connector' : undefined}><span><Button disabled={archive!=='current' || ml.isLoading || ml.data?.profile === 'cohort'} icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
               Добавить
             </Button></span></Tooltip>}
-            {management && isAdmin && <Tooltip title={ml.data?.profile === 'cohort' ? 'Состав задаёт Pulse Connector' : undefined}><span><Button disabled={archive!=='current' || ml.isLoading || ml.data?.profile === 'cohort'} type="primary" icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
+            {management && can('wells.import') && <Tooltip title={ml.data?.profile === 'cohort' ? 'Состав задаёт Pulse Connector' : undefined}><span><Button disabled={archive!=='current' || ml.isLoading || ml.data?.profile === 'cohort'} type="primary" icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
               Импорт из Excel
             </Button></span></Tooltip>}
-            <Button disabled={!management && assessment !== 'all' && (!ml.isSuccess || isLoading || !!error)} icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
+            <Button disabled={!can('wells.export') || (!management && assessment !== 'all' && (!ml.isSuccess || isLoading || !!error))} icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
               Экспорт в Excel
             </Button>
           </Space>

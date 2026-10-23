@@ -1,3 +1,4 @@
+import {useAuth} from '@/auth/AuthProvider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
 import { type WellArchive, departmentsApi, ngduApi, runsApi, wellsApi } from '@/api/wells';
@@ -7,14 +8,15 @@ import type { WellUpdate } from '@/api/types';
 
 export const useWells = (activeOnly = true, applyFilters = true, archive:WellArchive = 'current') => {
   const {filters}=useFundFilters();const selected=applyFilters?filters:undefined;
-  return useQuery({queryKey:['wells', activeOnly, selected, archive], queryFn:() => wellsApi.list(activeOnly,selected,archive)});
+  return useQuery({enabled: useAuth().can('wells.read'), queryKey:['wells', activeOnly, selected, archive], queryFn:() => wellsApi.list(activeOnly,selected,archive)});
 };
 
 export const useUpdateWell = () => {
+  const {can}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: WellUpdate }) => wellsApi.update(id, data),
+    mutationFn: ({ id, data }: { id: number; data: WellUpdate }) => {if(!can('wells.update'))throw new Error('Недостаточно прав');return wellsApi.update(id, data);},
     onSuccess: () => {
       message.success('Сохранено');
       qc.invalidateQueries({ queryKey: ['wells'] });
@@ -26,31 +28,32 @@ export const useUpdateWell = () => {
 };
 
 export const useWell = (wellId: number) =>
-  useQuery({ queryKey: ['well', wellId], queryFn: () => wellsApi.get(wellId), enabled: wellId > 0 });
+  useQuery({ queryKey: ['well', wellId], queryFn: () => wellsApi.get(wellId), enabled: useAuth().can('wells.read') && wellId > 0 });
 
 export const useWellPredictions = (wellId: number, limit = 100) =>
   useQuery({
     queryKey: ['well', wellId, 'predictions', limit],
     queryFn: () => wellsApi.predictions(wellId, limit),
-    enabled: wellId > 0,
+    enabled: useAuth().can('risks.read') && wellId > 0,
   });
 
 export const useWellComplications = (wellId: number) =>
   useQuery({
     queryKey: ['well', wellId, 'complications'],
     queryFn: () => wellsApi.complications(wellId),
-    enabled: wellId > 0,
+    enabled: useAuth().can('risks.read') && wellId > 0,
   });
 
 export const useDepartments = () =>
-  useQuery({ queryKey: ['departments'], queryFn: departmentsApi.list });
+  useQuery({enabled: useAuth().can('references.read'),  queryKey: ['departments'], queryFn: departmentsApi.list });
 
 export const useSaveDepartment = () => {
+  const {can}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
     mutationFn: ({ id, name, isNew }: { id: number; name: string; isNew: boolean }) =>
-      isNew ? departmentsApi.create({ id, name }) : departmentsApi.update(id, name),
+      {if(!can(isNew?'references.create':'references.update'))throw new Error('Недостаточно прав');return isNew ? departmentsApi.create({ id, name }) : departmentsApi.update(id, name);},
     onSuccess: () => {
       message.success('Сохранено');
       qc.invalidateQueries({ queryKey: ['departments'] });
@@ -60,10 +63,11 @@ export const useSaveDepartment = () => {
 };
 
 export const useDeleteDepartment = () => {
+  const {can}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
-    mutationFn: (id: number) => departmentsApi.remove(id),
+    mutationFn: (id: number) => {if(!can('references.delete'))throw new Error('Недостаточно прав');return departmentsApi.remove(id);},
     onSuccess: () => {
       message.success('Удалено');
       qc.invalidateQueries({ queryKey: ['departments'] });
@@ -72,14 +76,15 @@ export const useDeleteDepartment = () => {
   });
 };
 
-export const useNgdus = () => useQuery({ queryKey: ['ngdu'], queryFn: ngduApi.list });
+export const useNgdus = () => useQuery({enabled: useAuth().can('references.read'),  queryKey: ['ngdu'], queryFn: ngduApi.list });
 
 export const useSaveNgdu = () => {
+  const {can}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
     mutationFn: ({ id, name, isNew }: { id: number; name: string; isNew: boolean }) =>
-      isNew ? ngduApi.create({ id, name }) : ngduApi.update(id, name),
+      {if(!can(isNew?'references.create':'references.update'))throw new Error('Недостаточно прав');return isNew ? ngduApi.create({ id, name }) : ngduApi.update(id, name);},
     onSuccess: () => {
       message.success('Сохранено');
       qc.invalidateQueries({ queryKey: ['ngdu'] });
@@ -89,10 +94,11 @@ export const useSaveNgdu = () => {
 };
 
 export const useDeleteNgdu = () => {
+  const {can}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
-    mutationFn: (id: number) => ngduApi.remove(id),
+    mutationFn: (id: number) => {if(!can('references.delete'))throw new Error('Недостаточно прав');return ngduApi.remove(id);},
     onSuccess: () => {
       message.success('Удалено');
       qc.invalidateQueries({ queryKey: ['ngdu'] });
@@ -102,4 +108,4 @@ export const useDeleteNgdu = () => {
 };
 
 export const useRecentRuns = (limit = 100) =>
-  useQuery({ queryKey: ['runs', limit], queryFn: () => runsApi.list({ limit }) });
+  useQuery({enabled: useAuth().can('runs.read'),  queryKey: ['runs', limit], queryFn: () => runsApi.list({ limit }) });

@@ -1,3 +1,4 @@
+import {useAuth} from '@/auth/AuthProvider';
 import { Skeleton, Tooltip, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { mlApi, type MlContribution } from '@/api/ml';
@@ -12,10 +13,11 @@ export function ExplainBars({ wellId, topN = 6, contributions, windowKind = cont
   windowKind?: 'peak' | 'latest' | 'unknown';
   windowEnd?: string | null;
 }) {
+  const {can}=useAuth();
   const q = useQuery({
     queryKey: ['ml-explain', wellId, topN],
     queryFn: () => mlApi.explain(wellId!, topN),
-    enabled: contributions === undefined && wellId !== null,
+    enabled: can('risks.explain') && contributions === undefined && wellId !== null,
   });
 
   const items = contributions?.slice(0, topN) ?? q.data?.contributions;

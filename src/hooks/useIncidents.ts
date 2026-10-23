@@ -1,3 +1,4 @@
+import {useAuth} from '@/auth/AuthProvider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
 import { incidentsApi } from '@/api/incidents';
@@ -8,14 +9,15 @@ export const useIncidents = (wellId: number) =>
   useQuery({
     queryKey: ['incidents', wellId],
     queryFn: () => incidentsApi.listForWell(wellId),
-    enabled: wellId > 0,
+    enabled: useAuth().can('incidents.read') && wellId > 0,
   });
 
 export const useCreateIncident = (wellId: number) => {
+  const {can}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
-    mutationFn: (data: IncidentCreate) => incidentsApi.create(wellId, data),
+    mutationFn: (data: IncidentCreate) => {if(!can('incidents.create'))throw new Error('Недостаточно прав');return incidentsApi.create(wellId, data);},
     onSuccess: () => {
       message.success('Отказ добавлен');
       qc.invalidateQueries({ queryKey: ['incidents', wellId] });
@@ -25,10 +27,11 @@ export const useCreateIncident = (wellId: number) => {
 };
 
 export const useDeleteIncident = (wellId: number) => {
+  const {can}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
-    mutationFn: (id: number) => incidentsApi.remove(id),
+    mutationFn: (id: number) => {if(!can('incidents.delete'))throw new Error('Недостаточно прав');return incidentsApi.remove(id);},
     onSuccess: () => {
       message.success('Отказ удалён');
       qc.invalidateQueries({ queryKey: ['incidents', wellId] });

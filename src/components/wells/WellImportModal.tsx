@@ -1,3 +1,4 @@
+import {useAuth} from '@/auth/AuthProvider';
 import { App, Button, Input, Modal, Select, Space, Table, Tag, Typography, Upload } from 'antd';
 import { DeleteOutlined, InboxOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -30,6 +31,7 @@ export function WellImportModal({
   onClose: () => void;
   initialFile?: File | null;
 }) {
+  const {can,capturePrivate}=useAuth();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [parsed, setParsed] = useState<ParsedSheet | null>(null);
@@ -48,8 +50,11 @@ export function WellImportModal({
   };
 
   const onFile = async (file: File) => {
+    if(!can('wells.import'))return;
+    const ticket=capturePrivate();
     try {
       const parsedSheet = parseWorkbook(await file.arrayBuffer());
+      if(!ticket.current())return;
       if (!parsedSheet.columns.length) {
         message.error('Файл пуст или не распознан');
         return;
@@ -92,6 +97,7 @@ export function WellImportModal({
   const invalidCount = rows.length - validCount;
 
   const commit = async () => {
+    if(!can('wells.import'))return;
     const payload = toPayload(rows);
     if (!payload.length) {
       message.warning('Нет валидных строк для сохранения');
@@ -155,14 +161,14 @@ export function WellImportModal({
       title="Импорт скважин из Excel"
       okText={`Сохранить (${validCount})`}
       cancelText="Отмена"
-      okButtonProps={{ disabled: !validCount, loading: committing }}
+      okButtonProps={{ disabled: !can('wells.import') || !validCount, loading: committing }}
       onOk={commit}
       destroyOnClose
     >
       {!parsed ? (
         <Upload.Dragger
           accept=".xlsx,.xlsm"
-          showUploadList={false}
+          disabled={!can('wells.import')} showUploadList={false}
           beforeUpload={(file) => {
             void onFile(file as unknown as File);
             return false;

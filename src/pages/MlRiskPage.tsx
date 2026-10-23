@@ -28,7 +28,7 @@ const MODELS = [
 ];
 
 export function MlRiskPage() {
-  const { isAdmin } = useAuth();
+  const { can } = useAuth();
   const { filters } = useFundFilters();
   const [search, setSearch] = useSearchParams();
   const selectedRun = Number(search.get('run_id')) || undefined;
@@ -36,10 +36,10 @@ export function MlRiskPage() {
   const processing = (['new','acknowledged','confirmed','false_positive','inconclusive','unlinked'].includes(search.get('processing') ?? '') ? search.get('processing') : 'all') as AlertProcessingFilter;
   const [explainWell, setExplainWell] = useState<MlDisplayWell | null>(null);
   function selectFilter(key: string, value: string) { const next = new URLSearchParams(search); if (value === (key === 'model' ? 'attention' : 'all')) next.delete(key); else next.set(key, value); setSearch(next, {replace:true}); }
-  const wellsQ = useQuery({ queryKey: selectedRun ? ['ml-snapshot',selectedRun] : ['ml-wells'], queryFn: () => selectedRun ? mlApi.snapshot(selectedRun) : mlApi.wells(false) });
+  const wellsQ = useQuery({ enabled:can(selectedRun?'cohort.runs.read':'risks.read'), queryKey: selectedRun ? ['ml-snapshot',selectedRun] : ['ml-wells'], queryFn: () => selectedRun ? mlApi.snapshot(selectedRun) : mlApi.wells(false) });
   const cohort = wellsQ.data?.profile === 'cohort';
-  const metricsQ = useQuery({ queryKey: ['ml-metrics'], queryFn: mlApi.metrics, enabled: isAdmin && !!wellsQ.data && !cohort });
-  const { running, lastRun, start } = useMlRun();
+  const metricsQ = useQuery({ queryKey: ['ml-metrics'], queryFn: mlApi.metrics, enabled: can('metrics.read') && !!wellsQ.data && !cohort });
+  const { running, lastRun, start } = useMlRun(wellsQ.data ? (wellsQ.data.profile === 'cohort' ? 'cohort' : 'research') : undefined);
   const registry = useWells(false, true, 'all');
   const wells = mlScopedRows(mlRows(wellsQ.data), registry.data ?? [], filters, cohort);
   const registryById = useMemo(() => new Map((registry.data ?? []).map(well => [well.id, well])), [registry.data]);
@@ -61,7 +61,7 @@ export function MlRiskPage() {
     { title: 'Действие', key: 'action', width: 115, render: (_,row) => <Button type="link" onClick={() => setExplainWell(row)}>{row.alert_status === 'new' ? 'Проверить' : row.alert_status === 'acknowledged' ? 'Продолжить' : 'Открыть'}</Button> },
   ];
   return <div className="pulse-stack pulse-monitoring-page pulse-monitoring-alerts">
-    <div className="pulse-page-heading pulse-toolbar"><div><h1>Тревоги</h1><p>Оценка модели и статус обработки отображаются раздельно</p></div>{isAdmin && <Button type="primary" loading={running || wellsQ.data?.running || start.isPending} onClick={() => start.mutate()}>Запустить расчёт</Button>}</div>
+    <div className="pulse-page-heading pulse-toolbar"><div><h1>Тревоги</h1><p>Оценка модели и статус обработки отображаются раздельно</p></div>{can('runs.start') && <Button type="primary" loading={running || wellsQ.data?.running || start.isPending} onClick={() => start.mutate()}>Запустить расчёт</Button>}</div>
     <FundFilterBar hasExtraFilters={model !== 'attention' || processing !== 'all'} onReset={() => { const next = new URLSearchParams(search); next.delete('model'); next.delete('processing'); setSearch(next, {replace:true}); }} />
     <div className="pulse-monitoring-filters">
       <label><span>Оценка модели</span><Select aria-label="Фильтр оценки модели" value={model} options={MODELS} onChange={value => selectFilter('model',value)} /></label>
@@ -73,7 +73,7 @@ export function MlRiskPage() {
       <Table<MlDisplayWell> rowKey={row=>row.app_well_id ?? row.well_id!} columns={columns} dataSource={shown} scroll={{x:1080}} pagination={{pageSize:15,showSizeChanger:false,showTotal:total=>`Количество: ${total}`}} locale={{emptyText: <span className="pulse-muted">{model === 'attention' ? 'Тревог и наблюдений в выбранной выборке нет' : 'Нет доступных оценок по выбранным фильтрам'}</span>}} />
     </PageSpin>{wellsQ.isError && <Button onClick={()=>void wellsQ.refetch()}>Повторить</Button>}</Card>
     <Card className="pulse-monitoring-note"><h2>Оценка модели не меняется при обработке тревоги</h2><p>Ответственный за обработку, комментарии и заключение сохраняются в форме проверки. Ответственный в списке указан по паспорту скважины.</p></Card>
-    {isAdmin && !cohort && <Collapse items={[{key:'metrics',label:'Метрики модели · историческая CV',children:<PageSpin loading={metricsQ.isLoading} error={metricsQ.error}><Descriptions column={{xs:1,md:2}} items={[{key:'model',label:'Модель',children:stage1?.name ?? '—'},{key:'recall',label:'Recall',children:recall == null ? '—' : `${(recall*100).toFixed(1)}%`},{key:'precision',label:'Precision',children:precision == null ? '—' : `${(precision*100).toFixed(1)}%`}]} /><p className="pulse-monitoring-caption">Историческая CV не является временной приёмкой и не подтверждает качество на текущем фонде.</p></PageSpin>}]} />}
+    {can('metrics.read') && !cohort && <Collapse items={[{key:'metrics',label:'Метрики модели · историческая CV',children:<PageSpin loading={metricsQ.isLoading} error={metricsQ.error}><Descriptions column={{xs:1,md:2}} items={[{key:'model',label:'Модель',children:stage1?.name ?? '—'},{key:'recall',label:'Recall',children:recall == null ? '—' : `${(recall*100).toFixed(1)}%`},{key:'precision',label:'Precision',children:precision == null ? '—' : `${(precision*100).toFixed(1)}%`}]} /><p className="pulse-monitoring-caption">Историческая CV не является временной приёмкой и не подтверждает качество на текущем фонде.</p></PageSpin>}]} />}
     <Modal open={explainWell !== null} onCancel={()=>setExplainWell(null)} width={720} title={explainWell ? `Скважина · ID Pulse ${explainWell.app_well_id ?? 'не сопоставлена'}` : ''} footer={explainWell?.app_well_id != null ? <Link to={`/wells/${explainWell.app_well_id}${explainWell.run_id != null ? `?run_id=${explainWell.run_id}` : ''}`}><Button type="primary">Открыть карточку скважины</Button></Link> : null}>
       {explainWell && <div className="pulse-stack pulse-monitoring-review">
         {reviewPath !== null && <ReviewPanel key={reviewPath} path={reviewPath} />}

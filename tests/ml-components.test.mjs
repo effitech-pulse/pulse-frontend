@@ -1,3 +1,5 @@
+import {legacyAuth} from './auth-fixture.mjs';
+import * as authorization from '../src/auth/authorization.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -16,7 +18,7 @@ function loadComponent(relative, boundaries) {
  const filename=fileURLToPath(new URL(relative,import.meta.url));
  const js=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
  const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));
- mod.require=id=>Object.hasOwn(boundaries,id)?boundaries[id]:require(id);
+ mod.require=id=>id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries,id)?boundaries[id]:require(id);
  mod._compile(js,filename);return mod.exports;
 }
 const displayTime = await import('../src/lib/displayTime.ts');
@@ -49,7 +51,7 @@ test('each contribution tooltip exposes computed, imputed and unknown sources wh
 const snapshots=await import('../src/lib/mlSnapshot.ts');
 const {ReviewPanel}=loadComponent('../src/components/telemetry/ReviewPanel.tsx',{
  '@/hooks/useFileJobs':{usePrivateFileRequest:()=>async fn=>fn(),fileProblem:e=>e},
- '@/auth/AuthProvider':{useAuth:()=>({canOperate:false})},
+ '@/auth/AuthProvider':{useAuth:()=>legacyAuth()},
  '@/api/reviews':{reviewsApi:{get:()=>{throw new Error('unexpected external request');}}},
  '@/api/client':{toApiError:e=>({message:String(e)})},
 });
@@ -77,7 +79,7 @@ test('real queue selector exposes only new cohort alert linkage and removes hand
 test('navigation toggle exposes correct open/close accessible state and controls target',()=>{
  const boundaries={
   '@/theme/ThemeProvider':{useTheme:()=>({dark:false,toggle:()=>{}})},
-  '@/auth/AuthProvider':{useAuth:()=>({principal:null,isAdmin:false})},
+  '@/auth/AuthProvider':{useAuth:()=>legacyAuth()},
   '@/api/client':{toApiError:e=>({message:String(e)})},
   './FundFilterBar':{FundFilterBar:()=>null},
   './WorkspaceMenu':{WorkspaceEvents:()=>null,WorkspaceProfile:()=>null},
@@ -87,5 +89,23 @@ test('navigation toggle exposes correct open/close accessible state and controls
   const html=renderToStaticMarkup(React.createElement(NavigationToggle,{collapsed,onToggle:()=>{}}));
   assert.match(html,/<button/);assert.ok(html.includes(`aria-label="${label}"`));
   assert.ok(html.includes(`aria-expanded="${expanded}"`));assert.match(html,/aria-controls="pulse-main-navigation"/);
+ }
+});
+
+test('review panel selects the resource permission for check, alert and private file independently',()=>{
+ for(const [kind,path,privateFile,keys] of [
+  ['checks','/api/v1/wells/1/checks/abcd/review',false,['wells.read','checks.read','checks.review']],
+  ['alerts','/api/v1/ml/alerts/71/review',false,['wells.read','risks.read','alerts.read','alerts.review']],
+  ['filechecks','/api/v1/wells/1/file-check-jobs/abcd/review',true,['wells.read','filechecks.read','filechecks.review']],
+ ]){
+  const seen=[];const principal={authenticated:true,role:'viewer',access_model:'rbac_v1',permission_keys:keys};
+  const {ReviewPanel:Panel}=loadComponent('../src/components/telemetry/ReviewPanel.tsx',{
+   '@/auth/AuthProvider':{useAuth:()=>({can:(...keys)=>{seen.push(...keys);return authorization.can(principal,...keys);},capturePrivate:()=>({current:()=>true}),privateEpoch:0})},
+   '@/hooks/useFileJobs':{usePrivateFileRequest:()=>async fn=>fn(),fileProblem:e=>e},
+   '@/api/reviews':{reviewsApi:{}},'@/api/client':{toApiError:e=>e},
+  });
+  const client=new QueryClient();renderToStaticMarkup(React.createElement(QueryClientProvider,{client},React.createElement(Panel,{path,privateFile})));
+  assert.deepEqual([...new Set(seen)],[`${kind}.review`,`${kind}.read`]);
+  assert.equal(client.getQueryCache().getAll()[0].options.enabled,true);
  }
 });

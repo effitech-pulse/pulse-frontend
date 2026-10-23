@@ -1,3 +1,4 @@
+import {useAuth} from '@/auth/AuthProvider';
 import { useEffect, useState } from 'react';
 import { App, Button, Card, Form, Input, InputNumber, Modal, Space, Table, Typography } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,6 +10,8 @@ import { toApiError } from '@/api/client';
 
 /** Внешние идентификаторы редактируются только как связи с конкретными источниками. */
 export function WellConnections({ initialWellId, readOnly = false }: { initialWellId?: number; readOnly?: boolean }) {
+  const {can}=useAuth();
+  readOnly=readOnly||!can('wells.update');
   const wells = useWells(false,false,'all'), cache = useQueryClient(), { message } = App.useApp();
   const [editing, setEditing] = useState<Well | null>(null), [search, setSearch] = useState(''), [saving, setSaving] = useState(false);
   const [form] = Form.useForm<{unitek_id:number|null;armits_id:number|null}>();

@@ -1,3 +1,5 @@
+import {legacyAuth} from './auth-fixture.mjs';
+import * as authorization from '../src/auth/authorization.ts';
 import * as fileJobs from '../src/lib/fileJobs.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,7 +21,7 @@ function load(relative, boundaries = {}, transform = source => source) {
   const filename = fileURLToPath(new URL(relative, import.meta.url));
   const js = ts.transpileModule(transform(readFileSync(filename, 'utf8')), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;
   const mod = new Module(filename); mod.filename = filename; mod.paths = Module._nodeModulePaths(path.dirname(filename));
-  mod.require = id => Object.hasOwn(boundaries, id) ? boundaries[id] : require(id);
+  mod.require = id => id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries, id) ? boundaries[id] : require(id);
   mod._compile(js, filename); return mod.exports;
 }
 const { toApiError } = load('../src/api/client.ts', {}, s => s.replaceAll('import.meta.env', '({})'));
@@ -83,7 +85,7 @@ function setup(url = '/wells/42', { well = defaultWell, outcome = defaultOutcome
     '@/components/wells/WellHistoryPanel': { WellHistoryPanel: () => React.createElement('span', null, 'Существующая история') },
     '@/components/telemetry/ManualChecks': { ManualChecks: () => React.createElement('span', null, 'Сохранённые проверки') },
     '@/components/telemetry/TelemetryWorkspace': { TelemetryWorkspace: () => React.createElement('span', null, 'Существующая телеметрия') },
-    '@/auth/AuthProvider': { useAuth: () => ({ isAdmin: false }) },
+    '@/auth/AuthProvider': { useAuth: () => legacyAuth() },
   });
   router = createMemoryRouter([{ path: '/wells/:wellId', element: React.createElement(WellDetailPage) }], { initialEntries: [url] });
   const render = () => renderToStaticMarkup(React.createElement(QueryClientProvider, { client }, React.createElement(RouterProvider, { router })));

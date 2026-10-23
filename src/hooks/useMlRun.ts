@@ -6,13 +6,13 @@ import { mlApi, type AlertStatus } from '@/api/ml';
 import { toApiError } from '@/api/client';
 
 /** Фоновый прогон модели: запуск, поллинг статуса, обновление данных по завершении. */
-export const useMlRun = () => {
-  const {isAdmin}=useAuth();
+export const useMlRun = (profile?:'research'|'cohort') => {
+  const {can}=useAuth();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
   const runsQ = useQuery({
-    enabled:isAdmin,
+    enabled:profile!==undefined&&can(profile==='cohort'?'cohort.runs.read':'runs.read'),
     queryKey: ['ml-runs'],
     queryFn: () => mlApi.runs(10),
     refetchInterval: (q) => (q.state.data?.running ? 2000 : false),
@@ -43,7 +43,7 @@ export const useMlRun = () => {
   }, [running, runsQ.data, message, queryClient]);
 
   const start = useMutation({
-    mutationFn: mlApi.refresh,
+    mutationFn: async () => {if(!can('runs.start'))throw new Error('Недостаточно прав');return mlApi.refresh();},
     onSuccess: () => {
       message.info('Прогон запущен — идёт в фоне');
       runsQ.refetch();
@@ -57,11 +57,12 @@ export const useMlRun = () => {
 
 /** Смена статуса тревоги технологом (принято в работу / ложная). */
 export const useAlertStatus = () => {
+  const {can}=useAuth();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ alertId, status }: { alertId: number; status: AlertStatus }) =>
-      mlApi.setAlertStatus(alertId, status),
+      {if(!can('alerts.review'))throw new Error('Недостаточно прав');return mlApi.setAlertStatus(alertId, status);},
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ml-wells'] }),
     onError: (e) => message.error(toApiError(e).message),
   });

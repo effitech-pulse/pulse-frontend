@@ -1,3 +1,5 @@
+import {legacyAuth} from './auth-fixture.mjs';
+import * as authorization from '../src/auth/authorization.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -22,11 +24,11 @@ function render(profile){
  const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{esModuleInterop:true,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
  const never=()=>{throw Error('Unexpected transport or recompute');};
  const boundaries={
- '@/auth/AuthProvider':{useAuth:()=>({isAdmin:false})},'@/hooks/useWells':{useWells:(_active=true,apply=true)=>({data:apply?selectedRegistry:registry,isLoading:false})},'@/theme/FundFilters':{useFundFilters:()=>({filters})},
+ '@/auth/AuthProvider':{useAuth:()=>legacyAuth()},'@/hooks/useWells':{useWells:(_active=true,apply=true)=>({data:apply?selectedRegistry:registry,isLoading:false})},'@/theme/FundFilters':{useFundFilters:()=>({filters})},
  '@/lib/mlSnapshot':snapshot,'@/lib/monitoringAlerts':filtersLib,'@/lib/displayTime':time,
  '@/api/ml':{mlApi:{snapshot:never,wells:never,metrics:never}},'@/components/common/PageSpin':{PageSpin:({children})=>children},'@/components/ml/ExplainBars':{ExplainBars:()=>null},'@/components/layout/FundFilterBar':{FundFilterBar:()=>null},'@/components/telemetry/ReviewPanel':{ReviewPanel:()=>null},'@/hooks/useMlRun':{useMlRun:()=>({running:false,lastRun:null,start:{isPending:false,mutate:never}})},'@/lib/labels':{FAILURE_TYPE_RU:{}},
  };
- const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>Object.hasOwn(boundaries,id)?boundaries[id]:require(id);mod._compile(code,filename);
+ const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries,id)?boundaries[id]:require(id);mod._compile(code,filename);
  return renderToStaticMarkup(React.createElement(QueryClientProvider,{client},React.createElement(MemoryRouter,{initialEntries:['/ml-risk?run_id=35&model=all']},React.createElement(mod.exports.MlRiskPage))));
 }
 for(const profile of ['research','cohort'])test(`${profile} selected snapshot respects shared well/NGDU/department filters`,()=>{

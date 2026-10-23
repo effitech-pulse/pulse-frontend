@@ -16,7 +16,7 @@ import { ImportTelemetry } from './ImportTelemetry';
 const { RangePicker } = DatePicker;
 type View = 'channels' | 'combined' | 'compare' | 'table';
 export function TelemetryWorkspace({ wellId }: { wellId: string }) {
-  const {isAdmin,canOperate}=useAuth();
+  const {can,capturePrivate}=useAuth();
   const { message } = App.useApp(); const client = useQueryClient();
   const [search] = useSearchParams();
   const [selected, setSelected] = useState(['Ia', 'Ib', 'Ic']); const [view, setView] = useState<View>('combined');
@@ -32,7 +32,8 @@ export function TelemetryWorkspace({ wellId }: { wellId: string }) {
   const request = useRef<{period: string; id: string} | null>(null);
   const checking = useRef(false);
   async function runCheck() {
-    if (checking.current) return;
+    if (!can('checks.run') || checking.current) return;
+    const ticket=capturePrivate();
     checking.current = true; setScoring(true);
     const start = period[0].toISOString(), end = period[1].toISOString();
     const key = `pulse-check-request:${wellId}:${start}:${end}`;
@@ -44,24 +45,25 @@ export function TelemetryWorkspace({ wellId }: { wellId: string }) {
         try { sessionStorage.setItem(key, request.current.id); } catch { /* повтор в текущей вкладке сохраняется в ref */ }
       }
       const saved = await integrationsApi.createCheck(wellId, start, end, request.current.id);
+      if(!ticket.current())return;
       setScore(saved);
       await client.invalidateQueries({queryKey:['manual-checks', wellId]});
       try { sessionStorage.removeItem(key); } catch { /* запись уже сохранена на сервере */ }
       request.current = null;
       message.success('Проверка сохранена в истории скважины');
-    } catch (e) { message.error(toApiError(e).message); }
-    finally { checking.current = false; setScoring(false); }
+    } catch (e) { if(ticket.current())message.error(toApiError(e).message); }
+    finally { checking.current = false; if(ticket.current())setScoring(false); }
   }
   useEffect(() => { setScore(null); }, [wellId, period]);
   useEffect(() => { try { const s = JSON.parse(localStorage.getItem(`pulse-telemetry-view-${wellId}`) ?? 'null'); if (s && Array.isArray(s.selected)) setSelected(s.selected.filter((k: unknown) => typeof k === 'string' && channels.some(c => c.key === k))); } catch { /* используем стандартный вид */ } }, [wellId]);
   useEffect(() => { setHidden([]); setZoom([0, 1]); }, [selected, period, compare, alignment]);
   useEffect(() => { setZoom([0, 1]); setCursor(null); }, [view]);
   useEffect(() => { if (!liveMode) return; const update = () => setPeriod(([start, end]) => { const now = dayjs(); return [now.subtract(end.diff(start), 'millisecond'), now]; }); update(); const timer = window.setInterval(update, refreshSeconds * 1000); return () => clearInterval(timer); }, [liveMode, refreshSeconds]);
-  const bounds = useQuery({ queryKey: ['telemetry-bounds', wellId], queryFn: () => integrationsApi.bounds(wellId), retry: false });
+  const bounds = useQuery({ enabled:can('telemetry.read'), queryKey: ['telemetry-bounds', wellId], queryFn: () => integrationsApi.bounds(wellId), retry: false });
   const [initialized, setInitialized] = useState(false);
   useEffect(() => { if (!initialized && bounds.data?.end) { const end = dayjs(bounds.data.end); setPeriod([end.subtract(15, 'day'), end]); setCompare([end.subtract(30, 'day'), end.subtract(15, 'day')]); setInitialized(true); } }, [bounds.data, initialized]);
-  const query = useQuery({ queryKey: ['telemetry', wellId, period[0].toISOString(), period[1].toISOString()], queryFn: () => integrationsApi.telemetry(wellId, period[0].toISOString(), period[1].toISOString()), refetchInterval: refreshSeconds * 1000 });
-  const other = useQuery({ queryKey: ['telemetry', wellId, compare[0].toISOString(), compare[1].toISOString()], queryFn: () => integrationsApi.telemetry(wellId, compare[0].toISOString(), compare[1].toISOString()), enabled: view === 'compare' });
+  const query = useQuery({ enabled:can('telemetry.read'), queryKey: ['telemetry', wellId, period[0].toISOString(), period[1].toISOString()], queryFn: () => integrationsApi.telemetry(wellId, period[0].toISOString(), period[1].toISOString()), refetchInterval: refreshSeconds * 1000 });
+  const other = useQuery({ queryKey: ['telemetry', wellId, compare[0].toISOString(), compare[1].toISOString()], queryFn: () => integrationsApi.telemetry(wellId, compare[0].toISOString(), compare[1].toISOString()), enabled: can('telemetry.read') && view === 'compare' });
   const live = query.data?.points ?? [];
   const otherPoints = other.data?.points ?? [];
   const modelReady = live.length > 1 && Date.parse(live[live.length-1].timestamp)-Date.parse(live[0].timestamp) >= 30*86400000;
@@ -85,7 +87,7 @@ export function TelemetryWorkspace({ wellId }: { wellId: string }) {
   return <div className="pulse-stack">
     <div className="pulse-toolbar">
       <Segmented aria-label="Вид телеметрии" value={view === 'channels' ? 'combined' : view} onChange={v => setView(v as View)} options={[{ value: 'combined', label: 'График' }, { value: 'compare', label: 'Сравнение' }, { value: 'table', label: 'Таблица' }]} />
-      <Space><Switch checked={liveMode} onChange={setLiveMode} checkedChildren="Онлайн" unCheckedChildren="Архив" aria-label="Автообновление периода" /><Button icon={<SettingOutlined />} onClick={() => setSettings(true)}>Настройки</Button><Dropdown menu={{ items: [{key:'import',label:'Импорт файла',disabled:!isAdmin}, {key:'export',label:'Экспорт выбранного интервала',disabled:!active.length || !live.length}, {key:'model',label:scoring ? 'Проверка моделью…' : 'Проверить моделью (от 30 суток)',disabled:!canOperate || !modelReady || query.data?.truncated || scoring}, {key:'save',label:'Сохранить набор каналов'}, {key:'reset',label:'Сбросить масштаб'}], onClick: ({key}) => { if(key==='model') { void runCheck(); } if(key==='import') setImportOpen(true); if(key==='export') setExportOpen(true); if(key==='reset') setZoom([0,1]); if(key==='save') { try { localStorage.setItem(`pulse-telemetry-view-${wellId}`,JSON.stringify({selected})); message.success('Набор каналов сохранён'); } catch { message.error('Не удалось сохранить набор'); } } } }} trigger={['click']}><Button aria-label="Действия с телеметрией" icon={<MoreOutlined />} /></Dropdown></Space>
+      <Space><Switch checked={liveMode} onChange={setLiveMode} checkedChildren="Онлайн" unCheckedChildren="Архив" aria-label="Автообновление периода" /><Button icon={<SettingOutlined />} onClick={() => setSettings(true)}>Настройки</Button><Dropdown menu={{ items: [{key:'import',label:'Импорт файла',disabled:!can('telemetry.import')}, {key:'export',label:'Экспорт выбранного интервала',disabled:!active.length || !live.length}, {key:'model',label:scoring ? 'Проверка моделью…' : 'Проверить моделью (от 30 суток)',disabled:!can('checks.run') || !modelReady || query.data?.truncated || scoring}, {key:'save',label:'Сохранить набор каналов'}, {key:'reset',label:'Сбросить масштаб'}], onClick: ({key}) => { if(key==='model' && can('checks.run')) { void runCheck(); } if(key==='import' && can('telemetry.import')) setImportOpen(true); if(key==='export') setExportOpen(true); if(key==='reset') setZoom([0,1]); if(key==='save') { try { localStorage.setItem(`pulse-telemetry-view-${wellId}`,JSON.stringify({selected})); message.success('Набор каналов сохранён'); } catch { message.error('Не удалось сохранить набор'); } } } }} trigger={['click']}><Button aria-label="Действия с телеметрией" icon={<MoreOutlined />} /></Dropdown></Space>
     </div>
     {query.isError && <Alert type="error" message={toApiError(query.error).message} action={<Button onClick={() => query.refetch()}>Повторить</Button>} />}
     {view === 'compare' && other.isError && <Alert type="error" message={`Период B: ${toApiError(other.error).message}`} />}

@@ -18,7 +18,7 @@ export function usePrivateFileRequest(){
  };
 }
 export function useFileCapabilities(){
- const auth=useAuth();const request=usePrivateFileRequest();const eligible=auth.mode==='local'&&auth.canOperate&&!auth.privateBlocked;
+ const auth=useAuth();const request=usePrivateFileRequest();const eligible=auth.mode==='local'&&auth.can('filechecks.read')&&!auth.privateBlocked;
  const query=useQuery({queryKey:['file-capabilities',auth.privateEpoch],enabled:eligible,retry:false,staleTime:0,refetchOnWindowFocus:false,queryFn:({signal})=>request(s=>fileJobsApi.capabilities(s),signal)});
  useEffect(()=>{if(!eligible)return;const refresh=async()=>{if(document.visibilityState==='hidden')return;const ticket=auth.capturePrivate();await auth.refreshSession();if(ticket.current())void query.refetch();};window.addEventListener('focus',refresh);window.addEventListener('online',refresh);return()=>{window.removeEventListener('focus',refresh);window.removeEventListener('online',refresh);};},[eligible,auth.privateEpoch]);
  return {...query,enabled:eligible&&!query.isError&&query.data?.enabled===true&&query.data.mode==='synthetic'};
@@ -30,7 +30,7 @@ export function useFileJobStatus(well:string,job:string|undefined,initial?:FileJ
  const reload=useCallback(()=>setRefresh(v=>v+1),[]);
  const snapshot=useRef<{scope:string;status?:FileJobStatus;started:number}>({scope:'',started:Date.now()});
  useEffect(()=>{
-  if(!job||auth.privateBlocked||!auth.canOperate)return;
+  if(!job||auth.privateBlocked||!auth.can('filechecks.read'))return;
   const scope=JSON.stringify([auth.privateEpoch,well,job]);
   if(snapshot.current.scope!==scope){snapshot.current={scope,status:initial,started:Date.now()};setStatus(initial);setError(undefined);}
   let stopped=false,timer:ReturnType<typeof setTimeout>|undefined,active:AbortController|undefined;
@@ -61,6 +61,6 @@ export function useFileJobStatus(well:string,job:string|undefined,initial?:FileJ
   };
   void poll();window.addEventListener('focus',wake);window.addEventListener('online',wake);document.addEventListener('visibilitychange',wake);
   return()=>{stopped=true;wakeSequence++;interrupt();window.removeEventListener('focus',wake);window.removeEventListener('online',wake);document.removeEventListener('visibilitychange',wake);};
- },[well,job,refresh,auth.privateEpoch,auth.privateBlocked,auth.canOperate]);
+ },[well,job,refresh,auth.privateEpoch,auth.privateBlocked,auth.can('filechecks.read')]);
  return {status,error,reload,terminal:!!status&&jobTerminal(status.state)};
 }

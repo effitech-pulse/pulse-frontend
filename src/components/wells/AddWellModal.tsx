@@ -1,3 +1,4 @@
+import {useAuth} from '@/auth/AuthProvider';
 import { App, Collapse, Form, Input, InputNumber, Modal, Switch } from 'antd';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -6,12 +7,14 @@ import { toApiError } from '@/api/client';
 import type { WellCreate } from '@/api/types';
 
 export function AddWellModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const {can}=useAuth();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<WellCreate>();
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
+    if(!can('wells.create'))return;
     const values = await form.validateFields();
     setSaving(true);
     try {
@@ -33,7 +36,7 @@ export function AddWellModal({ open, onClose }: { open: boolean; onClose: () => 
       title="Добавить скважину"
       okText="Добавить"
       cancelText="Отмена"
-      confirmLoading={saving}
+      okButtonProps={{disabled:!can('wells.create')}} confirmLoading={saving}
       onOk={submit}
       onCancel={() => {
         form.resetFields();

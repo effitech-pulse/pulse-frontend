@@ -29,7 +29,7 @@ const FAILURE_TYPES = [
 ].map((v) => ({ value: v, label: v }));
 
 export function IncidentsTab({ wellId }: { wellId: number }) {
-  const {isAdmin,canOperate}=useAuth();
+  const {can}=useAuth();
   const { data, isLoading, error } = useIncidents(wellId);
   const create = useCreateIncident(wellId);
   const del = useDeleteIncident(wellId);
@@ -56,7 +56,7 @@ export function IncidentsTab({ wellId }: { wellId: number }) {
       render: (_: unknown, r: Incident) => (
         <Space>
           <Popconfirm title="Удалить отказ?" okText="Да" cancelText="Нет" onConfirm={() => del.mutate(r.id)}>
-            <Button disabled={!isAdmin} size="small" danger icon={<DeleteOutlined />} />
+            <Button disabled={!can('incidents.delete')} size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
@@ -65,7 +65,7 @@ export function IncidentsTab({ wellId }: { wellId: number }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {canOperate && <Card size="small" title="Новый отказ (конфигурация инцидента)">
+      {can('incidents.create') && <Card size="small" title="Новый отказ (конфигурация инцидента)">
         <Form form={form} layout="inline" initialValues={{ days_before: 60 }}>
           <Form.Item name="failure_type" label="Тип" rules={[{ required: true, message: '' }]}>
             <Select options={FAILURE_TYPES} style={{ width: 220 }} placeholder="класс отказа" />
