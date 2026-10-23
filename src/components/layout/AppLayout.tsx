@@ -14,7 +14,8 @@ const MONITORING = [
 ];
 const TOOLS = [
   { key: '/upload-check', icon: <FileSearchOutlined />, label: <Link to="/upload-check">Проверка файла</Link>, title: 'Проверка файла' },
-  { key: '/audit', icon: <HistoryOutlined />, label: <Link to="/audit">Журнал</Link>, title: 'Журнал действий' },
+  { key: '/events', icon: <HistoryOutlined />, label: <Link to="/events">История событий</Link>, title: 'История событий' },
+  { key: '/audit', icon: <HistoryOutlined />, label: <Link to="/audit">Технический журнал</Link>, title: 'Технический журнал' },
   { key: '/integrations', icon: <ApiOutlined />, label: <Link to="/integrations">Интеграции</Link>, title: 'Источники данных' },
   { key: '/analytics', icon: <BarChartOutlined />, label: <Link to="/analytics">Аналитика</Link>, title: 'Аналитика' },
   { key: '/accounts', icon: <SettingOutlined />, label: <Link to="/accounts">Система</Link>, title: 'Пользователи и доступ' },
@@ -23,11 +24,11 @@ const ITEMS = [...MONITORING, ...TOOLS];
 const RESTRICTED = ['/accounts', '/audit', '/integrations', '/analytics', '/upload-check'];
 
 /** Existing sidebar, exposed through a native keyboard-operable header control. */
-export function NavigationToggle({collapsed, onToggle}: {collapsed:boolean; onToggle:()=>void}) {
-  return <Button className="app-icon-button app-nav-toggle"
+export function NavigationToggle({collapsed, onToggle, showLabel=false}: {collapsed:boolean; onToggle:()=>void; showLabel?:boolean}) {
+  return <Button className={`app-icon-button app-nav-toggle${showLabel?' app-event-nav-toggle':''}`}
     aria-label={collapsed ? 'Открыть навигацию' : 'Закрыть навигацию'}
     aria-expanded={!collapsed} aria-controls="pulse-main-navigation"
-    onClick={onToggle} icon={<MenuOutlined />} />;
+    onClick={onToggle} icon={showLabel?undefined:<MenuOutlined />}>{showLabel?'Меню':null}</Button>;
 }
 
 export function AppLayout() {
@@ -36,17 +37,18 @@ export function AppLayout() {
   const { dark, toggle } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false), [eventsOpen, setEventsOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const eventRoute=location.pathname.startsWith('/events')||(location.pathname.startsWith('/wells/')&&new URLSearchParams(location.search).has('event'));
   const fileEntry=location.pathname==='/upload-check'&&canOperate;
   const forbidden = !isAdmin && !fileEntry && RESTRICTED.some(path => location.pathname.startsWith(path));
   useEffect(() => {
     if (new URLSearchParams(location.search).has('blur')) document.body.dataset.blur = '1';
     else delete document.body.dataset.blur;
   }, [location.search]);
-  const selectedKey = location.pathname.startsWith('/wells') || location.pathname.startsWith('/telemetry/') ? '/structure'
+  const selectedKey = eventRoute ? '/events' : location.pathname.startsWith('/wells') || location.pathname.startsWith('/telemetry/') ? '/structure'
     : ITEMS.map(i => i.key).filter(k => k !== '/' && location.pathname.startsWith(k)).sort((a,b) => b.length-a.length)[0] ?? '/';
-  const title = location.pathname.startsWith('/telemetry/') ? 'Телеметрия' : location.pathname.startsWith('/wells/') ? 'Карточка скважины' : ITEMS.find(i => i.key === selectedKey)?.title;
+  const title = eventRoute ? 'История событий' : location.pathname.startsWith('/telemetry/') ? 'Телеметрия' : location.pathname.startsWith('/wells/') ? 'Карточка скважины' : ITEMS.find(i => i.key === selectedKey)?.title;
   const name = mode === 'local' ? principal?.name : 'Рабочее пространство';
-  const group = MONITORING.some(i => i.key === selectedKey) ? 'Мониторинг' : 'Система';
+  const group = MONITORING.some(i => i.key === selectedKey) ? 'Мониторинг' : selectedKey==='/events'?'Инструменты':'Система';
   return <Layout className="pulse-app">
     <Sider width={224} breakpoint="lg" collapsedWidth={0} collapsed={collapsed} onCollapse={setCollapsed} trigger={null} className="app-sidebar">
       <div className="app-sidebar-inner" aria-hidden={collapsed} ref={element=>{if(element)element.toggleAttribute('inert',collapsed);}}>
@@ -56,7 +58,7 @@ export function AppLayout() {
       </div>
     </Sider>
     <Layout className="app-main">
-      <Header className="app-header"><div className="app-header-context"><NavigationToggle collapsed={collapsed} onToggle={()=>setCollapsed(v=>!v)} /><div className="app-breadcrumb">{group} / {title}</div></div><Space size={12}>
+      <Header className="app-header"><div className="app-header-context"><NavigationToggle collapsed={collapsed} showLabel={eventRoute} onToggle={()=>setCollapsed(v=>!v)} /><div className="app-breadcrumb">{group} / {title}</div></div><Space size={12}>
         <Tooltip title={dark?'Светлая тема':'Тёмная тема'}><Button className="app-icon-button" aria-label="Переключить тему" onClick={toggle} icon={dark?<BulbOutlined />:<MoonOutlined />} /></Tooltip>
         <Tooltip title="Новые тревоги и ошибки сбора"><Button className="app-icon-button" type="text" aria-label="Требуют внимания" icon={<BellOutlined />} onClick={()=>setEventsOpen(true)} /></Tooltip>
 
