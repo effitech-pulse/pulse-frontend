@@ -10,7 +10,11 @@ const shown=(value:string|number|boolean|null):string=>value===null||value===''?
 function Fields({items}:{items:readonly (readonly [string,ReactNode])[]}) {
  return <dl className="pulse-events-fields">{items.map(([label,value])=><div key={label}><dt>{label}:</dt><dd>{value}</dd></div>)}</dl>;
 }
-export function EventFeedback({error,loading=false,context='detail',continuation=false,onRetry,onRestart,unavailable=false}:{error?:unknown;loading?:boolean;context?:'list'|'detail';continuation?:boolean;onRetry?:()=>void;onRestart?:()=>void;unavailable?:boolean}) {
+/** Explicit retry is about to remove its control; do not focus after a later response. */
+export function focusEventRetry(source:HTMLElement,heading:HTMLElement|null,ticket:{current:()=>boolean}) {
+ if(ticket.current()&&source.contains(document.activeElement))heading?.focus();
+}
+export function EventFeedback({error,loading=false,context='detail',continuation=false,onRetry,onRestart,unavailable=false}:{error?:unknown;loading?:boolean;context?:'list'|'detail';continuation?:boolean;onRetry?:(source:HTMLElement)=>void;onRestart?:(source:HTMLElement)=>void;unavailable?:boolean}) {
  if(loading)return <Card className="pulse-event-card"><div role="status" aria-live="polite" aria-busy="true" className="pulse-event-loading"><Spin/><span>{context==='list'?'Загрузка истории…':'Загрузка события…'}</span></div></Card>;
  const status=axios.isAxiosError(error)?error.response?.status??0:0;
  const body=axios.isAxiosError(error)?error.response?.data:undefined;
@@ -19,7 +23,7 @@ export function EventFeedback({error,loading=false,context='detail',continuation
  const reference=error?toApiError(error).http_request_id:undefined;
  return <div className="pulse-event-feedback" role="alert">
   <Alert type={state==='restart'?'warning':'error'} message={message} description={reference?<span>Код обращения: {reference}</span>:undefined}/>
-  {state==='restart'&&onRestart?<Button onClick={onRestart}>Обновить список</Button>:state==='retry'&&onRetry?<Button onClick={onRetry}>{continuation?'Повторить загрузку':'Повторить'}</Button>:null}
+  {state==='restart'&&onRestart?<Button onClick={event=>onRestart(event.currentTarget)}>Обновить список</Button>:state==='retry'&&onRetry?<Button onClick={event=>onRetry(event.currentTarget)}>{continuation?'Повторить загрузку':'Повторить'}</Button>:null}
  </div>;
 }
 function ReviewSnapshot({snapshot}:{snapshot:EventReviewSnapshot}) {

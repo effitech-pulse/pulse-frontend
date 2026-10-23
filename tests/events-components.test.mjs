@@ -171,3 +171,64 @@ test('pending continuation retains a focusable loading button rather than disabl
  const html=await renderRoute('/events',client);const button=html.match(/<button\b[^>]*ant-btn-loading[^>]*>/)?.[0];
  assert.ok(button,'Rendered continuation loading button must remain present');assert.doesNotMatch(button,/\bdisabled(?:=|\s|>)/);client.clear();
 });
+
+test('terminal append focus snapshot selects only a newly appended available link and respects ownership/session',()=>{
+ const {EventAppendFocusBoundary}=harness('/events').load('pages/EventsPage.tsx');
+ assert.equal(typeof EventAppendFocusBoundary,'function');
+ const priorDocument=globalThis.document,priorAnchor=globalThis.HTMLAnchorElement;
+ try{
+  function scenario({outside=false,child=false,missing=false,staleBefore=false,staleAfter=false,movedAfter=false,terminal=true,beforeCount=2}={}){
+   const session=new PrivateEpoch();
+   const doc={activeElement:null,body:null,getElementById:id=>nodes.get(id)??null};const nodes=new Map();
+   class FocusNode {
+    constructor(name,parent=null){this.name=name;this.parent=parent;this.isConnected=true;}
+    contains(node){return node===this||node?.parent===this;}
+    focus(){doc.activeElement=this;}
+   }
+   class Anchor extends FocusNode {hasAttribute(name){return name==='href';}}
+   globalThis.HTMLAnchorElement=Anchor;globalThis.document=doc;
+   doc.body=new FocusNode('BODY');const button=new FocusNode('load-more'),heading=new FocusNode('heading'),other=new FocusNode('other'),spinner=new FocusNode('spinner',button);
+   const link=new Anchor('first-new-link');if(!missing)nodes.set(`event-${body[2].event.event_id}`,link);
+   // An earlier still-available event must never become the terminal target.
+   nodes.set(`event-${body[0].event.event_id}`,new Anchor('old-link'));
+   doc.activeElement=outside?other:child?spinner:button;
+   const props={items:body.map(data=>data.event),beforeCount,terminal,ticket:session.capture(),buttonRef:{current:button},headingRef:{current:heading},children:null};
+   const boundary=new EventAppendFocusBoundary(props);if(staleBefore)session.invalidate();
+   const snapshot=boundary.getSnapshotBeforeUpdate(props);
+   if(snapshot){button.isConnected=false;doc.activeElement=movedAfter?other:doc.body;if(staleAfter)session.invalidate();}
+   boundary.componentDidUpdate(props,{},snapshot);
+   return doc.activeElement.name;
+  }
+  assert.equal(scenario(),'first-new-link');assert.equal(scenario({child:true}),'first-new-link');
+  assert.equal(scenario({missing:true}),'heading');assert.equal(scenario({outside:true}),'other');
+  assert.equal(scenario({movedAfter:true}),'other');assert.equal(scenario({terminal:false}),'load-more');
+  assert.equal(scenario({beforeCount:null}),'load-more');assert.equal(scenario({staleBefore:true}),'load-more');assert.equal(scenario({staleAfter:true}),'BODY');
+ }finally{if(priorDocument===undefined)delete globalThis.document;else globalThis.document=priorDocument;if(priorAnchor===undefined)delete globalThis.HTMLAnchorElement;else globalThis.HTMLAnchorElement=priorAnchor;}
+});
+test('cursor restart keeps one continuation control in place with restart action label',async()=>{
+ for(const restart of [false,true]){
+  const client=queryClient();putList(client,fixture.responses.list_continuation_example.body);
+  if(restart){const key=logic.eventQueryKey('list',auth.privateEpoch,logic.buildEventsURL({}));client.getQueryCache().find({queryKey:key,exact:true}).setState({status:'error',fetchStatus:'idle',fetchMeta:{fetchMore:{direction:'forward'}},error:{isAxiosError:true,response:{status:422,data:{code:'validation_error',detail:'cursor_restart_required'}}}});}
+  const html=await renderRoute('/events',client);const control=html.match(/<button\b[^>]*id="events-continuation"[^>]*>[\s\S]*?<\/button>/)?.[0];
+  assert.ok(control,'Same continuation button slot must remain rendered');assert.ok(control.includes(restart?'Обновить список':'Загрузить ещё'));
+  assert.equal((html.match(/>Обновить список</g)??[]).length,restart?1:0);client.clear();
+ }
+});
+
+test('explicit F3 retry transfers owned focus before removal, but never steals changed or stale-session focus',()=>{
+ const {focusEventRetry,EventFeedback}=harness('/events').load('components/events/EventDetailView.tsx');
+ assert.equal(typeof focusEventRetry,'function');
+ const prior=globalThis.document;
+ try{
+  const session=new PrivateEpoch();const source={contains:node=>node===source||node?.parent===source};
+  const heading={focus(){document.activeElement=heading;}};const elsewhere={};const child={parent:source};
+  globalThis.document={activeElement:source};
+  // Exercise the actual shared feedback click adapter, not a mock call count.
+  const tree=EventFeedback({error:{isAxiosError:true,response:{status:503}},onRetry:button=>focusEventRetry(button,heading,session.capture())});
+  const retry=React.Children.toArray(tree.props.children).find(element=>element.props?.onClick);
+  assert.ok(retry);retry.props.onClick({currentTarget:source});assert.equal(document.activeElement,heading);
+  document.activeElement=child;focusEventRetry(source,heading,session.capture());assert.equal(document.activeElement,heading);
+  document.activeElement=elsewhere;focusEventRetry(source,heading,session.capture());assert.equal(document.activeElement,elsewhere);
+  const old=session.capture();session.invalidate();document.activeElement=source;focusEventRetry(source,heading,old);assert.equal(document.activeElement,source);
+ }finally{if(prior===undefined)delete globalThis.document;else globalThis.document=prior;}
+});

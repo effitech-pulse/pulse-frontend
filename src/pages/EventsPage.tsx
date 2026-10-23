@@ -1,16 +1,40 @@
-import {useEffect,useRef,useState,type FormEvent} from 'react';
+import {Component,useEffect,useRef,useState,type FormEvent,type ReactNode,type RefObject} from 'react';
 import {Alert,Button,Card,Input,Select} from 'antd';
 import {Link,useLocation,useNavigate} from 'react-router-dom';
 import axios from 'axios';
 import type {EventFilters,EventSummary,EventType} from '@/api/events';
 import {useAuth} from '@/auth/AuthProvider';
 import {useEvents} from '@/hooks/useEvents';
-import {EventFeedback} from '@/components/events/EventDetailView';
+import {EventFeedback,focusEventRetry} from '@/components/events/EventDetailView';
 import {EVENT_TITLES,EVENT_TYPES,assertEventTarget,buildEventURL,buildEventsURL,eventActorCopy,eventErrorState,eventVerdictCopy,formatEventTime,normalizeEventFilters,parseEventFilters,reviewConclusionCopy,reviewStatusCopy} from '@/lib/events';
 import '@/styles/events.css';
 
 const FOOTER='История сохранённых проверок, заключений и изменений карточек; не полный аудит';
 const searchFor=(filters:EventFilters)=>{const url=buildEventsURL(filters);return url.slice(url.indexOf('?'));};
+interface AppendFocusProps {
+ children:ReactNode;items:readonly EventSummary[];beforeCount:number|null;terminal:boolean;
+ ticket:{current:()=>boolean};buttonRef:RefObject<HTMLButtonElement>;headingRef:RefObject<HTMLHeadingElement>;
+}
+interface AppendFocusSnapshot {button:HTMLButtonElement;ticket:AppendFocusProps['ticket']}
+/** Snapshot is taken before React removes the focused terminal continuation control. */
+export class EventAppendFocusBoundary extends Component<AppendFocusProps,Record<string,never>,AppendFocusSnapshot|null> {
+ getSnapshotBeforeUpdate():AppendFocusSnapshot|null {
+  const {terminal,beforeCount,items,ticket,buttonRef}=this.props;
+  if(!terminal||beforeCount===null||items.length<beforeCount||!ticket.current())return null;
+  const button=buttonRef.current;
+  return button?.contains(document.activeElement)?{button,ticket}:null;
+ }
+ componentDidUpdate(_previous:AppendFocusProps,_state:Readonly<Record<string,never>>,snapshot:AppendFocusSnapshot|null) {
+  if(!snapshot||!this.props.terminal||!snapshot.ticket.current()||snapshot.button.isConnected||document.activeElement!==document.body)return;
+  for(const event of this.props.items.slice(this.props.beforeCount??this.props.items.length)){
+   const target=document.getElementById(`event-${event.event_id}`);
+   if(target instanceof HTMLAnchorElement&&target.hasAttribute('href')&&!target.hasAttribute('aria-disabled')){target.focus();return;}
+  }
+  this.props.headingRef.current?.focus();
+ }
+ render(){return this.props.children;}
+}
+
 function SummaryOutcome({event}:{event:EventSummary}) {
  return <>
   {event.event_type==='manual_check.saved.v1'?<p>{eventVerdictCopy(event.outcome.verdict)}</p>:event.event_type.startsWith('review.')?<p>{reviewStatusCopy(event.outcome.review_status)}{event.outcome.conclusion===null?'':` · ${reviewConclusionCopy(event.outcome.conclusion)}`}</p>:null}
@@ -38,6 +62,8 @@ function EventsList({filters}:{filters:EventFilters}) {
  const [well,setWell]=useState(filters.well_id??''),[archive,setArchive]=useState(filters.archive??'all');
  const [from,setFrom]=useState(filters.from??''),[to,setTo]=useState(filters.to??'');
  const [validation,setValidation]=useState('');const heading=useRef<HTMLHeadingElement>(null),focusDone=useRef(false);
+ const continuation=useRef<HTMLButtonElement>(null),appendFrom=useRef<number|null>(null);
+ const renderTicket=auth.capturePrivate();
  const signature=buildEventsURL(filters),nondefault=signature!==buildEventsURL({});
  const errorStatus=axios.isAxiosError(query.error)?query.error.response?.status??0:0;
  const errorBody=axios.isAxiosError(query.error)?query.error.response?.data:undefined;
@@ -54,7 +80,7 @@ function EventsList({filters}:{filters:EventFilters}) {
   if(restored instanceof HTMLAnchorElement)restored.focus();
   focusDone.current=true;
  },[location.key,query.isPending,items.length,auth.privateEpoch]);
- async function restart(){await query.restart();}
+ async function restart(source?:HTMLElement){appendFrom.current=null;if(source)focusEventRetry(source,heading.current,renderTicket);await query.restart();}
  function reset(){
   setTypes([]);setWell('');setArchive('all');setFrom('');setTo('');setValidation('');
   if(signature===buildEventsURL({}))void restart();else navigate({pathname:'/events',search:searchFor({})});
@@ -67,7 +93,7 @@ function EventsList({filters}:{filters:EventFilters}) {
    if(buildEventsURL(next)===signature)void restart();else navigate({pathname:'/events',search:nextSearch});
   }catch{setValidation('Проверьте условия поиска: ID Pulse, типы и период. Даты — RFC3339 с часовым поясом, С раньше До.');}
  }
- return <section className="pulse-events-page" aria-label="История событий">
+ return <EventAppendFocusBoundary items={items} beforeCount={appendFrom.current} terminal={canShow&&query.isSuccess&&!query.isFetchingNextPage&&!query.hasNextPage} ticket={renderTicket} buttonRef={continuation} headingRef={heading}><section className="pulse-events-page" aria-label="История событий">
   <h1 ref={heading} tabIndex={-1}>История событий</h1>
   <Button className="pulse-event-button" onClick={()=>{void restart();}} disabled={query.isFetching}>Обновить</Button>
   <Card className="pulse-event-card"><form className="pulse-event-filters" onSubmit={apply} aria-label="Фильтры событий">
@@ -85,14 +111,14 @@ function EventsList({filters}:{filters:EventFilters}) {
   </form></Card>
   {!canShow?<EventFeedback context="list" error={query.error??{isAxiosError:true,response:{status:403}}}/>:query.isPending?<EventFeedback context="list" loading/>:<>
    {items.length>0&&<div className="pulse-event-list">{items.map(event=><EventCard key={event.event_id} event={event}/>)}</div>}
-   {query.isError?<EventFeedback context="list" error={query.error} continuation={query.isFetchNextPageError} onRetry={query.isFetchNextPageError?undefined:()=>{void query.refetch();}} onRestart={()=>{void restart();}}/>:items.length===0?<Card className="pulse-event-card"><div className="pulse-event-stack"><p>Сохранённых событий в выбранных условиях нет</p>{nondefault&&<Button className="pulse-event-button" onClick={reset}>Сбросить фильтры</Button>}</div></Card>:null}
+   {query.isError?<EventFeedback context="list" error={query.error} continuation={query.isFetchNextPageError} onRetry={query.isFetchNextPageError?undefined:source=>{focusEventRetry(source,heading.current,renderTicket);void query.refetch();}} onRestart={items.length===0?source=>{void restart(source);}:undefined}/>:items.length===0?<Card className="pulse-event-card"><div className="pulse-event-stack"><p>Сохранённых событий в выбранных условиях нет</p>{nondefault&&<Button className="pulse-event-button" onClick={reset}>Сбросить фильтры</Button>}</div></Card>:null}
    {items.length>0&&<div className="pulse-event-continuation">
-    {query.hasNextPage&&!restarting&&<Button className="pulse-event-button" loading={query.isFetchingNextPage} disabled={query.isFetching&&!query.isFetchingNextPage} onClick={()=>{void query.fetchNextPage({cancelRefetch:false});}}>{query.isFetchingNextPage?'Загрузка…':query.isFetchNextPageError?'Повторить загрузку':'Загрузить ещё'}</Button>}
+    {(query.hasNextPage||restarting)&&<Button id="events-continuation" ref={continuation} className="pulse-event-button" loading={query.isFetchingNextPage} disabled={query.isFetching&&!query.isFetchingNextPage} onClick={event=>{if(restarting){void restart(event.currentTarget);}else{appendFrom.current=items.length;void query.fetchNextPage({cancelRefetch:false});}}}>{restarting?'Обновить список':query.isFetchingNextPage?'Загрузка…':query.isFetchNextPageError?'Повторить загрузку':'Загрузить ещё'}</Button>}
     <span className="pulse-event-footnote" role="status" aria-live="polite" aria-atomic="true">Загружено {items.length}<span className="pulse-events-sr-only"> событий</span></span>
    </div>}
   </>}
   <p className="pulse-event-footnote">{FOOTER}</p>
- </section>;
+ </section></EventAppendFocusBoundary>;
 }
 /** Invalid URL never starts a query and never enters an endless disabled loading state. */
 export function EventsPage() {

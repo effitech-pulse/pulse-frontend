@@ -2,11 +2,11 @@ import {useEffect,useRef} from 'react';
 import {Link,useLocation,useParams} from 'react-router-dom';
 import {useAuth} from '@/auth/AuthProvider';
 import {useEvent} from '@/hooks/useEvents';
-import {EventDetailView,EventFeedback} from '@/components/events/EventDetailView';
+import {EventDetailView,EventFeedback,focusEventRetry} from '@/components/events/EventDetailView';
 import {assertEventTarget,buildEventsURL,buildEventURL,buildWellEventURL,closeWellEventURL,EVENT_TITLES,eventSourceTab,parseEventFilters,selectEventDetail,validEventId,validEventWellId} from '@/lib/events';
 
 export function EventDetailPage({wellMode=false}:{wellMode?:boolean}) {
- const params=useParams();const location=useLocation();const auth=useAuth();
+ const params=useParams();const location=useLocation();const auth=useAuth();const renderTicket=auth.capturePrivate();
  const queryParams=new URLSearchParams(location.search);
  const eventId=wellMode?queryParams.get('event')??'':params.eventId??'';
  const wellId=params.wellId;
@@ -33,7 +33,7 @@ export function EventDetailPage({wellMode=false}:{wellMode?:boolean}) {
   {!wellMode&&back}
   <h1 ref={heading} tabIndex={-1}>{wellMode?'Основание в карточке':data&&!unavailable&&!query.isError&&!denied?EVENT_TITLES[data.event.event_type]:'Событие'}</h1>
   {wellMode&&(closeTarget?<Link className="ant-btn ant-btn-default pulse-event-button" to={closeTarget}>Закрыть основание</Link>:back)}
-  {unavailable?<EventFeedback unavailable/>:denied?<EventFeedback error={{isAxiosError:true,response:{status:403}}}/>:query.isError?<EventFeedback error={query.error} onRetry={()=>{void query.refetch();}}/>:query.isPending?<EventFeedback loading/>:data?<>
+  {unavailable?<EventFeedback unavailable/>:denied?<EventFeedback error={{isAxiosError:true,response:{status:403}}}/>:query.isError?<EventFeedback error={query.error} onRetry={source=>{focusEventRetry(source,heading.current,renderTicket);void query.refetch();}}/>:query.isPending?<EventFeedback loading/>:data?<>
    <EventDetailView data={data}/>
    {!wellMode&&sourceLink&&<Link className="ant-btn ant-btn-default pulse-event-button" to={sourceLink}>Открыть основание в карточке</Link>}
    <p className="pulse-event-footnote">Сохранённое основание · Только чтение</p>
