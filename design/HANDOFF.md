@@ -354,3 +354,29 @@ aria-label (действие, название, ID); сами icons остают
 Три narrow browser cases / 0 page errors и два rendered-name tests находятся
 во внешнем `execution/plan/frontend-fixes-followup-browser/`. Source composition
 не менялась; live acceptance по-прежнему pending backend gate.
+
+### Task 8–9 · итоговая frontend-приёмка · 23.10.2026
+
+Этот итог заменяет pending-статусы checkpoints выше. Единый назначенный frontend
+reviewer принял source `c20ba6ee46ff7b081cf29808fbd9285e0daf87f3` и live evidence;
+все FR и LIVE-GAP-01 закрыты. Проверки принятого кода: 118 tests PASS,
+TypeScript/Vite build PASS.
+
+В реальной изолированной SPA с Gin/Access/Postgres backend
+`5812b409c11636b2ecaa00985289ea8d900703d6` проверены шесть групп сценариев:
+постоянные роли/группы, union и перекрывающиеся источники, локальная область
+управления и скрытие недоступных пользователей, перевод между подразделениями
+с отзывом сеанса, stale409 с сохранением черновика и запрет удаления последнего
+manager с очисткой private state при настоящей смене сеанса. Отдельно подтверждён
+успешный local leader write: Preview200 → PUT200 → committed GET200,
+без изменения назначений, подразделения и active. Page errors — 0.
+Auth/management endpoints и PostgreSQL были настоящими; подменялся только
+внешний ML. Обе временные backend fixtures и frontend/Chrome остановлены;
+координатор подтвердил отсутствие обеих тестовых схем после cleanup.
+
+Прежние source/theme/responsive/keyboard evidence сохраняют силу. Native browser
+zoom200%, screen reader/VoiceOver и полный runtime contrast audit не проверены;
+полное WCAG-соответствие не заявляется. Итоговая frontend-приёмка не заменяет
+общий workspace backend full gate, который на момент этой записи ещё pending.
+Рабочие deployment и activation не выполнялись. Сведения выше самостоятельны:
+standalone checkout не требует внешних task-артефактов для сборки или тестов.
