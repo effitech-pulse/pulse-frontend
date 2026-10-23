@@ -380,3 +380,44 @@ zoom200%, screen reader/VoiceOver и полный runtime contrast audit не п
 общий workspace backend full gate, который на момент этой записи ещё pending.
 Рабочие deployment и activation не выполнялись. Сведения выше самостоятельны:
 standalone checkout не требует внешних task-артефактов для сборки или тестов.
+
+### Role rows · runtime checkpoint · 24.10.2026
+
+Новый source file `km4tIbp3LnMTRrV6yi6Qho`: form desktop Light923:2520 /
+Dark927:5116; mobile923:2720 /927:5415; full-page Preview923:2620 /927:5274;
+states923:2721 /927:5499; narrow group923:2722 /927:5598. Старые исходники
+сохранены как история, role editor теперь использует эту отдельную страницу.
+Новых UI raster/assets, design-system/dependency изменений нет: shell и
+Ant controls переиспользованы, semantic selected token привязан только внутри
+role page к source Light/Dark значениям.
+
+Сохранены query URLs /system/access?tab=roles&entity=roles&id=new|<decimal>
+и copy=1. Name/description и typed stable rows принадлежат AccountsPage draft;
+backend wire остаётся flat permission_keys. «Проверить изменения» вызывает
+Preview, «Сохранить роль» — actual Apply. Ноль строк допустим; added incomplete
+row показывает associated field error и focus. Add — blue text/link с44px целью.
+Existing unknown/ungrantable keys read-only; actor prerequisites ограничивают
+новый выбор, partial roles разрешены без auto grants. Existing delete-role
+capability сохранена в действиях формы. Для group форма не запрашивает roles:
+existingrole_ids точно сохраняются, new[], полный member baseline/участники
+работают по прежнему contract. Нейтральный общий callout не обещает назначения
+ролей в форме группы.
+
+Проверки принятого implementation checkpoint:127 tests PASS, TypeScript/Vite
+build PASS; реальные DOM interactions SPA с intercepted API проверяют stable
+rows/add/remove/resource reset/selection, full-page form/Preview, empty/incomplete,
+readonly/unknown/copy, actor dependencies, group immutable IDs+member pagination,
+409/graph/epoch/403/401/pending/unknown outcome и focus return. Source Light/Dark
+1440/390 сопоставлены, дополнительные320/768/1024 не имеют document overflow.
+Это UI-only mocked-backend QA новой формы; прежнее real API evidence не
+выдаётся за новый live run. Изолированный Vite3049 и Chrome остановлены.
+
+Native keyboard установленного Ant Design5.29.3/rc-select14.16.8 проверен через
+Arrow/Enter/Escape и typing search. Home/End option jump библиотекой не
+поддерживается; по решению координатора остаётся native input semantics, без
+synthetic-key/private API wrapper. Source keyboard annotations уточнены тем же
+правилом. Add/Remove/Preview heading/Back/Cancel восстанавливают focus; page не
+создаёт focus trap, confirm dialog остаётся modal. Native browser200%, SR/VoiceOver
+и полный runtime contrast остаются вне выполненных проверок. Следующий этап —
+одно scoped review этого diff по поручению координатора, без повторения прежнего
+полного RBAC review.

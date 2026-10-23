@@ -127,3 +127,42 @@
 .access-form > .access-note:first-child {font-size:14px;line-height:20px;}
 .access-overlay .ant-drawer-content {background:var(--pulse-surface);}
 .access-chip .ant-btn {min-width:44px;}
+
+/* Role rows · Figma 923:2520 / 923:2720. Existing shell and semantic theme tokens. */
+.role-page {gap:20px;min-width:0;}
+.role-page h1 {margin:0;font-size:28px;line-height:40px;font-weight:500;}
+.role-page .role-back {align-self:flex-start;min-width:168px;}
+.role-page-panel {display:flex;flex-direction:column;gap:16px;padding:20px;background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:4px;min-width:0;}
+.role-editor .role-metadata {width:720px;max-width:100%;}
+.role-editor textarea.ant-input {min-height:88px;}
+.role-privileges {display:flex;flex-direction:column;gap:20px;}
+.role-privilege-row {display:flex;flex-direction:column;gap:8px;min-width:0;}
+.role-privilege-controls {display:grid;grid-template-columns:minmax(180px,280px) minmax(0,1fr) 128px;gap:16px;align-items:start;}
+.role-privilege-controls > .ant-btn {align-self:start;margin-top:26px;}
+.role-privilege-controls .ant-select-multiple .ant-select-selector {padding:4px 12px;align-items:center;}
+.role-privilege-controls .ant-select-multiple .ant-select-selection-overflow {gap:4px 8px;}
+.role-privilege-controls .ant-select-multiple .ant-select-selection-item {line-height:28px!important;}
+.role-action-tag {display:inline-flex;align-items:center;padding:0 8px;min-height:28px;border-radius:4px;background:var(--pulse-selected);color:var(--pulse-ink);white-space:normal;overflow-wrap:anywhere;}
+.role-scope-note {font-size:12px;line-height:17px;color:var(--pulse-muted);}
+.role-action-option {display:flex;flex-direction:column;white-space:normal;gap:4px;min-height:32px;justify-content:center;}
+.role-action-option small {font-size:12px;line-height:17px;}
+.role-add-privilege {align-self:flex-start;min-width:240px;padding-inline:0;justify-content:flex-start;}
+.role-page .access-editor-actions .ant-btn-primary {min-width:224px;}
+.role-page .access-editor-actions {gap:12px!important;}
+.role-page-panel > .access-form {min-width:0;}
+.role-page .access-form .ant-table-tbody > tr > td {height:auto;}
+.role-live-status {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+@media(max-width:767px){
+ .role-page-panel {padding:20px;}
+ .role-privilege-controls {grid-template-columns:minmax(0,1fr);gap:16px;}
+ .role-privilege-controls > .ant-btn {margin-top:0;justify-self:start;min-width:128px;}
+ .role-page .access-editor-actions {display:flex;flex-direction:column;align-items:stretch;width:100%;}
+ .role-page .access-editor-actions .ant-space-item,.role-page .access-editor-actions .ant-btn,.role-add-privilege {width:100%;min-width:0;}
+ .role-page .access-editor-actions .ant-btn-primary {min-width:0;}
+}
+.role-page {--pulse-selected:#edf3ff;}
+:root[data-theme='dark'] .role-page {--pulse-selected:#1d3455;}
+.role-page .ant-btn {font-size:13px;}
+.role-privilege-controls > .ant-btn {white-space:nowrap;padding-inline:8px;}
+.role-action-tag {line-height:20px;height:28px;}
+.role-privilege-controls .ant-select-multiple .ant-select-selection-overflow-item {line-height:28px;align-self:center;}

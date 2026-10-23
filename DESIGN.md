@@ -104,3 +104,35 @@ Preview search фильтрует серверные строки до паги�
 fingerprint не меняются. Точные wire shapes и staged ответы — в HANDOFF.
 Browser QA, keyboard/zoom, runtime reduced motion и интеграция проверяются при реализации. Имена и значения
 макетов иллюстративны, в API/runtime не копируются.
+
+### Редактор ролей · 24.10.2026
+
+Актуальная форма создания/редактирования/копии роли и её Preview расположены
+в main content System shell. Source form Light `923:2520` / Dark `927:5116`,
+mobile `923:2720` / `927:5415`, Preview `923:2620` / `927:5274` в прежнем Figma
+`km4tIbp3LnMTRrV6yi6Qho`. Это заменяет прежнюю checkbox-форму роли в Drawer;
+user/group drawers и списки сохраняют прежнюю композицию.
+
+Форма: название, необязательное описание, повторяемые строки «Ресурс →
+Привилегии» с exact server keys и множественным выбором. Resource уникален;
+смена ресурса сбрасывает только действия его строки. «+ Добавить привилегии» —
+лёгкое blue text/link действие без рамки/fill, с 44px tap area. Строки сохраняют
+локальные IDs через Preview/Back/409; даже пустая добавленная строка делает
+форму dirty и инвалидирует receipt. Ноль строк допустим, незавершённая строка
+требует заполнения или удаления. Unknown/ungrantable existing keys показываются
+read-only и сохраняются; prerequisites не добавляются автоматически. Новые
+options проверяют raw actor key и его транзитивные prerequisites по каталогу.
+
+Scoped resource/action controls используют Ant Design, существующие Roboto и
+semantic tokens; поля44px, metadata720px max-width100%, resource280px на desktop,
+под768px строки вертикальные. Chips переносятся, Preview table имеет локальный
+scroll. Group source `923:2722` / `927:5598`: role picker удалён, existing
+role_ids сохраняются неизменными, new group []; membership не перепроектирован.
+
+Клавиатура соответствует установленным Ant Design5.29.3 / rc-select14.16.8:
+ArrowUp/Down, Enter, Escape и typing search; кнопки сохраняют стандартный Tab и
+Enter/Space. Home/End не переводят active option в начало/конец списка, а следуют
+нативному поведению поискового input. Это принятое ограничение, без custom
+wrapper/private API. Focus после Add/Remove, Preview heading и возврата к
+редактированию/списку проверен в runtime. Native zoom200%, SR и полный contrast
+аудит не заявляются.

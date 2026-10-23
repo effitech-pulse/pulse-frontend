@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { managementApi, type Account, type AccessPage, type GroupChange } from '@/api/access';
 import { useAuth } from '@/auth/AuthProvider';
 import { completeMembers } from '@/lib/accessDraft';
-import { AccessError, AssignmentSelector, PageControls, organizationLabel, useAccessPage } from './UsersPanel';
+import { AccessError, PageControls, organizationLabel, useAccessPage } from './UsersPanel';
 export function GroupEditor({ value, onChange, disabled, baselineReady, onBaseline, fieldError }: {
     value: GroupChange;
     onChange: (patch: Partial<GroupChange>) => void;
@@ -46,7 +46,7 @@ export function GroupEditor({ value, onChange, disabled, baselineReady, onBaseli
             setLoading(false);
     } }
     const list = adding ? candidates : members;
-    return <div className="access-form"><p className="access-note">Постоянная группа с ручным составом</p><label>Название<Input aria-label="Название" {...fieldAttributes('name',fieldError)} value={value.name} disabled={disabled} onChange={e => onChange({ name: e.target.value })}/><FieldError field="name" error={fieldError}/></label><label>Описание<Input.TextArea value={value.description} disabled={disabled} onChange={e => onChange({ description: e.target.value })}/></label><h2>Роли группы</h2><AssignmentSelector kind="roles" value={value.role_ids} onChange={role_ids => onChange({ role_ids })} disabled={disabled || !can('roles.read')}/><p className="access-note">Эти роли действуют в пределах подразделения каждого участника.</p><h2>Участники</h2>
+    return <div className="access-form"><p className="access-note">Постоянная группа с ручным составом</p><label>Название<Input aria-label="Название" {...fieldAttributes('name',fieldError)} value={value.name} disabled={disabled} onChange={e => onChange({ name: e.target.value })}/><FieldError field="name" error={fieldError}/></label><label>Описание<Input.TextArea value={value.description} disabled={disabled} onChange={e => onChange({ description: e.target.value })}/></label>{value.id !== null ? <><h2>Действующие назначения</h2><p>{value.role_ids.length ? `Действующие назначения сохранены. Изменение ролей в этой форме недоступно. ID ролей: ${value.role_ids.join(', ')}.` : 'Роли не назначены. Изменение ролей в этой форме недоступно.'}</p></> : <p className="access-note">Новая группа создаётся без ролей.</p>}<h2>Участники</h2>
  {!can('users.read') ? <Alert type="info" message="Чтение участников недоступно. Полная замена состава заблокирована."/> : <>
  {value.id !== null && !baselineReady && <Alert type="info" message="Состав сохраняется целиком" description="До загрузки полного состава проверка изменений недоступна." action={<Button aria-label="Загрузить полный состав" aria-busy={loading} loading={loading?{icon:<LoadingOutlined aria-hidden="true"/>}:false} disabled={disabled} onClick={() => void loadBaseline()}>Загрузить полный состав</Button>}/>}
  {error != null && <AccessError error={error} retry={() => void loadBaseline()}/>}
