@@ -9,7 +9,7 @@ import { PageSpin } from '@/components/common/PageSpin';
 import { NgduModal } from '@/components/structure/NgduModal';
 
 export function NgduPanel() {
-  const {can}=useAuth();
+  const {canFull}=useAuth();
   const { data, isLoading, error } = useNgdus();
   const del = useDeleteNgdu();
   const [editing, setEditing] = useState<Ngdu | null>(null);
@@ -26,7 +26,7 @@ export function NgduPanel() {
         <Space>
           <Button
             size="small"
-            disabled={!can('references.update')} icon={<EditOutlined />}
+            disabled={!canFull('references.update')} icon={<EditOutlined aria-hidden="true" />}
             onClick={() => {
               setEditing(item);
               setOpen(true);
@@ -34,7 +34,7 @@ export function NgduPanel() {
           />
           <Popconfirm title="Удалить НГДУ?" okText="Да" cancelText="Нет"
             onConfirm={() => del.mutate(item.id)}>
-            <Button size="small" danger disabled={!can('references.delete')} icon={<DeleteOutlined />} />
+            <Button size="small" danger disabled={!canFull('references.delete')} icon={<DeleteOutlined aria-hidden="true" />} />
           </Popconfirm>
         </Space>
       ),
@@ -44,7 +44,7 @@ export function NgduPanel() {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Button type="primary" disabled={!can('references.create')} icon={<PlusOutlined />} onClick={() => { setEditing(null); setOpen(true); }}>
+        <Button type="primary" disabled={!canFull('references.create')} icon={<PlusOutlined aria-hidden="true" />} onClick={() => { setEditing(null); setOpen(true); }}>
           Добавить НГДУ
         </Button>
       </div>

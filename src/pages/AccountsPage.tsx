@@ -7,7 +7,7 @@ import axios from 'axios';
 import { managementApi, type Account, type AccessChange, type AccessPreviewResponse, type GroupChange, type RoleChange, type UserChange } from '@/api/access';
 import { useAuth } from '@/auth/AuthProvider';
 import { toApiError } from '@/api/client';
-import { acceptPreview, applyReceipt, createDraft, previewTicket, rejectApply, updateDraft, userChange, validateUserChange, type AccessDraft } from '@/lib/accessDraft';
+import { acceptPreview, applyReceipt, createDraft, previewTicket, rejectApply, updateDraft, userChange, validateUserChange, AccessFieldError, blockAccessNavigation, type AccessDraft } from '@/lib/accessDraft';
 import { UsersPanel, AccessError } from '@/components/access/UsersPanel';
 import { GroupsPanel } from '@/components/access/GroupsPanel';
 import { RolesPanel } from '@/components/access/RolesPanel';
@@ -52,22 +52,52 @@ export function AccountsPage() {
     const bypassNavigation = useRef(false);
     const blockingModal = useRef(false);
     const sequence = useRef(0);
+    const applying = useRef(false);
     const opener = useRef<HTMLElement | null>(null);
     const errorRef = useRef<HTMLDivElement>(null);
     const blocker = useBlocker(({ currentLocation, nextLocation }) => { if (bypassNavigation.current) {
         bypassNavigation.current = false;
         return false;
-    } return !busy && draftRef.current?.dirty === true && (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search); });
-    useEffect(() => { if (blocker.state !== 'blocked' || blockingModal.current)
-        return; blockingModal.current = true; modal.confirm({ rootClassName: 'access-confirm-modal', title: 'Закрыть без сохранения?', content: 'Несохранённые изменения будут потеряны.', okText: 'Закрыть', cancelText: 'Продолжить редактирование', onOk: () => { blockingModal.current = false; blocker.proceed(); }, onCancel: () => { blockingModal.current = false; blocker.reset(); } }); }, [blocker, modal]);
+    } return blockAccessNavigation(draftRef.current?.dirty === true,busy) && (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search); });
+    useEffect(() => {
+        if (blocker.state !== 'blocked' || blockingModal.current) return;
+        if (busy) {
+            blocker.reset();
+            message.info(applying.current ? 'Сохранение выполняется. Дождитесь результата.' : 'Проверка выполняется. Дождитесь результата.');
+            return;
+        }
+        blockingModal.current = true;
+        modal.confirm({
+            rootClassName: 'access-confirm-modal', title: 'Закрыть без сохранения?',
+            content: 'Несохранённые изменения будут потеряны.', okText: 'Закрыть', cancelText: 'Продолжить редактирование',
+            onOk: () => { blockingModal.current = false; blocker.proceed(); },
+            onCancel: () => { blockingModal.current = false; blocker.reset(); },
+        });
+    }, [blocker, modal, busy, message]);
     const catalog = useQuery({ queryKey: ['access', 'permissions', privateEpoch], queryFn: managementApi.permissions, enabled: modern && available.length > 0, retry: false });
     useEffect(() => { if (modern && tab && params.get('tab') !== tab) {
         const p = new URLSearchParams(params);
         p.set('tab', tab);
         setParams(p, { replace: true });
     } }, [modern, tab, params, setParams]);
-    useEffect(() => { if (error)
-        errorRef.current?.focus(); }, [error]);
+    useEffect(() => {
+        if (error instanceof AccessFieldError) {
+            const input = document.getElementById(`access-field-${error.field}`);
+            input?.focus();
+            input?.scrollIntoView({ block: 'center' });
+        } else if (error) errorRef.current?.focus();
+    }, [error]);
+    useEffect(() => {
+        const current = draftRef.current;
+        if (current?.preview && principal?.graph_revision !== undefined && current.preview.graph_revision !== principal.graph_revision) {
+            setDraft(d => d ? rejectApply(d, 409) : d);
+            setError(new Error('Граф доступа изменился. Обновите предпросмотр.'));
+            if (!applying.current) {
+                sequence.current++;
+                setBusy(false);
+            }
+        }
+    }, [principal?.graph_revision]);
     const entity = params.get('entity');
     const entityID = params.get('id');
     useEffect(() => {
@@ -163,9 +193,9 @@ export function AccountsPage() {
     function groupPatch(patch: Partial<GroupChange>) { if (draft?.change.group)
         edit({ group: { ...draft.change.group, ...patch } }); }
     const writable = draft?.change.user ? can(draft.change.user.id === null ? 'users.create' : 'users.update') : draft?.change.role ? can('roles.manage', 'access.manage_global') : draft?.change.group ? can('groups.manage', 'access.manage_global') : false;
-    async function preview(search = '', cursor?: string, history: string[] = []) {
+    async function preview(search = '', cursor?: string, history: string[] = [],filter=false) {
         const current = draftRef.current;
-        if (!current || busy)
+        if (!current || applying.current || (busy&&!filter))
             return;
         const ticket = capturePrivate();
         const n = ++sequence.current;
@@ -178,14 +208,14 @@ export function AccountsPage() {
                 validateUserChange(c.user, password, departmentPending);
             }
             else if (!(c.role ?? c.group)?.name.trim())
-                throw new Error('Введите название.');
+                throw new AccessFieldError('name','Введите название.');
             const response = await managementApi.preview(current.change, { search, cursor, graph_revision: current.conflict ? undefined : current.preview?.graph_revision, limit: 25 });
             if (!ticket.current() || n !== sequence.current || dt.version !== draftRef.current?.version)
                 return;
             setDraft(d => d ? acceptPreview(d, response, dt, privateEpoch) : d);
             setPreviewPage(response);
             setPreviewMode(true);
-            setPreviewSearch(search);
+            if(!filter)setPreviewSearch(search);
             setPreviewHistory(history);
         }
         catch (e) {
@@ -206,8 +236,8 @@ export function AccountsPage() {
                 setBusy(false);
         }
     }
-    async function apply() { if (!draft || busy)
-        return; const ticket = capturePrivate(); const n = ++sequence.current; setBusy(true); setError(undefined); try {
+    async function apply() { if (!draft || busy || applying.current)
+        return; applying.current=true; const ticket = capturePrivate(); const n = ++sequence.current; setBusy(true); setError(undefined); try {
         const result = await managementApi.apply(applyReceipt(draft, privateEpoch), password || undefined);
         if (!ticket.current() || n !== sequence.current)
             return;
@@ -235,6 +265,7 @@ export function AccountsPage() {
         }
     }
     finally {
+        applying.current=false;
         if (ticket.current() && n === sequence.current)
             setBusy(false);
     } }
@@ -253,8 +284,8 @@ export function AccountsPage() {
  <Drawer closable={false} rootClassName="pulse-system-overlay access-overlay" title={previewMode ? 'Проверка изменений' : entity === 'users' ? 'Настройка пользователя' : entity === 'groups' ? 'Настройка группы' : 'Настройка роли'} width={`min(${previewMode ? 960 : entity === 'users' ? 600 : 760}px, 100vw)`} open={!!entity} onClose={close} keyboard={!busy} maskClosable={!busy} destroyOnClose footer={<Space wrap>{!forbidden && draft && writable && !uncertain && (previewMode ? <><Button aria-label="Применить изменения" type="primary" loading={busy ? {icon:<LoadingOutlined aria-hidden="true"/>} : false} aria-busy={busy} disabled={!draft.preview || draft.conflict} onClick={() => void apply()}>Применить изменения</Button><Button disabled={busy} onClick={() => { setPreviewMode(false); setPreviewPage(null); }}>Вернуться к редактированию</Button></> : <><Button aria-label="Проверить изменения" type="primary" loading={busy ? {icon:<LoadingOutlined aria-hidden="true"/>} : false} aria-busy={busy} disabled={draft.change.group && !baselineReady || catalog.isPending || catalog.isError} onClick={() => void preview()}>Проверить изменения</Button>{(draft.change.role?.id || draft.change.group?.id) && <Button danger disabled={busy || !!draft.change.group && !baselineReady} onClick={() => { if (draft.change.role)
         rolePatch({ delete: !draft.change.role.delete }); if (draft.change.group)
         groupPatch({ delete: !draft.change.group.delete }); }}>{(draft.change.role ?? draft.change.group)?.delete ? 'Отменить удаление' : 'Удалить'}</Button>}</>)}<Button disabled={busy} onClick={close}>Отмена</Button></Space>}>
- {error != null && <div ref={errorRef} tabIndex={-1}><Alert type="error" message={forbidden ? 'Доступ к сведениям закрыт' : toApiError(error).message} description={draft?.conflict ? 'Черновик сохранён. Данные изменились. Проверьте последствия повторно.' : uncertain ? 'Результат записи неизвестен. Закройте карточку и перечитайте данные перед дальнейшей записью.' : undefined} action={draft?.conflict ? <Button disabled={busy} onClick={() => void preview()}>Обновить предпросмотр</Button> : undefined}/></div>}
- {loading ? <Skeleton active/> : draft && !forbidden ? previewMode ? <AccessPreview preview={previewPage} loading={busy} search={previewSearch} onSearch={search => { setPreviewSearch(search); clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => void preview(search), 300); }} onNext={() => { if (previewPage?.next_cursor)
-        void preview(previewSearch, previewPage.next_cursor, [...previewHistory, previewPage.next_cursor]); }} onBack={() => { const h = previewHistory.slice(0, -1); void preview(previewSearch, h.at(-1), h); }} hasBack={previewHistory.length > 0} catalog={catalog.data ?? []} userChange={!!draft.change.user}/> : <>{catalog.isError && <AccessError error={catalog.error} retry={() => void catalog.refetch()}/>} {draft.change.user ? <UserAccessDrawer value={draft.change.user} account={account} password={password} onPassword={v => { setPassword(v); userPatch({ reset_password: !!v || draft.change.user!.id === null }); }} onChange={userPatch} onDepartmentPending={setDepartmentPending} onClose={close} catalog={catalog.data ?? []}/> : draft.change.role ? <RoleEditor value={draft.change.role} onChange={rolePatch} catalog={catalog.data ?? []} disabled={!writable}/> : <GroupEditor value={draft.change.group!} onChange={groupPatch} disabled={!writable} baselineReady={baselineReady} onBaseline={ids => { setBaselineReady(true); groupPatch({ member_ids: ids }); }}/>}{(draft.change.role ?? draft.change.group)?.delete && <Alert type="warning" message="Выбрано удаление. Сервер проверит зависимые назначения."/>}</> : null}
+ {error != null && <div ref={errorRef} tabIndex={-1}><Alert type="error" message={forbidden ? 'Доступ к сведениям закрыт' : (error instanceof AccessFieldError?error.message:toApiError(error).message)} description={draft?.conflict ? 'Черновик сохранён. Данные изменились. Проверьте последствия повторно.' : uncertain ? 'Результат записи неизвестен. Закройте карточку и перечитайте данные перед дальнейшей записью.' : undefined} action={draft?.conflict ? <Button disabled={busy} onClick={() => void preview()}>Обновить предпросмотр</Button> : undefined}/></div>}
+ {loading ? <Skeleton active/> : draft && !forbidden ? previewMode ? <AccessPreview preview={previewPage} loading={busy} search={previewSearch} onSearch={search => { setPreviewSearch(search); clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => void preview(search,undefined,[],true), 300); }} onNext={() => { if (previewPage?.next_cursor)
+        void preview(previewSearch, previewPage.next_cursor, [...previewHistory, previewPage.next_cursor],true); }} onBack={() => { const h = previewHistory.slice(0, -1); void preview(previewSearch, h.at(-1), h,true); }} hasBack={previewHistory.length > 0} catalog={catalog.data ?? []} userChange={!!draft.change.user}/> : <>{catalog.isError && <AccessError error={catalog.error} retry={() => void catalog.refetch()}/>} {draft.change.user ? <UserAccessDrawer value={draft.change.user} account={account} password={password} onPassword={v => { setPassword(v); userPatch({ reset_password: !!v || draft.change.user!.id === null }); }} onChange={userPatch} onDepartmentPending={setDepartmentPending} onClose={close} fieldError={error instanceof AccessFieldError?error:undefined} catalog={catalog.data ?? []}/> : draft.change.role ? <RoleEditor fieldError={error instanceof AccessFieldError?error:undefined} value={draft.change.role} onChange={rolePatch} catalog={catalog.data ?? []} disabled={!writable}/> : <GroupEditor fieldError={error instanceof AccessFieldError?error:undefined} value={draft.change.group!} onChange={groupPatch} disabled={!writable} baselineReady={baselineReady} onBaseline={ids => { setBaselineReady(true); groupPatch({ member_ids: ids }); }}/>}{(draft.change.role ?? draft.change.group)?.delete && <Alert type="warning" message="Выбрано удаление. Сервер проверит зависимые назначения."/>}</> : null}
  </Drawer></div>;
 }

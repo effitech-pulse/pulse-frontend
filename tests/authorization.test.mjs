@@ -40,3 +40,21 @@ test('access management route admits roles-only and groups-only readers independ
  assert.equal(routeAccess(modern(['groups.read']),'/system/access'),true);
  assert.equal(routeAccess(modern([]),'/system/access'),false);
 });
+test('FULL proves organization or unrestricted legacy and both funds, independently of management keys',async()=>{
+ const {fullApplicationScope,canFull,canGrantPermission}=await import('../src/auth/authorization.ts');
+ const p={...modern(['audit.read','roles.read','roles.manage','access.manage_global','telemetry.read']),organization_scope:{kind:'organization',ngdu_id:null,department_id:null},scope:{funds:['operational','presentation'],ngdus:[0],departments:[-1]}};
+ assert.equal(fullApplicationScope(p),true);assert.equal(canFull(p,'audit.read'),true);
+ assert.equal(fullApplicationScope({...p,scope:{...p.scope,funds:['operational']}}),false);
+ assert.equal(fullApplicationScope({...p,organization_scope:{kind:'department',ngdu_id:'0',department_id:'-1'}}),false);
+ assert.equal(fullApplicationScope({...p,organization_scope:null,scope:{...p.scope,ngdus:null,departments:null}}),true);
+ assert.equal(fullApplicationScope({...p,organization_scope:null,scope:{...p.scope,ngdus:[],departments:null}}),false);
+ assert.equal(canGrantPermission(p,'telemetry.read'),true);assert.equal(can(p,'telemetry.read'),false);assert.equal(canGrantPermission(p,'wells.read'),false);
+ assert.equal(routeAccess({...p,permission_keys:['references.read','references.create']},'/structure'),true);
+ assert.equal(routeAccess({...p,organization_scope:{kind:'department',ngdu_id:'0',department_id:'-1'}},'/audit'),false);
+});
+test('private boundary ignores graph/display refresh but changes for real modern identity/model/epoch',async()=>{
+ const {privateBoundary}=await import('../src/lib/privateEpoch.ts');const p={...modern(['users.read']),access_id:'9',authz_epoch:'1',graph_revision:'1',name:'Name'};const state={mode:'local',principal:p};
+ assert.equal(privateBoundary(state),privateBoundary({...state,principal:{...p,name:'Other',graph_revision:'2',access_revision:'4'}}));
+ for(const patch of [{access_id:'10'},{access_model:'legacy'},{authz_epoch:'2'}])assert.notEqual(privateBoundary(state),privateBoundary({...state,principal:{...p,...patch}}));
+ assert.notEqual(privateBoundary(state),privateBoundary({mode:'local',principal:null}));
+});

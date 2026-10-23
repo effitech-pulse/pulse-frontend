@@ -28,7 +28,7 @@ const MODELS = [
 ];
 
 export function MlRiskPage() {
-  const { can } = useAuth();
+  const { can,canFull } = useAuth();
   const { filters } = useFundFilters();
   const [search, setSearch] = useSearchParams();
   const selectedRun = Number(search.get('run_id')) || undefined;
@@ -61,7 +61,7 @@ export function MlRiskPage() {
     { title: 'Действие', key: 'action', width: 115, render: (_,row) => <Button type="link" onClick={() => setExplainWell(row)}>{row.alert_status === 'new' ? 'Проверить' : row.alert_status === 'acknowledged' ? 'Продолжить' : 'Открыть'}</Button> },
   ];
   return <div className="pulse-stack pulse-monitoring-page pulse-monitoring-alerts">
-    <div className="pulse-page-heading pulse-toolbar"><div><h1>Тревоги</h1><p>Оценка модели и статус обработки отображаются раздельно</p></div>{can('runs.start') && <Button type="primary" loading={running || wellsQ.data?.running || start.isPending} onClick={() => start.mutate()}>Запустить расчёт</Button>}</div>
+    <div className="pulse-page-heading pulse-toolbar"><div><h1>Тревоги</h1><p>Оценка модели и статус обработки отображаются раздельно</p></div>{canFull('runs.start') && <Button type="primary" loading={running || wellsQ.data?.running || start.isPending} onClick={() => start.mutate()}>Запустить расчёт</Button>}</div>
     <FundFilterBar hasExtraFilters={model !== 'attention' || processing !== 'all'} onReset={() => { const next = new URLSearchParams(search); next.delete('model'); next.delete('processing'); setSearch(next, {replace:true}); }} />
     <div className="pulse-monitoring-filters">
       <label><span>Оценка модели</span><Select aria-label="Фильтр оценки модели" value={model} options={MODELS} onChange={value => selectFilter('model',value)} /></label>

@@ -48,12 +48,12 @@ export const useDepartments = () =>
   useQuery({enabled: useAuth().can('references.read'),  queryKey: ['departments'], queryFn: departmentsApi.list });
 
 export const useSaveDepartment = () => {
-  const {can}=useAuth();
+  const {canFull}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
     mutationFn: ({ id, name, isNew }: { id: number; name: string; isNew: boolean }) =>
-      {if(!can(isNew?'references.create':'references.update'))throw new Error('Недостаточно прав');return isNew ? departmentsApi.create({ id, name }) : departmentsApi.update(id, name);},
+      {if(!canFull(isNew?'references.create':'references.update'))throw new Error('Недостаточно прав');return isNew ? departmentsApi.create({ id, name }) : departmentsApi.update(id, name);},
     onSuccess: () => {
       message.success('Сохранено');
       qc.invalidateQueries({ queryKey: ['departments'] });
@@ -63,11 +63,11 @@ export const useSaveDepartment = () => {
 };
 
 export const useDeleteDepartment = () => {
-  const {can}=useAuth();
+  const {canFull}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
-    mutationFn: (id: number) => {if(!can('references.delete'))throw new Error('Недостаточно прав');return departmentsApi.remove(id);},
+    mutationFn: (id: number) => {if(!canFull('references.delete'))throw new Error('Недостаточно прав');return departmentsApi.remove(id);},
     onSuccess: () => {
       message.success('Удалено');
       qc.invalidateQueries({ queryKey: ['departments'] });
@@ -79,12 +79,12 @@ export const useDeleteDepartment = () => {
 export const useNgdus = () => useQuery({enabled: useAuth().can('references.read'),  queryKey: ['ngdu'], queryFn: ngduApi.list });
 
 export const useSaveNgdu = () => {
-  const {can}=useAuth();
+  const {canFull}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
     mutationFn: ({ id, name, isNew }: { id: number; name: string; isNew: boolean }) =>
-      {if(!can(isNew?'references.create':'references.update'))throw new Error('Недостаточно прав');return isNew ? ngduApi.create({ id, name }) : ngduApi.update(id, name);},
+      {if(!canFull(isNew?'references.create':'references.update'))throw new Error('Недостаточно прав');return isNew ? ngduApi.create({ id, name }) : ngduApi.update(id, name);},
     onSuccess: () => {
       message.success('Сохранено');
       qc.invalidateQueries({ queryKey: ['ngdu'] });
@@ -94,11 +94,11 @@ export const useSaveNgdu = () => {
 };
 
 export const useDeleteNgdu = () => {
-  const {can}=useAuth();
+  const {canFull}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
-    mutationFn: (id: number) => {if(!can('references.delete'))throw new Error('Недостаточно прав');return ngduApi.remove(id);},
+    mutationFn: (id: number) => {if(!canFull('references.delete'))throw new Error('Недостаточно прав');return ngduApi.remove(id);},
     onSuccess: () => {
       message.success('Удалено');
       qc.invalidateQueries({ queryKey: ['ngdu'] });

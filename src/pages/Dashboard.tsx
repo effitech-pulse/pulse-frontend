@@ -20,7 +20,7 @@ import { ExplainBars } from '@/components/ml/ExplainBars';
 import { FundFilterBar } from '@/components/layout/FundFilterBar';
 
 export function Dashboard() {
-  const { can } = useAuth(), { filters } = useFundFilters();
+  const { can,canFull } = useAuth(), { filters } = useFundFilters();
   const wells = useWells(), departments = useDepartments();
   const ml = useQuery({ enabled:can('risks.read'), queryKey: ['ml-wells'], queryFn: () => mlApi.wells(false) });
   const stats = useQuery({ enabled:can('incidents.read'), queryKey: ['incident-stats', filters], queryFn: () => incidentsApi.stats(filters) });
@@ -48,7 +48,7 @@ export function Dashboard() {
     { title: '', key: 'action', width: 110, render: (_,w) => <Space><Link to={`/wells/${w.app_well_id}${w.run_id != null ? `?run_id=${w.run_id}` : ''}`}>Открыть</Link><Button type="text" size="small" aria-label={`Объяснение оценки ID Pulse ${w.app_well_id}`} onClick={()=>setExplainWell(w)} icon={<MoreOutlined />} /></Space> },
   ];
   return <div className="pulse-stack pulse-overview">
-    <div className="pulse-page-heading pulse-toolbar"><div><h1>Обзор фонда</h1><p title={notice ?? undefined}>{readableNotice ?? (lastRun ? `Последний расчёт ${formatSnapshotTime(lastRun.started_at)}` : 'Сохранённые оценки по доступным скважинам')}</p></div>{can('runs.start') && <Button type="primary" loading={running || ml.data?.running || start.isPending} onClick={()=>setConfirmRun(true)}>{running?'Расчёт выполняется':'Запустить расчёт'}</Button>}</div>
+    <div className="pulse-page-heading pulse-toolbar"><div><h1>Обзор фонда</h1><p title={notice ?? undefined}>{readableNotice ?? (lastRun ? `Последний расчёт ${formatSnapshotTime(lastRun.started_at)}` : 'Сохранённые оценки по доступным скважинам')}</p></div>{canFull('runs.start') && <Button type="primary" loading={running || ml.data?.running || start.isPending} onClick={()=>setConfirmRun(true)}>{running?'Расчёт выполняется':'Запустить расчёт'}</Button>}</div>
     <div className="pulse-metrics" aria-label="Показатели фонда">
       <div><span>В мониторинге</span><strong>{ml.data?.profile === 'cohort' ? rows.length : wells.isSuccess?wells.data.length:'—'}</strong><small>{ml.data?.profile === 'cohort' ? 'видимых участников фонда' : 'активных скважин'}</small></div>
       <div><span>Требуют проверки</span><strong className="pulse-danger">{ml.isSuccess?alerts.length:'—'}</strong><small>тревог модели</small></div>

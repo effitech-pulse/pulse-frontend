@@ -5,13 +5,13 @@ import {createRequire,Module} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import ts from 'typescript';
-import {can} from '../src/auth/authorization.ts';
+import {can,canFull} from '../src/auth/authorization.ts';
 const require=createRequire(import.meta.url);
-function load(relative,permissions){
- const principal={authenticated:true,access_model:'rbac_v1',role:'admin',permission_keys:permissions};
+function load(relative,permissions,patch={}){
+ const principal={authenticated:true,access_model:'rbac_v1',role:'admin',permission_keys:permissions,...patch};
  const options=[];
  const boundaries={
- '@/auth/AuthProvider':{useAuth:()=>({principal,can:(...keys)=>can(principal,...keys)})},
+ '@/auth/AuthProvider':{useAuth:()=>({principal,can:(...keys)=>can(principal,...keys),canFull:(...keys)=>canFull(principal,...keys)})},
  '@tanstack/react-query':{useQuery:q=>{options.push(q);return q;},useQueryClient:()=>({}),useMutation:()=>({})},
  react:{useEffect:()=>{},useRef:value=>({current:value})},antd:{App:{useApp:()=>({message:{}})}},'@/api/ml':{mlApi:{}},
  '@/api/wells':{wellsApi:{},departmentsApi:{},ngduApi:{},runsApi:{}},
@@ -39,4 +39,10 @@ test('ML run polling checks the active server profile before querying',()=>{
  const cohort=load('../src/hooks/useMlRun.ts',['wells.read','risks.read','cohort.runs.read']);
  cohort.useMlRun('cohort');cohort.useMlRun('research');
  assert.deepEqual(cohort.options.map(q=>q.enabled),[true,false]);
+});
+test('FULL hooks do not probe audit/embed with limited data scope and keep normal analytics status readable',()=>{
+ const local={scope:{funds:['operational','presentation'],ngdus:null,departments:null},organization_scope:{kind:'department',ngdu_id:'0',department_id:'-1'}};
+ const audit=load('../src/hooks/useAudit.ts',['audit.read'],local);audit.useAudit();assert.equal(audit.options[0].enabled,false);
+ const analytics=load('../src/hooks/useAnalytics.ts',['analytics.read'],local);analytics.useAnalyticsStatus();analytics.useEmbedUrl(1);assert.deepEqual(analytics.options.map(q=>q.enabled),[true,false]);
+ const global=load('../src/hooks/useAudit.ts',['audit.read'],{...local,organization_scope:{kind:'organization',ngdu_id:null,department_id:null}});global.useAudit();assert.equal(global.options[0].enabled,true);
 });

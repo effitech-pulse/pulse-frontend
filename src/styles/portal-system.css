@@ -126,3 +126,4 @@
 .access-page .pulse-cell-meta {font-size:13px;line-height:20px;}
 .access-form > .access-note:first-child {font-size:14px;line-height:20px;}
 .access-overlay .ant-drawer-content {background:var(--pulse-surface);}
+.access-chip .ant-btn {min-width:44px;}

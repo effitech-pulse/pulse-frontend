@@ -324,3 +324,23 @@ legacy enum используется только для legacy/absent model. Д
 icons скрыты от accessibility tree, Verify/Apply имеют стабильные русские имена
 и aria-busy. Финальная mock-матрица: 24 сценария, 36 screenshots с проверкой
 целевой геометрии drawer до съёмки; browser page errors — 0.
+
+
+### Task 8–9 · исправления после единого review · 23.10.2026
+
+Focused runtime checkpoint исправляет замечания FR-01–09: graph/display refresh
+сохраняет конфликтный черновик, настоящая identity/authz epoch смена очищает его;
+Back удерживается во время Preview/Apply; последний Preview search владеет
+результатом при обратном порядке ответов. FULL guards требуют всей организации
+и обоих фондов только для соответствующих серверных операций. References-only
+principal открывает справочники без wells/risks queries. Новые grants ограничены
+raw permission keys actor, существующие selections и fragments сохраняются.
+Для existing user global manager может явно выбрать «Подразделение не назначено».
+Ошибки полей связаны через aria-invalid/describedby и фокусируют неверное поле;
+кнопка снятия назначения измерена 44×44 CSS px.
+
+Внешние evidence: `execution/plan/frontend-fixes-browser/` в той же задаче,
+18 focused intercepted-HTTP сценариев / 0 page errors. Исходные Figma nodes,
+композиция, токены и theme mappings сохранены; новые макеты не создавались.
+Это исправленный source checkpoint для того же reviewer; live backend
+acceptance и его итоговый verdict по-прежнему ожидаются.

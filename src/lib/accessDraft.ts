@@ -36,17 +36,18 @@ export function completeMembers(pages: {
 }[]): string[] { if (!pages.length || pages.at(-1)?.next_cursor !== null || pages.some(p => p.graph_revision !== pages[0].graph_revision))
     throw new Error('Не загружен полный состав на одной версии'); const ids = pages.flatMap(p => p.items.map(u => { if (u.access_id === undefined)
     throw new Error('Нет access_id'); return u.access_id; })); return [...new Set(ids)]; }
-export function validateUserChange(user: UserChange, password: string, departmentPending = false): void {
-    if (!user.name.trim() || !/^[a-zA-Z0-9][a-zA-Z0-9._@-]{2,79}$/.test(user.login))
-        throw new Error('Введите имя и корректный логин (3–80 символов).');
-    if (user.id === null && (!user.organization || user.organization.kind === 'none'))
-        throw new Error('Выберите подразделение нового пользователя.');
-    if ((user.id === null || password) && (Array.from(password).length < 15 || new TextEncoder().encode(password).length > 72))
-        throw new Error('Пароль: минимум 15 символов, максимум 72 байта UTF-8.');
-    if (departmentPending)
-        throw new Error('После смены НГДУ явно выберите цех или всё НГДУ.');
-    if (user.organization && (user.organization.kind === 'ngdu' || user.organization.kind === 'department') && user.organization.ngdu_id === null)
-        throw new Error('Выберите НГДУ.');
-    if (user.organization?.kind === 'department' && user.organization.department_id === null)
-        throw new Error('Выберите цех.');
+export type AccessField = 'name'|'login'|'password'|'organization'|'ngdu'|'department';
+export class AccessFieldError extends Error {
+ readonly field:AccessField;
+ constructor(field:AccessField,message:string){super(message);this.name='AccessFieldError';this.field=field;}
 }
+export function validateUserChange(user:UserChange,password:string,departmentPending=false):void {
+ if(!user.name.trim())throw new AccessFieldError('name','Введите имя и фамилию.');
+ if(!/^[a-zA-Z0-9][a-zA-Z0-9._@-]{2,79}$/.test(user.login))throw new AccessFieldError('login','Введите логин: 3–80 латинских букв, цифр, точка, дефис, @ или _.');
+ if(user.id===null&&(!user.organization||user.organization.kind==='none'))throw new AccessFieldError('organization','Выберите подразделение нового пользователя.');
+ if((user.id===null||password)&&(Array.from(password).length<15||new TextEncoder().encode(password).length>72))throw new AccessFieldError('password','Пароль: минимум 15 символов, максимум 72 байта UTF-8.');
+ if(departmentPending)throw new AccessFieldError('department','После смены НГДУ явно выберите цех или всё НГДУ.');
+ if(user.organization&&(user.organization.kind==='ngdu'||user.organization.kind==='department')&&user.organization.ngdu_id===null)throw new AccessFieldError('ngdu','Выберите НГДУ.');
+ if(user.organization?.kind==='department'&&user.organization.department_id===null)throw new AccessFieldError('department','Выберите цех.');
+}
+export function blockAccessNavigation(dirty:boolean,pending:boolean):boolean{return dirty||pending;}

@@ -75,13 +75,13 @@ export function UploadCheckPage(){
 }
 
 function LegacyUploadCheckPage() {
-  const { can, capturePrivate } = useAuth();
+  const { canFull, capturePrivate } = useAuth();
   const [loading,setLoading] = useState(false);
   const [error,setError] = useState<{message:string;http_request_id?:string}|null>(null);
   const [result,setResult] = useState<UploadResult|null>(null);
   const uploading = useRef(false);
   const beforeUpload = (file: File) => {
-    if (!can('filechecks.legacy.run') || uploading.current) return false;
+    if (!canFull('filechecks.legacy.run') || uploading.current) return false;
     if (file.size > 50*1024*1024) {setError({message:'Размер файла превышает 50 МБ. Выберите меньший архив.'});setResult(null);return false;}
     if (!/\.(csv|xlsx|xls)$/i.test(file.name)) {setError({message:'Выберите файл CSV, XLSX или XLS.'});setResult(null);return false;}
     const ticket=capturePrivate();
@@ -93,16 +93,16 @@ function LegacyUploadCheckPage() {
       .finally(()=>{uploading.current=false;if(ticket.current())setLoading(false);});
     return false;
   };
-  const uploadProps={accept:'.csv,.xlsx,.xls',multiple:false,showUploadList:false,disabled:loading||!can('filechecks.legacy.run'),beforeUpload};
+  const uploadProps={accept:'.csv,.xlsx,.xls',multiple:false,showUploadList:false,disabled:loading||!canFull('filechecks.legacy.run'),beforeUpload};
   return <div className="pulse-stack pulse-monitoring-page pulse-monitoring-file">
-    <div className="pulse-page-heading pulse-toolbar"><div><h1>Проверка телеметрии</h1><p>Загрузите архив скважины и получите оценку доступных данных</p></div><Upload {...uploadProps}><Button type="primary" disabled={loading||!can('filechecks.legacy.run')}>Выбрать файл</Button></Upload></div>
+    <div className="pulse-page-heading pulse-toolbar"><div><h1>Проверка телеметрии</h1><p>Загрузите архив скважины и получите оценку доступных данных</p></div><Upload {...uploadProps}><Button type="primary" disabled={loading||!canFull('filechecks.legacy.run')}>Выбрать файл</Button></Upload></div>
     <div className="pulse-monitoring-upload-grid">
       <Card className="pulse-monitoring-upload-card"><h2>Архив телеметрии</h2><Upload.Dragger {...uploadProps}>
         <div className="pulse-monitoring-drop-content"><strong>{loading ? 'Файл обрабатывается' : 'Перетащите файл сюда'}</strong><p>{loading ? 'Дождитесь ответа модели' : 'или выберите файл на компьютере'}</p><span className="pulse-monitoring-file-choice">Выбрать файл</span></div>
       </Upload.Dragger><p className="pulse-monitoring-caption">XLSX, XLS или CSV · до 50 МБ · одна скважина</p></Card>
       <Card className="pulse-monitoring-requirements"><h2>Что нужно для оценки</h2><p>Колонка времени и каналы телеметрии</p><p>От 30 дней истории; желательно 60</p><p className="pulse-monitoring-caption">Нули при простое сохраняются. Маркеры неисправности датчиков очищаются.</p><p className="pulse-monitoring-caption">Контекст соседних скважин может отсутствовать.</p><p className="pulse-monitoring-caption">Результат разовой проверки не сохраняется автоматически.</p></Card>
     </div>
-    {!can('filechecks.legacy.run') && <Alert type="info" message="Для проверки файла нужны дополнительные права" />}
+    {!canFull('filechecks.legacy.run') && <Alert type="info" message="Для проверки файла нужны дополнительные права" />}
     {loading && <div className="pulse-monitoring-loading" role="status"><Spin /><Typography.Text>Файл обрабатывается. Процент выполнения недоступен.</Typography.Text></div>}
     {error && <div role="alert"><Alert type="error" showIcon message={error.message} description="Проверьте файл и повторите загрузку." />{error.http_request_id && <p className="pulse-error-reference">Код обращения: {error.http_request_id}</p>}</div>}
     {result && <FileCheckResult result={result} />}

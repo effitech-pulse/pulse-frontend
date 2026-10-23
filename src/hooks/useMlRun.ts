@@ -7,7 +7,7 @@ import { toApiError } from '@/api/client';
 
 /** Фоновый прогон модели: запуск, поллинг статуса, обновление данных по завершении. */
 export const useMlRun = (profile?:'research'|'cohort') => {
-  const {can}=useAuth();
+  const {can,canFull}=useAuth();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
@@ -43,7 +43,7 @@ export const useMlRun = (profile?:'research'|'cohort') => {
   }, [running, runsQ.data, message, queryClient]);
 
   const start = useMutation({
-    mutationFn: async () => {if(!can('runs.start'))throw new Error('Недостаточно прав');return mlApi.refresh();},
+    mutationFn: async () => {if(!canFull('runs.start'))throw new Error('Недостаточно прав');return mlApi.refresh();},
     onSuccess: () => {
       message.info('Прогон запущен — идёт в фоне');
       runsQ.refetch();

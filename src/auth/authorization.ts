@@ -326,11 +326,12 @@ export function queryAccess(principal: Principal | null, resource: PermissionKey
 export function routeAccess(principal: Principal | null, path: string): boolean {
  if (path === '/') return canAny(principal, ['wells.read'], ['risks.read'], ['metrics.read']);
  if (path.startsWith('/accounts') || path.startsWith('/system/access')) return canAny(principal, ['users.read'], ['groups.read'], ['roles.read']);
- if (path.startsWith('/upload-check')) return canAny(principal, ['filechecks.read'], ['filechecks.run'], ['filechecks.legacy.run']);
+ if (path.startsWith('/upload-check')) return canAny(principal, ['filechecks.read'], ['filechecks.run']) || canFull(principal,'filechecks.legacy.run');
  if (path.startsWith('/ml-risk')) return can(principal, 'risks.read');
- if (path.startsWith('/audit')) return can(principal, 'audit.read');
+ if (path.startsWith('/audit')) return canFull(principal, 'audit.read');
  if (path.startsWith('/analytics')) return can(principal, 'analytics.read');
  if (path.startsWith('/integrations')) return can(principal, 'integrations.read');
+ if(path==='/structure')return canAny(principal,['wells.read'],['references.read']);
  return can(principal, 'wells.read');
 }
 
@@ -344,4 +345,24 @@ export function parseAccessFields<T extends AccessFields>(value: T): T {
  for (const sources of Object.values(value.permission_sources ?? {})) for (const source of sources) {decimal(source.role_id);decimal(source.role_revision);if(source.group_id !== null)decimal(source.group_id);}
  if(value.organization_scope) for(const key of ['ngdu_id','department_id'] as const) if(value.organization_scope[key] !== null)decimal(value.organization_scope[key]);
  return value;
+}
+
+/** Exact counterpart of backend FullApplicationScope; management permissions do not prove data scope. */
+export function fullApplicationScope(principal: Principal | null): boolean {
+ if (!principal?.authenticated || !can(principal)) return false;
+ const scope = principal.scope;
+ if (!scope?.funds?.includes('operational') || !scope.funds.includes('presentation')) return false;
+ if (principal.organization_scope != null) return principal.organization_scope.kind === 'organization';
+ return scope.ngdus === null && scope.departments === null;
+}
+export function canFull(principal: Principal | null, ...keys: PermissionKey[]): boolean {
+ return fullApplicationScope(principal) && can(principal, ...keys);
+}
+/** Grant membership is raw, so valid permission fragments need not satisfy their own prerequisites. */
+export function canGrantPermission(principal: Principal | null, key: string): boolean {
+ if (!principal?.authenticated) return false;
+ const keys = principal.access_model === 'rbac_v1'
+  ? principal.permission_keys
+  : principal.access_model === undefined || principal.access_model === 'legacy' ? legacyCompatibility[principal.role] : undefined;
+ return Array.isArray(keys) && keys.includes(key);
 }

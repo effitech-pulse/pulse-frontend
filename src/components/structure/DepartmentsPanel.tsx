@@ -9,7 +9,7 @@ import { PageSpin } from '@/components/common/PageSpin';
 import { DepartmentModal } from '@/components/departments/DepartmentModal';
 
 export function DepartmentsPanel() {
-  const {can}=useAuth();
+  const {canFull}=useAuth();
   const { data, isLoading, error } = useDepartments();
   const del = useDeleteDepartment();
   const [editing, setEditing] = useState<Department | null>(null);
@@ -26,7 +26,7 @@ export function DepartmentsPanel() {
         <Space>
           <Button
             size="small"
-            disabled={!can('references.update')} icon={<EditOutlined />}
+            disabled={!canFull('references.update')} icon={<EditOutlined aria-hidden="true" />}
             onClick={() => {
               setEditing(dep);
               setOpen(true);
@@ -34,7 +34,7 @@ export function DepartmentsPanel() {
           />
           <Popconfirm title="Удалить цех?" okText="Да" cancelText="Нет"
             onConfirm={() => del.mutate(dep.id)}>
-            <Button size="small" danger disabled={!can('references.delete')} icon={<DeleteOutlined />} />
+            <Button size="small" danger disabled={!canFull('references.delete')} icon={<DeleteOutlined aria-hidden="true" />} />
           </Popconfirm>
         </Space>
       ),
@@ -44,7 +44,7 @@ export function DepartmentsPanel() {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Button type="primary" disabled={!can('references.create')} icon={<PlusOutlined />} onClick={() => { setEditing(null); setOpen(true); }}>
+        <Button type="primary" disabled={!canFull('references.create')} icon={<PlusOutlined aria-hidden="true" />} onClick={() => { setEditing(null); setOpen(true); }}>
           Добавить цех
         </Button>
       </div>
