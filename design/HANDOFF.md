@@ -95,3 +95,127 @@ signal и проверяют epoch перед применением ответ�
 Source/unit/build и browser evidence фиксируются отдельно. Успешная сборка не является
 визуальной приёмкой, synthetic backend proof или проверкой всех состояний. Подробные
 рабочие артефакты QA находятся вне product checkout в каталоге задач workspace.
+
+## RBAC · передача source 23.10.2026
+
+Владелец source: designer; реализация передаётся frontend-developer через
+координатора. Постоянные ручные группы и навигация внутри «Системы» приняты
+пользователем. Source создан до React; таблица 20 frames с Light/Dark/390px
+ссылками и размерами — в [DESIGN](../DESIGN.md). Исходные `833:3319` / `833:4204`
+сохранены, новые варианты редактируемые. Наличие макетов не активирует RBAC.
+
+### Визуальная основа
+
+Pulse Button `745:333`, Input `746:330`, Select `746:397`, Checkbox `746:535`,
+Card `747:340`, Table row `747:369`; Roboto и существующие text styles/semantic
+variables коллекции «Пульс / Токены». Scoped adaptations
+[883:2396](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=883-2396)
+исправляют text property bindings и размеры, сохраняя исходный дизайн-кит.
+
+При 1440px sidebar 224px, workspace 1216px, content 1152px; panel padding 20px,
+внутренняя таблица 1112px, header 44px, sample data row 80px. Длинный runtime
+контент может увеличить высоту строки. Title 28/40, body 14/20, радиус 4px;
+section gap 20px страницы / 16px формы, поля и действия 44px. В новых полях border
+использует muted (4.77:1 на white), focus — blue. Новые подписи на canvas
+используют ink: muted/canvas 4.37:1 ниже цели. Primary blue/white — 4.55:1.
+
+User editor: drawer `min(600px, 100vw)`. Его 1418px source — весь прокручиваемый
+контент, а не высота viewport. Role/group editor — композиция 760px, preview —
+960px с ограничением viewport. Footer внутри overlay не перекрывает focus;
+scroll padding учитывает его высоту. Большой каталог прав открывается в полном
+представлении с возвратом, без вложенного drawer.
+
+### Навигация, полномочия и API
+
+- «Система / Управление доступом», один ряд «Пользователи · Группы пользователей ·
+  Роли». Только разрешённые вкладки и queries; при единственной вкладке лишний
+  переключатель не нужен. Вкладка, поиск и карточка поддерживают ссылку и Back.
+- Чтение определяется `users.read`, `roles.read`, `groups.read`. При
+  `access_model=legacy` новый editor недоступен. Enum `role` не авторизует UI.
+- User metadata/status/password требуют `users.update`; direct roles —
+  `users.roles.assign`; membership — `users.groups.assign`; org —
+  `users.scope.assign`, с prerequisites. Без permission поле read-only и payload
+  сохраняет текущие назначения. Create требует явного org, без `none`.
+- Role/group definitions требуют manage + `access.manage_global`. Local manager
+  меняет безопасное membership человека из user form. Group members требуют
+  также `users.read`; чужие IDs/total/counts не раскрываются.
+- Подразделение задаёт данные, роли — действия, группа — совместное назначение
+  ролей. Смена НГДУ сбрасывает старый цех. Scope/direct/group changes сохраняются
+  одним Apply, без автоматического повышения. Существующая reference pair без
+  wells допустима. Технические `scope`/`funds` UI не редактирует.
+- Legacy org показывается с расшифровкой; обычная правка опускает Organization.
+  Existing `none`/сложную область явно исправляет global manager. Сохраняются
+  null/[]/0. IDs/revisions/epochs нового DTO — decimal strings.
+- Assignments/account projections содержат actual direct roles и groups,
+  включая пустые. Не восстанавливать их из `permission_sources`; sources
+  объясняют права и сохраняют все пути. Нет implicit viewer при отсутствии ролей.
+- Только server search/limit/opaque cursor/revision; нет глобальных status/org/
+  role/group фильтров по одной странице, bulk или произвольного page number.
+  Counts берутся из ответа сервера, unknown — «—».
+- Полная замена `MemberIDs` группы требует baseline всех cursor pages на одной
+  revision. Поиск не снимает невидимых участников. До полной загрузки baseline
+  запись состава блокируется; stale cursor требует явного обновления с draft.
+
+### Предпросмотр и состояния
+
+User/role/group, включая metadata-only: «Проверить изменения» → read-only preview
+→ «Применить изменения». Любая правка draft сбрасывает receipt. Modern write
+идёт в соответствующий endpoint; generic apply endpoint не предполагается.
+Пароль передаётся отдельно при записи, не попадает в preview/Change/audit/URL/storage.
+
+Preview содержит before/after assignments, права, scope и все источники. Пустая
+роль/группа видна как изменение назначения при прежнем union. Счётчики не
+суммируются: `AssignedUsers` — уникальные before OR after; `ChangedUsers` —
+permissions, org/funds или active; `DisabledUsers` — inactive after среди
+затронутых. Labels: «Затронуто пользователей / Права изменятся / Среди затронутых
+отключены». Sources-only/name/password могут завершить сеанс при нуле ChangedUsers;
+Apply `AffectedUsers` означает invalidation count. `SelfAffected` выделяется.
+
+Для group/role: «Подразделения участников не изменятся». Пользователь видит
+предупреждение о завершении затронутых сеансов. 409 сохраняет допустимый draft и
+предлагает «Обновить предпросмотр», без скрытой записи с новой revision. Удаление
+назначенной роли не становится forced cascade. Last-manager отказ объясняется
+полным набором полномочий и active, а не названием «Администратор».
+
+| Состояние | Light / Dark node | Поведение |
+| --- | --- | --- |
+| Loading | `883:2872` / `890:4231` | Skeleton; unknown «—»; запись ждёт baseline/options |
+| Empty search | `883:2879` / `890:4234` | Отличается от ошибки/первого запуска, «Сбросить поиск» |
+| Error | `883:2886` / `890:4237` | Inline retry, не пустой список |
+| Forbidden | `883:2893` / `890:4240` | Без закрытых участников/counts, stale subtree закрывается |
+| Conflict 409 | `883:2900` / `890:4243` | Draft и явное обновление preview |
+| Last manager | `883:2903` / `890:4246` | Понятный серверный отказ |
+| Disabled/focus/legacy org/local | `880:1935` / `890:4227` | State board с variants и правилами |
+| Direct/inherited/transfer | `880:1931` / `890:3919` | Org, direct и group отдельно; inherited read-only |
+| Mobile list/form | `880:1936`, `880:1937` / `890:4293`, `890:4333` | 390px, controls 44px, целые labels |
+
+Неопределённый сетевой результат Apply требует перечитать данные, а не заявлять
+неуспех и повторять запись вслепую. 401/epoch change очищает private cache/draft/
+receipt; поздний ответ не возвращает их в DOM. Успех — после server Apply.
+Audit открывается по собственному разрешению, не по одному management permission.
+
+### Адаптация, доступность и приёмка
+
+Существующие breakpoints shell: sidebar ниже 992px, content padding 32/24/16px
+по текущему CSS. Narrow toolbar/поля — одна колонка; tabs прокручиваются локально
+с видимыми selection/focus. Имя, org и статус первичны, наборы grants раскрываются
+в карточке. Group/preview table scroll локален; документ не растёт по горизонтали.
+Форма и preview ограничены viewport. 390px показывает полный контент; 320/768/
+1024/1280 и zoom 200% проверяются на реализации.
+
+Tablist/tab/tabpanel с Arrow/Home/End, labels и accessible names обязательны.
+Drawer переносит/удерживает/возвращает focus; dirty close предлагает продолжить
+либо отменить draft. Escape не означает Apply. Validation summary ведёт к полю.
+Loading/success — polite announcement; ошибки не исчезают по таймеру. Статусы
+обозначаются текстом; touch ≥44px, sticky действия не скрывают focus. Reduced
+motion отключает необязательные переходы. Статический Figma не доказывает runtime.
+
+Source self-check обеих тем и mobile выполнен: 902 nodes / 370 texts / 128 instances
+по теме, Roboto-only, 0 image fills, Dark mode `128:0`. Clipping и disconnected
+text properties исправлены scoped компонентами. Original kit и System сохранены.
+Измерены конкретные сочетания токенов, полный WCAG-аудит не заявляется.
+
+Перед реализацией координатор сверяет финальный HTTP DTO backend Task 4.
+Последующие проверки: frontend tests/build, grants/transfers/empty assignments,
+membership cursor preservation, stale preview, last manager, 401 cleanup,
+Light/Dark, keyboard/zoom/contrast/reduced motion и runtime visual match.

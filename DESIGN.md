@@ -60,3 +60,42 @@ React использует Ant Tabs в порядке Риски→Телеме�
 Figma и полное визуальное соответствие не заявляются. Source anchors: upload `3:54`,
 result `337:5542`, error `19:1898`, insufficient `19:1928`, processing `19:1958`.
 `363:2057` описывает подготовленный export, не успешный результат ML.
+
+## Управление доступом · RBAC · 23.10.2026
+
+Новая композиция отражена в Figma до React: «Система / Управление доступом»,
+вкладки «Пользователи · Группы пользователей · Роли». Исходные System `833:3319`
+и `833:4204` сохранены. Это source для реализации; наличие макетов не включает
+RBAC editor или backend enforcement.
+
+| Поверхность / размер | Light | Dark |
+| --- | --- | --- |
+| Пользователи · 1440×1024 | [880:1502](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1502) | [890:3428](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-3428) |
+| Группы · 1440×1024 | [880:1645](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1645) | [890:3595](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-3595) |
+| Роли · 1440×1024 | [880:1788](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1788) | [890:3752](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-3752) |
+| Пользователь / перевод · 600×1418 | [880:1931](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1931) | [890:3919](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-3919) |
+| Редактор роли · 760×1098 | [880:1932](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1932) | [890:4002](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4002) |
+| Редактор группы · 760×1183 | [880:1933](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1933) | [890:4064](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4064) |
+| Предпросмотр · 960×891 | [880:1934](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1934) | [890:4152](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4152) |
+| Состояния и правила · 1440×1427 | [880:1935](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1935) | [890:4227](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4227) |
+| Пользователи · 390×976 | [880:1936](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1936) | [890:4293](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4293) |
+| Пользователь / перевод · 390×1492 | [880:1937](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1937) | [890:4333](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4333) |
+
+Roboto, плоские панели, радиус 4px и Ant controls сохранены. Использованы
+существующие Pulse semantic variables и text styles. Локальные адаптации
+[883:2396](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=883-2396)
+исправляют переносы и связи text properties таблиц/полей; исходный kit не меняется.
+По теме: 902 nodes, 370 текстовых слоёв, 128 instances, 0 image fills.
+
+Контраст muted/canvas в Light — 4.37:1; новые подписи страницы и mobile footer
+используют ink. Muted/surface — 4.77:1, primary blue/white — 4.55:1. Границы новых
+адаптированных полей используют muted, фокус — theme blue; disabled выделен
+отдельно. Это проверка конкретных токенов, а не WCAG-аудит всего приложения.
+
+Персональный org отделён от direct/group grants. Поиск и cursor pages опираются
+на сервер; глобальные фильтры по одной странице и bulk отсутствуют. Preview,
+Apply, actual assignments и состояния описаны в [HANDOFF](design/HANDOFF.md).
+
+Source visual self-check обеих тем и 390px выполнен. Финальный backend HTTP DTO,
+browser QA, keyboard/zoom, runtime reduced motion и интеграция проверяются при
+реализации. Имена и значения макетов иллюстративны, в API/runtime не копируются.
