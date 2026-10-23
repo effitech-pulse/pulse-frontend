@@ -145,7 +145,12 @@ scroll padding учитывает его высоту. Большой катал
   wells допустима. Технические `scope`/`funds` UI не редактирует.
 - Legacy org показывается с расшифровкой; обычная правка опускает Organization.
   Existing `none`/сложную область явно исправляет global manager. Сохраняются
-  null/[]/0. IDs/revisions/epochs нового DTO — decimal strings.
+  null/[]/0. Новые access identity/revision/epoch — decimal strings; старые
+  числовые поля не меняют JSON shape (точный mapping ниже).
+- Direct role и group selectors поддерживают **множественный выбор**: `RoleIDs` /
+  `GroupIDs` — массивы, выбранное видно chips и checkbox selection. Удаление
+  одного chip снимает только это назначение; inherited roles остаются read-only.
+  Single-select старого трёхзначного legacy enum здесь не используется.
 - Assignments/account projections содержат actual direct roles и groups,
   включая пустые. Не восстанавливать их из `permission_sources`; sources
   объясняют права и сохраняют все пути. Нет implicit viewer при отсутствии ролей.
@@ -155,6 +160,70 @@ scroll padding учитывает его высоту. Большой катал
 - Полная замена `MemberIDs` группы требует baseline всех cursor pages на одной
   revision. Поиск не снимает невидимых участников. До полной загрузки baseline
   запись состава блокируется; stale cursor требует явного обновления с draft.
+
+### Подтверждённый HTTP shape · 23.10.2026
+
+Сверены OpenAPI и действующие transport/domain/service/read projections.
+Основные DTO уточнены документацией. Единственное дополнение source —
+согласованный поиск над таблицей Preview, без смены существующих frame IDs.
+
+| Значение | Фактический wire и использование |
+| --- | --- |
+| User identity / revision | `access_id`, `access_revision` — точные decimal strings в Account-shaped ответах и authenticated self/login `principal`. Row key, user URL и `change.user.id/revision` используют именно их. Старые `Account.id/revision`, `Principal.account_id` остаются JSON numbers; не преобразовывать их в canonical ID через `String()`/`Number()` после возможного округления. |
+| Role/group identity | `id`, `revision` в role/group/summary/membership — decimal strings; `role_ids`, `group_ids`, `member_ids` состоят из строк. Org reference IDs тоже строки, включая `"0"` и отрицательные значения. |
+| Назначения | В HTTP нет отдельного `assignments`: flattened `role_ids`, `direct_roles`, `group_ids`, `groups`, уникальные `roles` сохраняют actual empty roles/groups. `permission_keys` / `permission_sources` описывают union/provenance; массивы и map не null. |
+| Список пользователей | `GET /api/v1/auth/users?access_version=1` → `{items,next_cursor,total_visible,graph_revision}`. Без version сохраняется старый Account[] protocol. Новая карточка — `GET /api/v1/auth/users/{access_id}`. |
+| Участники группы | `GET /api/v1/auth/groups/{group_id}/members` → та же account-shaped page, включая canonical user fields, но только доступные управляющему участники. |
+| Groups/roles | List/detail содержат определения и IDs назначений; `AccessGroup`/`AccessRole` не содержат aggregate member/dependency counts. В списке групп неизвестный count — «—»; в открытой разрешённой member page используется её `total_visible`. После поиска это count совпадений, а не всего состава. Не делать fan-out чтение всех участников ради колонок списка и не вычислять total из загруженных rows. |
+
+Self/session, managed card/list и group-member page используют согласованные
+account/authorization views; frontend не обогащает ответ отдельными management
+queries для реконструкции grants. Own role/group summaries могут быть доступны
+в self при недоступном assignable definition — их наличие не открывает editor.
+Четыре read операции реализованы `AccountViewStore` и `GroupMemberViewStore`.
+
+Preview: `POST /api/v1/auth/access/preview` с `{access_version:1,change}`;
+`change` содержит ровно один user/role/group variant, пароль отсутствует.
+Handler принимает `search`, `limit` (default 50, max 100), `cursor`,
+`graph_revision` через query. Согласованный поиск «Поиск по имени или логину»
+фильтрует только `items` **на сервере до пагинации**; общие impact counters и
+fingerprint сохраняются для всего изменения. Поиск сбрасывает cursor, но не draft
+или receipt; очистка возвращает полный список последствий. Клиентский поиск по
+одной загруженной странице не добавляется. Apply применяет весь Change, даже
+если поиск вернул пустой список. Search обычных user/role/group/member lists
+работает отдельно. Для следующих preview страниц сохраняется тот же draft и
+revision. Response: receipt `graph_revision/actor_epoch/fingerprint`, counters,
+`self_affected`, `items` и `next_cursor`; у items before/after содержат flattened
+assignments, `active`, org и технический `scope`. Описание query параметров
+preview совпадает с актуальным OpenAPI. Server filtering подтверждён backend
+`d49f055`; это не только декларация query parameters.
+
+Input «Поиск по имени или логину» над таблицей Preview: Light
+[898:3950](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=898-3950), Dark
+[898:3945](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=898-3945).
+Это instances существующего scoped Pulse Input `883:2402`, 876×70 в desktop
+контенте 920px. Preview source 960×977, padding 20px, gap 16px. На narrow input
+сжимается до доступной ширины; таблица прокручивается локально. Tab идёт через
+поиск и cursor controls к Apply; поиск не скрывает предупреждения/self impact или
+нижние действия. Нулевой результат — Empty search со «Сбросить поиск», при прежних
+общих счётчиках. Аннотации source фиксируют серверную фильтрацию, стабильные counters/
+fingerprint, сохранение draft и receipt, сброс cursor и доступность footer.
+
+Modern POST/PUT/DELETE отправляют `{access_version:1,change,graph_revision,
+actor_epoch,fingerprint}`; при user password change `password` — отдельное
+write-only поле wrapper. `reset_password` остаётся частью user Change.
+`change.user.id/revision` берутся из текущих `access_id/access_revision`.
+Modern response: `{user,role,group,graph_revision,affected_users}`, отсутствующие
+variants null; создание 201, изменение/удаление 200. Использовать возвращённый
+committed `user`, а не собирать его из preview after или повторных definition
+queries. Старые legacy writes возвращают отдельный совместимый Account shape.
+
+В compat preview/modern mutations дают 503, новый editor остаётся недоступным;
+это не отсутствие пользователей. В enforce старый POST даёт 409; небезопасный
+старый PUT также 409. Не повторять modern draft через legacy role/scope body.
+Строгие modern/mixed поля и некорректные decimal strings дают 400; прежний 422
+для malformed legacy JSON остаётся совместимым validation response. Обработка
+отказов сохраняет разрешённый draft и существующий auth cleanup.
 
 ### Предпросмотр и состояния
 
@@ -210,12 +279,14 @@ Loading/success — polite announcement; ошибки не исчезают по
 обозначаются текстом; touch ≥44px, sticky действия не скрывают focus. Reduced
 motion отключает необязательные переходы. Статический Figma не доказывает runtime.
 
-Source self-check обеих тем и mobile выполнен: 902 nodes / 370 texts / 128 instances
-по теме, Roboto-only, 0 image fills, Dark mode `128:0`. Clipping и disconnected
+Source self-check обеих тем и mobile выполнен. После добавления Preview search:
+906 nodes / 372 texts / 129 instances по теме, Roboto-only, 0 image fills, Dark mode `128:0`. Clipping и disconnected
 text properties исправлены scoped компонентами. Original kit и System сохранены.
 Измерены конкретные сочетания токенов, полный WCAG-аудит не заявляется.
 
-Перед реализацией координатор сверяет финальный HTTP DTO backend Task 4.
+HTTP DTO backend Task 4 сверен по реализованным serializer/read seams и OpenAPI;
+canonical fields / assignments / counts / compatibility matched. Preview search
+сверен с backend fix и source обеих тем; API-semantic handoff завершён.
 Последующие проверки: frontend tests/build, grants/transfers/empty assignments,
 membership cursor preservation, stale preview, last manager, 401 cleanup,
 Light/Dark, keyboard/zoom/contrast/reduced motion и runtime visual match.

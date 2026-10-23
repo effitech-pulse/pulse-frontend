@@ -76,7 +76,7 @@ RBAC editor или backend enforcement.
 | Пользователь / перевод · 600×1418 | [880:1931](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1931) | [890:3919](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-3919) |
 | Редактор роли · 760×1098 | [880:1932](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1932) | [890:4002](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4002) |
 | Редактор группы · 760×1183 | [880:1933](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1933) | [890:4064](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4064) |
-| Предпросмотр · 960×891 | [880:1934](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1934) | [890:4152](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4152) |
+| Предпросмотр · 960×977 | [880:1934](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1934) | [890:4152](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4152) |
 | Состояния и правила · 1440×1427 | [880:1935](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1935) | [890:4227](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4227) |
 | Пользователи · 390×976 | [880:1936](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1936) | [890:4293](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4293) |
 | Пользователь / перевод · 390×1492 | [880:1937](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1937) | [890:4333](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4333) |
@@ -85,7 +85,7 @@ Roboto, плоские панели, радиус 4px и Ant controls сохра
 существующие Pulse semantic variables и text styles. Локальные адаптации
 [883:2396](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=883-2396)
 исправляют переносы и связи text properties таблиц/полей; исходный kit не меняется.
-По теме: 902 nodes, 370 текстовых слоёв, 128 instances, 0 image fills.
+По теме: 906 nodes, 372 текстовых слоя, 129 instances, 0 image fills.
 
 Контраст muted/canvas в Light — 4.37:1; новые подписи страницы и mobile footer
 используют ink. Muted/surface — 4.77:1, primary blue/white — 4.55:1. Границы новых
@@ -96,6 +96,11 @@ Roboto, плоские панели, радиус 4px и Ant controls сохра
 на сервер; глобальные фильтры по одной странице и bulk отсутствуют. Preview,
 Apply, actual assignments и состояния описаны в [HANDOFF](design/HANDOFF.md).
 
-Source visual self-check обеих тем и 390px выполнен. Финальный backend HTTP DTO,
-browser QA, keyboard/zoom, runtime reduced motion и интеграция проверяются при
-реализации. Имена и значения макетов иллюстративны, в API/runtime не копируются.
+Source visual self-check обеих тем и 390px выполнен. HTTP DTO сверены с реализацией:
+новый user UI использует строковые `access_id` / `access_revision`, сохраняя старые
+числовые поля для совместимости; назначения приходят в flattened projections.
+В списке групп без серверного member count показывается «—», а не число макета.
+Preview search фильтрует серверные строки до пагинации; общие счётчики и
+fingerprint не меняются. Точные wire shapes и staged ответы — в HANDOFF.
+Browser QA, keyboard/zoom, runtime reduced motion и интеграция проверяются при реализации. Имена и значения
+макетов иллюстративны, в API/runtime не копируются.
