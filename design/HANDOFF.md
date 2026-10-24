@@ -527,3 +527,69 @@ links с max-width100%/normal whitespace. Имя, subtitle/отдел, имя/д
 руководителя и поля карточки остаются целиком читаемыми; truncation/скрытие
 или горизонтальная прокрутка страницы не применяются. CSS проверяется живым
 320/390px повтором координатора, не source-snapshot тестом.
+## F3 — история событий и exact основание, 23.10.2026
+
+O-06 designer/architect-analyst принят координатором. Новые страницы повторяют
+вертикальные cards, существующий shell/AntD/tokens; source frames не изменялись.
+
+| Композиция | Figma Light / Dark |
+|---|---|
+| История событий, desktop | `865:1345` / `871:2729` |
+| История событий,390 | `865:1528` / `871:2876` |
+| Exact saved check | `865:1699` / `871:3018` |
+| Exact review | `865:1822` / `871:3121` |
+| Exact lifecycle | `865:1944` / `871:3223` |
+| Well exact mode | `865:2065` / `871:3324` |
+| Review390 | `865:2182` / `871:3423` |
+| Saved check390 | `865:2300` / `871:3524` |
+| Feedback/roles/session | `865:2419` / `871:3626` |
+
+Ссылки используют основной file_key и `?node-id=<id-с-дефисом>`. Высоты Figma —
+полное scroll content, без фиксирования viewport. Desktop padding/section gap32/24,
+card padding20/radius4/gap12, Roboto28/40 heading,16/22 card title,14/20 body и12/17
+metadata. Existing AntD controls44; mobile buttons hit44, все поля/cards и before/after
+переносятся в один столбец. На1024 filters используют две колонки. Timeline/contributions
+имеют локальные подписанные scroll regions и клиентскую пагинацию по25 строк без
+урезания сохранённого результата; список событий использует только server LoadMore.
+Новые текст/selected-entry Light применяют existing ink для контраста на canvas;
+полная замена shell/дизайн-системы вне F3 не выполнялась. Иконки/логотип — существующие
+точные assets/library components оболочки, новые image assets отсутствуют.
+
+Реализация: `EventsPage`, `EventDetailPage`, `WellEventRoute`, одна `EventDetailView`.
+Навигация «История событий» доступна read-ролям, «Технический журнал» только admin;
+bell сохраняет свою очередь. Фильтры — draft до Apply, clear/default25, UTC `[from,to)`.
+Результаты читаются по source order, footer явно говорит «не полный аудит», только
+«Загружено N», без total/read/dismiss/notification семантики. Карточка не единственный
+click target: отдельная ссылка «Открыть событие».
+
+Exact API/SPA/well используют opaque eventId и исходный строковый ID Pulse.
+Dispatch well event выполняется до legacy Number/hooks. Без event прежний маршрут
+(Q1/check/tab/run_id) не меняется. Masked404/mismatch → unavailable без latest;
+close удаляет только event и сохраняет query/hash. Current compact well header
+не подменяет исторические review/well snapshots; check показывает весь typed
+saved result, без ReviewPanel/writes/ML или raw JSON passthrough. Microseconds,
+max-int64, null/false/0 и before.updated_at=null первой ревизии сохранены.
+
+Состояния: initial loading; empty200; append pending с текущими rows;
+503 retry того же cursor; точный422 validation_error/cursor_restart_required
+с явным restart; другие422 — invalid conditions;401 — существующий login lifecycle;
+403/404 — без private header/rows/links. F3 denial очищает только events cache,
+останавливает другие текущие F3 reads и не отзывает private-file session глобально.
+AuthProvider epoch по-прежнему определяет actor/role/scope/logout invalidation;
+late resolved replies не заполняют новый кэш. Ни данные, ни raw IDs в browser storage
+не сохраняются. Inactive/archive history читается по текущим разрешениям API.
+
+Клавиатура: native AntD controls/ссылки, видимый focus обеих тем, h1 получает focus
+при маршрутизации; Back/«К истории» восстанавливает доступную source link текущего
+epoch при её наличии, иначе heading. После LoadMore не выполняется перемещение
+focus; одна polite/atomic region сообщает loaded count. Error не захватывает focus
+при каждом retry. Reduced motion отключает F3 transitions/animations.
+
+Source evidence: focused contract/URL/session/rendered route tests используют
+локальную frozen wire fixture, реальные React Query/Router/SSR и Axios adapter.
+Компилятор проверяет closed DTO/negative cases; SSR не доказывает работу DOM effects,
+клавиатуру, CSS layout или реальный proxy/backend. Финальные `npm test`/`npm run build`,
+Light/Dark1440/1280/1024/390,200% zoom, roles/session/revoke/late responses,
+list→exact→well/reload/Back/Forward и оба неизменённых nginx — отдельные gates
+координатора после frozen diff. Полный visual/WCAG/runtime PASS этой записью
+не объявляется. Figma прочитана read-only; новые mutations не выполнялись.
