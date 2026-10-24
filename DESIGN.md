@@ -200,3 +200,40 @@ indent12px/уровень и52px switcher-space листа. Перенос дл�
 весь текст. Измеряемая virtual window ограничивает DOM при переменной высоте,
 focused row остаётся смонтированным вне окна. Токены/Roboto и прежний список
 сохранены; новые растровые assets/библиотеки не добавлены.
+
+
+## Графическая структура сотрудников · 24.10.2026
+
+Актуальный renderer `/people` → «Структура» — карточки с линиями по workplace,
+вместо исторического списка с отступами. Figma file `km4tIbp3LnMTRrV6yi6Qho`,
+wrapper1033:4536: [Light1440](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1034-4566),
+Dark1440 1037:4652; Light390 1037:4821 / Dark390 1037:4994;
+long320 Light1037:5168 / Dark1037:5188; card family1034:4540.
+API/complete parser/people query/auth/errors/list/profile/editor сохранены.
+
+Card248world, minheight88; обычный branch110/employee88, padding12top/sides8bottom,
+border1/radius12, gap104 между subtree,24 между уровнями/сотрудниками и left rail24.
+Parent над первой дочерней колонкой; сотрудники отдела одной вертикальной колонкой,
+общий rail связывает их с отделом. Full raw strings wrap, autoheight измеряется в
+world units. HTML native branch button / employee Link и декоративные SVG connectors
+используют один geometry;2D card/edge clipping + один pinned active ограничивают DOM.
+5000 сотрудников могут дать20000 logical nodes; нет paging/discard/fake root.
+
+Первый существующий org/div/dept путь раскрыт при100%; соседние branches закрыты.
+Zoom50–200%, step25, toolbar44px вне transform; min88world даёт44screen при50%.
+«По центру» →100% activecard, иначе initialpath, без сброса expansion/query/focus.
+Viewport640desktop/520mobile имеет внутреннюю2D прокрутку; background mouse drag
+после5px threshold, native scroll/touch и browser zoom сохранены. Управление tree
+клавиатурой использует preorder; отложенные measurements уточняют target camera,
+wheel/pointer/touch/выход focus снимают keyboard intent. Измерения mounted карточек
+применяются одной пачкой на animation frame, чтобы mount→measure→camera не создавал
+неограниченную вложенную цепочку React commits; cleanup отменяет позднюю пачку.
+Private/query scope remount
+сбрасывает локальную camera/expansion/measurements; snapshot refresh сохраняет
+surviving active key. Независимое CUA проверяет geometry/focus/scroll/темы/320/390;
+unit/SSR не заменяют браузерное evidence. Новых raster assets/dependencies нет.
+
+Scaled spacer ограничивает overflow внутренних world/SVG точными logical bounds;
+viewport-sized SVG overlay не расширяет native scroll extent вслед за camera.
+Zoom clamp по scaled bounds и reveal active после world-center anchor сохраняют
+активную карточку видимой, включая collapsed forest, который уже viewport.
