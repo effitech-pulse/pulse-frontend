@@ -1,3 +1,4 @@
+import {UserEditorSection} from './UserEditorSection';
 import {EmployeeProfileFields} from './EmployeeProfileFields';
 import type {AccessFieldError} from '@/lib/accessDraft';
 import {FieldError,fieldAttributes} from './FieldError';
@@ -26,11 +27,11 @@ export function UserAccessDrawer({ value, account, onChange, password, onPasswor
     const scope = useQuery({ queryKey: ['access', 'organizations', privateEpoch], queryFn: managementApi.orgOptions, enabled: can('users.scope.assign'), retry: false });
     const org = value.organization ?? account?.organization_scope;
     const names = Object.fromEntries(catalog.map(p => [p.key, p.name]));
-    return <div className="access-form user-sections"><section className="employee-panel access-form"><EmployeeProfileFields value={value} onChange={onChange} disabled={!mutable} fieldError={fieldError}/></section><section className="employee-panel access-form"><h2>Учётная запись</h2>
+    return <div className="access-form user-sections"><UserEditorSection id="user-section-employee" title="Сотрудник"><EmployeeProfileFields value={value} onChange={onChange} disabled={!mutable} fieldError={fieldError}/></UserEditorSection><UserEditorSection id="user-section-account" title="Учётная запись">
  <label>Логин<Input aria-label="Логин" {...fieldAttributes('login',fieldError)} value={value.login} disabled={!mutable} autoComplete="username" spellCheck={false} onChange={e => onChange({ login: e.target.value })}/><FieldError field="login" error={fieldError}/></label>
  <Checkbox checked={value.active} disabled={!mutable} onChange={e => onChange({ active: e.target.checked })}>Учётная запись активна</Checkbox>
  <label>{account ? 'Новый пароль' : 'Пароль'}<Input.Password aria-label={account?'Новый пароль':'Пароль'} {...fieldAttributes('password',fieldError)} value={password} disabled={!mutable} autoComplete="new-password" placeholder={account ? 'Оставьте пустым, чтобы сохранить' : 'Минимум 15 символов'} onChange={e => onPassword(e.target.value)}/><FieldError field="password" error={fieldError}/></label>
- <p className="access-note">Отключение учётной записи закрывает вход в систему.</p></section><section className="employee-panel access-form"><h2>Доступ</h2><h3>Область скважин</h3><p>{organizationLabel(account?.organization_scope, account?.legacy_scope)}</p>
+ <p className="access-note">Отключение учётной записи закрывает вход в систему.</p></UserEditorSection><UserEditorSection id="user-section-access" title="Доступ"><h3>Область скважин</h3><p>{organizationLabel(account?.organization_scope, account?.legacy_scope)}</p>
  {account?.legacy_scope && !value.organization && <Alert type="info" message="Сохранена прежняя область доступа" description={`НГДУ: ${account.scope.ngdus?.join(', ') ?? 'все'} · Цеха: ${account.scope.departments?.join(', ') ?? 'все'}. Обычная правка не меняет область.`}/>}
  {can('users.scope.assign') ? <>{scope.isError ? <AccessError error={scope.error} retry={() => void scope.refetch()}/> : <>
  <label>Область подразделения<Select disabled={!mutable} {...fieldAttributes('organization',fieldError)} aria-label="Область подразделения" loading={scope.isPending} value={value.organization?.kind ?? (account?.legacy_scope ? undefined : org?.kind)} placeholder="Выберите область" onChange={kind => {onDepartmentPending(false);onChange({ organization: { kind, ngdu_id: null, department_id: null } });}} options={[...(can('access.manage_global') ? [...(value.id!==null?[{value:'none',label:'Подразделение не назначено'}]:[]),{ value: 'organization', label: 'Вся организация' }] : []), { value: 'ngdu', label: 'НГДУ' }, { value: 'department', label: 'Цех' }]}/><FieldError field="organization" error={fieldError}/></label>
@@ -43,5 +44,5 @@ export function UserAccessDrawer({ value, account, onChange, password, onPasswor
  <div className="pulse-system-callout"><strong>Получены через группы</strong><p>{account?.roles?.filter(r => account.groups?.some(g => value.group_ids.includes(g.id) && g.role_ids.includes(r.id))).map(r => `${r.name} — ${account.groups?.filter(g => value.group_ids.includes(g.id) && g.role_ids.includes(r.id)).map(g => `группа «${g.name}»`).join(', ')}`).join('; ') || 'Нет сохранённых источников через выбранные группы'}. Снятие прямой роли не отменяет её другие источники.</p></div>
  <h2>Итоговые права</h2><p className="access-note">Сохранённые права и все источники. Новые назначения будут рассчитаны в предпросмотре.</p>
  {(account?.permission_keys ?? []).slice(0, all ? undefined : 3).map(key => <div key={key}><strong>{names[key] ?? key}</strong>{account?.permission_sources?.[key]?.map((s, i) => <div key={i}>{s.role_name} → {s.group_id === null ? 'напрямую' : `группа «${s.group_name}»`}</div>)}</div>)}<Button type="text" onClick={() => setAll(v => !v)}>{all ? 'Свернуть права' : 'Все права и источники'}</Button>
- <p className="access-note">Проверка изменений покажет новые права и персональную область. Назначения при переводе не меняются автоматически.</p></section></div>;
+ <p className="access-note">Проверка изменений покажет новые права и персональную область. Назначения при переводе не меняются автоматически.</p></UserEditorSection></div>;
 }

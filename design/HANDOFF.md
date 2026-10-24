@@ -527,3 +527,31 @@ links с max-width100%/normal whitespace. Имя, subtitle/отдел, имя/д
 руководителя и поля карточки остаются целиком читаемыми; truncation/скрытие
 или горизонтальная прокрутка страницы не применяются. CSS проверяется живым
 320/390px повтором координатора, не source-snapshot тестом.
+
+### USER-EDITOR-COLLAPSE · source implementation · 24.10.2026
+
+Существующие шесть editor/create кадров обновлены только заголовками:
+edit1440 Light976:3667/Dark981:3997; create1440 Light976:3895/Dark981:4203;
+edit390 Light981:4746/Dark981:4952. Closed320 board1016:4236 включает
+Light1016:4237/Dark1016:4396. Header source1016:4218, closed1016:4262/4275/4285.
+Прочитаны high-fidelity context и screenshots header/обеих closed320 тем.
+
+UserEditorSection использует независимые native details без общего name,
+default-open и всегда смонтированный body. Summary — одна44px цель: заголовок
+16/22, action13/19, ширина action88px, gap12px; panel padding20desktop/16narrow,
+body gap16. Native open state не хранится в draft/URL/storage и не изменяет
+preview receipt/password/permissions/search. Private/target key создаёт новые
+sections; обычные controlled rerenders не сбрасывают native collapse.
+
+revealAccessField раскрывает ancestor details снаружи внутрь до focus/scroll.
+Один helper подключён к AccessFieldError effect, повторному summary-link и
+post-render возврату пользователя из Preview к имени. Delayed focus проверяет
+private ticket и актуальный sequence, затем ищет текущий DOM target. Различие
+workplace_department и security department сохраняется через прежние IDs.
+Preview lifecycle/условный remount не переделывался; role editor back неизменён.
+
+Unit/source-execution/SSR проверки покрывают reveal order, повторное раскрытие,
+все field IDs, текущие3sections/default-open/mounted fields, сохранение
+черновика/пароля/assignments, server422 и guard позднего фокуса. Native keyboard,
+collapse→rerender state, hidden Tab order и320/390 геометрию проверяет координатор
+на настоящем CUA runtime; один SSR не является доказательством этих свойств.

@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire,Module} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+import ts from 'typescript';
+import * as draft from '../src/lib/accessDraft.ts';
+import * as reveal from '../src/lib/revealAccessField.ts';
+const require=createRequire(import.meta.url);
+const axios=require('axios');
+test('actual editor error, repeated summary and post-Preview focus reveal current fields and preserve the draft',async()=>{
+ const store=[];let pointer=0,effects=[],tree,previewFails=true,epochCurrent=true;
+ const hooks={useState(initial){const i=pointer++;if(!store[i])store[i]={value:typeof initial==='function'?initial():initial};return[store[i].value,v=>{store[i].value=typeof v==='function'?v(store[i].value):v;}];},useRef(initial){const i=pointer++;if(!store[i])store[i]={value:{current:initial}};return store[i].value;},useEffect(fn,deps){const i=pointer++;if(!store[i]||!deps||deps.some((v,n)=>!Object.is(v,store[i].deps?.[n]))){store[i]={deps};effects.push(fn);}}};
+ const employee={open:false,tagName:'DETAILS',parentElement:null},account={open:false,tagName:'DETAILS',parentElement:null},access={open:false,tagName:'DETAILS',parentElement:null};
+ const focused=[];const targets={};
+ for(const [field,parentElement] of [['name',employee],['manager_id',employee],['password',account]])targets[`access-field-${field}`]={parentElement,focus(){assert.equal(parentElement.open,true);focused.push(field);},scrollIntoView(){assert.equal(parentElement.open,true);}};
+ const timers=[];const originalDocument=globalThis.document,originalWindow=globalThis.window,originalTimer=globalThis.setTimeout;
+ globalThis.document={getElementById:id=>targets[id]??null,activeElement:null};globalThis.window={addEventListener(){},removeEventListener(){}};globalThis.setTimeout=fn=>{timers.push(fn);return timers.length;};
+ function Fields(){}
+ const api={permissions:async()=>[],preview:async()=>{if(previewFails)throw{isAxiosError:true,response:{status:422,data:{code:'validation_error',message:'Цикл руководителей недопустим'}}};return{graph_revision:'1',actor_epoch:'1',fingerprint:'p',assigned_users:0,changed_users:0,disabled_users:0,self_affected:false,items:[],next_cursor:null};}};
+ const boundaries={'axios':axios,'react':hooks,'antd':{App:{useApp:()=>({message:{info(){}},modal:{}})},Alert:'Alert',Button:'Button',Drawer:'Drawer',Skeleton:'Skeleton',Space:'Space'},'@ant-design/icons':{LoadingOutlined:'LoadingOutlined'},'@tanstack/react-query':{useQuery:()=>({data:[],isPending:false,isError:false}),useQueryClient:()=>({})},'react-router-dom':{useNavigate:()=>()=>{},useSearchParams:()=>[new URLSearchParams('tab=users'),()=>{}],useBlocker:()=>({state:'unblocked'})},'@/api/access':{managementApi:api},'@/auth/AuthProvider':{useAuth:()=>({mode:'local',principal:{access_model:'rbac_v1',graph_revision:'1'},privateEpoch:0,privateBlocked:false,can:()=>true,capturePrivate:()=>({current:()=>epochCurrent})})},'@/api/client':{toApiError:e=>({message:e.message})},'@/lib/accessDraft':draft,'@/lib/revealAccessField':reveal,'@/components/access/UsersPanel':{UsersPanel:'UsersPanel',AccessError:'AccessError'},'@/components/access/GroupsPanel':{GroupsPanel:'GroupsPanel'},'@/components/access/RolesPanel':{RolesPanel:'RolesPanel'},'@/components/access/UserAccessDrawer':{UserAccessDrawer:Fields},'@/components/access/GroupEditor':{GroupEditor:'GroupEditor'},'@/components/access/RoleEditor':{RoleEditor:'RoleEditor'},'@/components/access/AccessPreview':{AccessPreview:'AccessPreview'},'@/lib/rolePrivileges':{RoleFormError:class extends Error{}}};
+ const filename=fileURLToPath(new URL('../src/pages/AccountsPage.tsx',import.meta.url));const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>id.endsWith('.css')?{}:boundaries[id]??require(id);mod._compile(code,filename);
+ async function render(){pointer=0;effects=[];tree=mod.exports.AccountsPage({userEditorID:'new'});const queue=effects;effects=[];for(const fn of queue)fn();await Promise.resolve();await Promise.resolve();}
+ function nodes(value,out=[]){if(!value||typeof value!=='object')return out;if(Array.isArray(value)){for(const item of value)nodes(item,out);}else if(value.props){out.push(value);nodes(value.props.children,out);nodes(value.props.message,out);}return out;}
+ const find=label=>nodes(tree).find(n=>n.type==='Button'&&(n.props['aria-label']===label||n.props.children===label));const fields=()=>nodes(tree).find(n=>n.type===Fields);
+ try{
+ await render();await render();assert.equal(fields().key,'0:new');find('Проверить изменения').props.onClick();await render();await render();assert.deepEqual(focused,['name']);assert.equal(account.open,false);assert.equal(access.open,false);
+ employee.open=false;nodes(tree).find(n=>n.type==='a'&&n.props.href==='#access-field-name').props.onClick({preventDefault(){}});assert.equal(employee.open,true);assert.deepEqual(focused,['name','name']);
+ fields().props.onChange({name:'Draft kept',login:'validlogin',organization:{kind:'organization',ngdu_id:null,department_id:null},role_ids:['11'],group_ids:['12']});await render();fields().props.onPassword('private-password-long');await render();employee.open=false;
+ find('Проверить изменения').props.onClick();await render();await render();assert.equal(employee.open,true);assert.equal(focused.at(-1),'manager_id');assert.equal(fields().props.value.name,'Draft kept');assert.equal(fields().props.password,'private-password-long');assert.deepEqual(fields().props.value.role_ids,['11']);assert.equal(access.open,false);
+ previewFails=false;find('Проверить изменения').props.onClick();await render();await render();assert.ok(find('Применить изменения'));find('К редактированию').props.onClick();await render();employee.open=false;while(timers.length)timers.shift()();assert.equal(employee.open,true);assert.equal(focused.at(-1),'name');assert.equal(fields().props.password,'private-password-long');
+ find('Проверить изменения').props.onClick();await render();await render();find('К редактированию').props.onClick();await render();employee.open=false;epochCurrent=false;const count=focused.length;while(timers.length)timers.shift()();assert.equal(employee.open,false);assert.equal(focused.length,count);
+ }finally{globalThis.document=originalDocument;globalThis.window=originalWindow;globalThis.setTimeout=originalTimer;}
+});

@@ -208,3 +208,14 @@
 .people-page .access-mobile .ant-card,.people-page .access-mobile .ant-card-body {min-width:0;max-width:100%;}
 .employee-profile-page .employee-name-link,.people-page .access-mobile .employee-name-link {min-width:0;max-width:100%;white-space:normal;}
 .people-page .access-mobile .ant-card-body {padding:16px;}
+
+/* USER-EDITOR-COLLAPSE: single native 44px summary; body stays mounted. */
+.user-page .user-editor-section {display:block;}
+.user-page .user-editor-summary {display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;list-style:none;cursor:pointer;}
+.user-page .user-editor-summary::-webkit-details-marker {display:none;}
+.user-page .user-editor-summary h2 {flex:1;min-width:0;margin:0;font-size:16px;font-weight:500;line-height:22px;overflow-wrap:anywhere;}
+.user-page .user-editor-section-action {flex:0 0 88px;text-align:right;font-size:13px;font-weight:500;line-height:19px;color:var(--pulse-blue);}
+.user-page .user-editor-summary:focus-visible {outline:2px solid var(--pulse-blue);outline-offset:2px;border-radius:4px;}
+.user-page .user-editor-section-body {margin-top:16px;}
+.user-page .user-editor-section:not([open]) > .user-editor-section-body,.user-page .user-editor-section:not([open]) > summary .user-editor-when-open,.user-page .user-editor-section[open] > summary .user-editor-when-closed {display:none;}
+@media(max-width:600px){.user-page .user-editor-section {padding:16px;}}

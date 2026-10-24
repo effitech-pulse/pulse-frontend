@@ -1,3 +1,4 @@
+import { revealAccessField } from '@/lib/revealAccessField';
 import { Alert, App, Button, Drawer, Skeleton, Space } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -92,8 +93,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
     useEffect(() => {
         if (error instanceof AccessFieldError) {
             const input = document.getElementById(`access-field-${error.field}`);
-            input?.focus();
-            input?.scrollIntoView({ block: 'center' });
+            revealAccessField(input);
         } else if (error instanceof RoleFormError) {
             const input = document.getElementById(error.controlId);
             input?.focus();
@@ -364,7 +364,13 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
     if (!modern)
         return <Alert type="info" message="Управление доступом пока недоступно" description="Для постоянных ролей и групп требуется включённая серверная модель доступа. Прежний режим не поддерживает этот редактор."/>;
     const rolePage = entity === 'roles';
-    const backToEditor = () => { setPreviewMode(false); setPreviewPage(null); if (rolePage || userEditorID) setTimeout(() => document.getElementById('access-field-name')?.focus(), 0); };
+    const backToEditor = () => {
+        setPreviewMode(false); setPreviewPage(null);
+        if (userEditorID) {
+            const ticket=capturePrivate(); const n=sequence.current;
+            setTimeout(() => { if(ticket.current() && n===sequence.current) revealAccessField(document.getElementById('access-field-name')); }, 0);
+        } else if(rolePage) setTimeout(() => document.getElementById('access-field-name')?.focus(), 0);
+    };
     const actions = <Space wrap className="access-editor-actions">
         {!forbidden && draft && writable && !uncertain && (previewMode ? <>
             <Button aria-label={rolePage ? 'Сохранить роль' : 'Применить изменения'} type="primary" loading={busy ? { icon: <LoadingOutlined aria-hidden="true" /> } : false} aria-busy={busy} disabled={!draft.preview || draft.conflict} onClick={() => void apply()}>{rolePage ? 'Сохранить роль' : 'Применить изменения'}</Button>
@@ -378,7 +384,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
         </>)}
         {(!(rolePage || userEditorID) || !previewMode) && <Button disabled={busy} onClick={close}>Отмена</Button>}
     </Space>;
-    const errorBlock = error != null && <div ref={errorRef} tabIndex={-1}><Alert type="error" message={forbidden ? 'Доступ к сведениям закрыт' : error instanceof AccessFieldError ? <a href={`#access-field-${error.field}`} onClick={event=>{event.preventDefault();document.getElementById(`access-field-${error.field}`)?.focus();}}>{error.message}</a> : error instanceof RoleFormError ? error.message : toApiError(error).message === 'profile_revision_conflict' ? 'Профиль изменён другим пользователем. Перечитайте серверную версию.' : toApiError(error).message} description={draft?.conflict ? 'Черновик сохранён. Данные изменились. Перечитайте серверную версию или проверьте последствия повторно.' : uncertain ? 'Результат записи неизвестен. Сначала перечитайте сохранённые данные. Пароль нельзя проверить таким чтением; прежняя запись автоматически не повторяется.' : undefined} action={draft?.conflict ? <Button disabled={busy} onClick={() => void preview()}>Обновить предпросмотр</Button> : undefined} /></div>;
+    const errorBlock = error != null && <div ref={errorRef} tabIndex={-1}><Alert type="error" message={forbidden ? 'Доступ к сведениям закрыт' : error instanceof AccessFieldError ? <a href={`#access-field-${error.field}`} onClick={event=>{event.preventDefault();revealAccessField(document.getElementById(`access-field-${error.field}`));}}>{error.message}</a> : error instanceof RoleFormError ? error.message : toApiError(error).message === 'profile_revision_conflict' ? 'Профиль изменён другим пользователем. Перечитайте серверную версию.' : toApiError(error).message} description={draft?.conflict ? 'Черновик сохранён. Данные изменились. Перечитайте серверную версию или проверьте последствия повторно.' : uncertain ? 'Результат записи неизвестен. Сначала перечитайте сохранённые данные. Пароль нельзя проверить таким чтением; прежняя запись автоматически не повторяется.' : undefined} action={draft?.conflict ? <Button disabled={busy} onClick={() => void preview()}>Обновить предпросмотр</Button> : undefined} /></div>;
     const previewBody = <AccessPreview preview={previewPage} loading={busy} search={previewSearch} onSearch={search => { setPreviewSearch(search); clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => void preview(search, undefined, [], true), 300); }} onNext={() => {
         if (previewPage?.next_cursor) void preview(previewSearch, previewPage.next_cursor, [...previewHistory, previewPage.next_cursor], true);
     }} onBack={() => { const history = previewHistory.slice(0, -1); void preview(previewSearch, history.at(-1), history, true); }} hasBack={previewHistory.length > 0} catalog={catalog.data ?? []} userChange={!!draft?.change.user} />;
@@ -393,7 +399,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
         {readback !== undefined && <><h2>Сейчас на сервере</h2>{readback?<><p>{readback.name} · {readback.active?'Учётная запись активна':'Учётная запись отключена'}</p><p>{readback.profile?.job_title??'Должность не указана'}</p><p>{readback.profile?[readback.profile.workplace.organization,readback.profile.workplace.division,readback.profile.workplace.department].filter(Boolean).join(' → ')||'Место работы не указано':'Профиль не поддерживается'}</p><p>Руководитель: {readback.profile?.manager_id??'Не указан'}</p><p>Версия учётной записи: {readback.access_revision} · Профиля: {readback.profile?.revision??'недоступна'}</p></>:<p>Учётная запись с указанным логином не найдена.</p>}<p>Черновик сохранён. Пароль не доступен для сверки.</p>{readback?<Button onClick={loadSavedUser}>Загрузить серверную версию</Button>:draft?.change.user?.id===null?<Button onClick={restartUnconfirmedCreate}>Начать новую операцию создания</Button>:null}</>}
         </div>}
         {loading ? <Skeleton active/> : draft?.change.user && !forbidden ? previewMode ? <div className="employee-panel access-form">{previewBody}{actions}</div> : <>
-            <UserAccessDrawer value={draft.change.user} account={account} password={password} onPassword={value => {setPassword(value); userPatch({reset_password:!!value || draft.change.user!.id===null});}} onChange={userPatch} onDepartmentPending={setDepartmentPending} onClose={close} fieldError={error instanceof AccessFieldError ? error : undefined} catalog={catalog.data??[]} disabled={busy || !writable || catalog.isError}/>
+            <UserAccessDrawer key={`${privateEpoch}:${entityID}`} value={draft.change.user} account={account} password={password} onPassword={value => {setPassword(value); userPatch({reset_password:!!value || draft.change.user!.id===null});}} onChange={userPatch} onDepartmentPending={setDepartmentPending} onClose={close} fieldError={error instanceof AccessFieldError ? error : undefined} catalog={catalog.data??[]} disabled={busy || !writable || catalog.isError}/>
             <p>Проверьте изменения перед применением. Предпросмотр покажет сведения, назначения, область скважин и влияние на сеансы.</p>{actions}
         </> : null}
     </div>;
@@ -419,7 +425,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
             {errorBlock}
             {loading ? <Skeleton active /> : draft && !forbidden ? previewMode ? previewBody : <>
                 {catalogError}
-                {draft.change.user ? <UserAccessDrawer value={draft.change.user} account={account} password={password} onPassword={value => { setPassword(value); userPatch({ reset_password: !!value || draft.change.user!.id === null }); }} onChange={userPatch} onDepartmentPending={setDepartmentPending} onClose={close} fieldError={error instanceof AccessFieldError ? error : undefined} catalog={catalog.data ?? []} /> : draft.change.group ? <GroupEditor fieldError={error instanceof AccessFieldError ? error : undefined} value={draft.change.group} onChange={groupPatch} disabled={!writable} baselineReady={baselineReady} onBaseline={ids => { setBaselineReady(true); groupPatch({ member_ids: ids }); }} /> : null}
+                {draft.change.user ? <UserAccessDrawer key={`${privateEpoch}:${entityID}`} value={draft.change.user} account={account} password={password} onPassword={value => { setPassword(value); userPatch({ reset_password: !!value || draft.change.user!.id === null }); }} onChange={userPatch} onDepartmentPending={setDepartmentPending} onClose={close} fieldError={error instanceof AccessFieldError ? error : undefined} catalog={catalog.data ?? []} /> : draft.change.group ? <GroupEditor fieldError={error instanceof AccessFieldError ? error : undefined} value={draft.change.group} onChange={groupPatch} disabled={!writable} baselineReady={baselineReady} onBaseline={ids => { setBaselineReady(true); groupPatch({ member_ids: ids }); }} /> : null}
                 {deletionWarning}
             </> : null}
         </Drawer>
