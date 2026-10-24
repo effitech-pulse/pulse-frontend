@@ -219,3 +219,24 @@
 .user-page .user-editor-section-body {margin-top:16px;}
 .user-page .user-editor-section:not([open]) > .user-editor-section-body,.user-page .user-editor-section:not([open]) > summary .user-editor-when-open,.user-page .user-editor-section[open] > summary .user-editor-when-closed {display:none;}
 @media(max-width:600px){.user-page .user-editor-section {padding:16px;}}
+
+.people-view-switch {display:flex;gap:8px;flex-wrap:wrap;}
+.people-view-switch .ant-btn {min-width:120px;}
+.organization-tree-panel {min-width:0;padding:20px;border:1px solid var(--pulse-border);border-radius:4px;background:var(--pulse-surface);}
+.organization-tree-count {margin:0 0 12px;font-size:13px;line-height:19px;font-weight:500;}
+.organization-tree-hint {margin:0 0 16px;color:var(--pulse-muted);font-size:12px;line-height:17px;}
+.organization-tree-viewport {height:620px;max-height:75vh;overflow:auto;min-width:0;overflow-anchor:none;}
+.organization-tree-space {position:relative;width:100%;min-width:0;}
+.organization-tree-position {position:absolute;left:0;right:0;box-sizing:border-box;min-width:0;}
+.organization-tree-branch,.organization-tree-leaf {box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:8px 0;display:flex;align-items:flex-start;gap:8px;white-space:normal;overflow-wrap:anywhere;border:0;background:transparent;color:var(--pulse-ink);text-align:left;text-decoration:none;font:inherit;border-radius:4px;}
+.organization-tree-branch {cursor:pointer;}
+.organization-tree-leaf {padding-left:52px;}
+.organization-tree-caret {display:flex;align-items:center;justify-content:center;flex:0 0 44px;height:44px;color:var(--pulse-muted);font-size:16px;}
+.organization-tree-text {display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;}
+.organization-tree-branch-label {font-size:13px;font-weight:500;line-height:19px;}
+.organization-tree-meta,.organization-tree-title {font-size:12px;font-weight:400;line-height:17px;}
+.organization-tree-meta {color:var(--pulse-muted);}
+.organization-tree-name {color:var(--pulse-blue);font-size:14px;line-height:20px;}
+.organization-tree-branch:focus-visible,.organization-tree-leaf:focus-visible {outline:2px solid var(--pulse-blue);outline-offset:-2px;}
+.organization-tree-branch:hover,.organization-tree-leaf:hover {background:var(--pulse-selected);color:var(--pulse-ink);}
+@media(max-width:600px){.organization-tree-panel {padding:16px;}.organization-tree-viewport {height:520px;}.people-page .access-toolbar > .ant-checkbox-wrapper {min-width:0;white-space:normal;}}

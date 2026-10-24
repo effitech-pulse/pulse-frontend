@@ -555,3 +555,39 @@ Unit/source-execution/SSR проверки покрывают reveal order, по
 черновика/пароля/assignments, server422 и guard позднего фокуса. Native keyboard,
 collapse→rerender state, hidden Tab order и320/390 геометрию проверяет координатор
 на настоящем CUA runtime; один SSR не является доказательством этих свойств.
+
+### USER-ORGANIZATION-TREE · source implementation · 24.10.2026
+
+Source: wrapper1019:4196; desktop1022:4253/1022:4481,
+390px1022:4671/1022:4885, row family1022:4226, responsive search1022:4247,
+long320 leaf1022:5099. Прочитаны final designer handoff и high-fidelity
+context/screenshots desktop Light, обеих390тем и320long proof. Directory source
+981:3743/981:4409 сохраняет список и получает только44px переключатель.
+
+Search/include_inactive общие для list/structure; list cursor сбрасывается при
+возврате. Дерево читает один GET /api/v1/people/organization/tree, без cursor-all
+fallback, Account/manager API и клиентской группировки страницы. Strict complete,
+arrays/counts/positive string int64 parser не показывает partial/malformed200.
+404/405/501 имеют unsupported state и явный возврат к списку;400/generic errors,
+typed503too_large/timeout и401/403 отличаются. Counts относятся к совпавшим
+сотрудникам снимка, не штатной численности. Политика5k/8MiB/5s — серверные
+защитные границы, не измеренная production capacity.
+
+Null узлы сохраняют все уровни и отличаются от реального placeholder-name.
+Точные серверные keys/order сохранены. Все организации исходно свёрнуты;
+поиск не инициирует expand-all. Branch buttons и employee profile Links имеют
+44px минимум; Arrow/Home/End управляют roving focus, Enter/Space ветвей native,
+листья открываются Enter. Visible rows измеряются ResizeObserver, окно620desktop/
+520mobile ограничивает DOM и учитывает auto-height/long labels. Один focused row
+может оставаться смонтированным вне viewport, предотвращая потерю фокуса при
+прокрутке; keyboard moves прокручивают к актуальной строке.
+
+Tree query key включает privateEpoch, normalized search и inactive; успешная
+профильная invalidation ['people'] уже охватывает новый вид. Новая выборка/reset
+response очищает expansion/measurements; фильтр/private scope размонтирует старый
+subtree. Error state скрывает stale data. Native auth boundary и cancellation
+signal защищают поздние ответы. CSS scoped к people tree; collapse editor не менялся.
+
+Unit/transport/SSR/source-state проверки отделены от CUA: root проверяет old API
+unsupported→new API,320/390 Light/Dark, keyboard, long rows и bounded DOM на
+настоящем fixture. Реальные latency/RAM и полный accessibility audit не заявлены.
