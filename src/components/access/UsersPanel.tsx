@@ -1,4 +1,7 @@
-import { Alert, Button, Card, Empty, Input, Skeleton, Space, Table } from 'antd';
+import {ServerEntityTable} from '@/components/common/ServerEntityTable';
+import {getTablePage} from '@/api/table';
+import {accountFields} from './tableFields';
+import { Alert, Button, Card, Input, Skeleton, Space } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -64,18 +67,13 @@ export function UsersPanel({ open }: {
     open: (id: string | null) => void;
 }) {
     const { can, principal } = useAuth();
-    const page = useAccessPage('users', managementApi.users, can('users.read'));
-    return <ListFrame label="Поиск пользователя" placeholder="Имя или логин" search={page.search} onSearch={page.setSearch} action={can('users.create') ? <Button type="primary" onClick={() => open(null)}>Добавить пользователя</Button> : null}>
- <Card className="access-list-card">{page.isError ? <AccessError error={page.error} retry={page.reset}/> : page.isPending ? <Skeleton active/> : <>
- <div className="access-desktop"><Table<Account> rowKey={u => u.access_id!} pagination={false} dataSource={page.data?.items} locale={{ emptyText: <Empty description={page.search ? 'Ничего не найдено' : 'Пользователей пока нет'}>{page.search && <Button onClick={() => page.setSearch('')}>Сбросить поиск</Button>}</Empty> }} columns={[
+    return <><div className="access-toolbar">{can('users.create')?<Button type="primary" onClick={()=>open(null)}>Добавить пользователя</Button>:null}</div><Card className="access-list-card"><ServerEntityTable<Account> tableKey="users" fields={accountFields()} enabled={can('users.read')} rowKey={u=>u.access_id!} scroll={{x:900}} read={(q,signal)=>getTablePage('/api/v1/auth/users',q,signal,{access_version:1})} columns={[
                 { title: 'Пользователь', width: '26%', render: (_, u) => <div><Link className="employee-name-link" to={`/people/${encodeURIComponent(u.access_id!)}`}><span>{u.name}{u.access_id === principal?.access_id ? ' · вы' : ''}<span className="pulse-cell-meta">{u.login}</span></span></Link></div> },
                 { title: 'Роли и группы', width: '23%', render: (_, u) => <>{u.roles?.map(r => r.name).join(', ') || 'Роли не назначены'}<span className="pulse-cell-meta">{u.groups?.map(g => `Группа «${g.name}»`).join(', ') || (u.direct_roles?.length ? 'Назначены напрямую' : '')}</span></> },
                 { title: 'Подразделение', width: '23%', render: (_, u) => organizationLabel(u.organization_scope, u.legacy_scope) },
                 { title: 'Статус', width: '12%', render: (_, u) => u.active ? 'Активен' : 'Отключён' },
                 { title: 'Действие', render: (_, u) => can('users.update') ? <Button type="link" onClick={() => open(u.access_id!)}>Настроить</Button> : null }
-            ]}/></div>
- <div className="access-mobile">{page.data?.items.map(u => <div key={u.access_id}><Card><strong><Link className="employee-name-link" to={`/people/${encodeURIComponent(u.access_id!)}`}>{u.name}</Link></strong><p>{organizationLabel(u.organization_scope, u.legacy_scope)}<br />{u.active ? 'Активен' : 'Отключён'} · {u.roles?.map(r => r.name).join(', ') || 'Нет ролей'}<br />{u.groups?.map(g => `Группа «${g.name}»`).join(', ')}</p></Card>{can('users.update') && <Button block onClick={() => open(u.access_id!)}>Настроить пользователя</Button>}</div>)}</div><PageControls page={page}/></>}
- </Card></ListFrame>;
+            ]}/></Card></>;
 }
 /** Paginated selectors preserve selected values absent from the currently searched page. */
 export function AssignmentSelector({ kind, value, onChange, disabled, labels = {} }: {

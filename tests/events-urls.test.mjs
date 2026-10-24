@@ -32,3 +32,7 @@ test('limits include complete locator, opaque token and escaped prefix/filter ov
  assert.equal(buildEventsURL({},'A'.repeat(2048),prefix).length,4096);assert.throws(()=>buildEventsURL({},'A'.repeat(2048),prefix+'p'));
  assert.throws(()=>buildEventURL('e1.bad/../x','api'));assert.throws(()=>buildEventsURL({},'opaque+unsafe'));
 });
+test('legacy half-open event URL upper bound becomes exact inclusive table microsecond bound',async()=>{
+ const {legacyEventsTableQuery}=await import('../src/lib/events.ts');const query=legacyEventsTableQuery(new URLSearchParams('from=2026-10-24T03%3A00%3A00%2B03%3A00&to=2026-10-25T00%3A00%3A00.000000Z'));
+ assert.deepEqual(query.filters.find(f=>f.field==='occurred_at'),{field:'occurred_at',op:'range',from:'2026-10-24T00:00:00.000000Z',to:'2026-10-24T23:59:59.999999Z'});
+});

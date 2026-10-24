@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import {legacyAuth} from './auth-fixture.mjs';
 import * as authorization from '../src/auth/authorization.ts';
 import * as accessDraft from '../src/lib/accessDraft.ts';
@@ -18,7 +19,7 @@ function load(relative, boundaries) {
   const filename = fileURLToPath(new URL(relative, import.meta.url));
   const code = ts.transpileModule(readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;
   const mod = new Module(filename); mod.filename = filename; mod.paths = Module._nodeModulePaths(path.dirname(filename));
-  mod.require = id => id.endsWith('.css') ? {} : id==='@/auth/authorization'?authorization:id==='@/lib/accessDraft'?accessDraft:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries, id) ? boundaries[id] : require(id);
+  mod.require = id => id.endsWith('.css') ? {} : id==='@/auth/authorization'?authorization:id==='@/lib/accessDraft'?accessDraft:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries, id) ? boundaries[id] : loadDependency(id,filename,boundaries);
   mod._compile(code, filename);
   return mod.exports;
 }
@@ -33,11 +34,11 @@ function usersHtml(){
   '@/api/client':{toApiError:e=>e},
   '@/auth/AuthProvider':{useAuth:()=>({...legacyAuth('admin'),privateEpoch:0,privateBlocked:false})},
  });
- const cache=client();cache.setQueryData(['access','users',0,'',undefined,undefined],{items:[account(11,'Артём Ветров',true),account(1,'Прежний пользователь',false)],next_cursor:null,total_visible:2,graph_revision:'1'});
+ const cache=client();cache.setQueryData(['table','users',0,{version:1,filters:[],sort:[]},undefined,undefined],{items:[account(11,'Артём Ветров',true),account(1,'Прежний пользователь',false)],next_cursor:null,total_visible:2,graph_revision:'1'});
  return render(UsersPanel,cache,{open:()=>{throw Error('No writes while rendering');}});
 }
 test('System shows server-authorized users including disabled historical authors without local status filtering',()=>{
- const html=usersHtml();assert.match(html,/Артём Ветров/);assert.match(html,/Прежний пользователь/);assert.match(html,/Отключён/);assert.match(html,/Добавить пользователя/);assert.match(html,/Доступные записи/);
+ const html=usersHtml();assert.match(html,/Артём Ветров/);assert.match(html,/Прежний пользователь/);assert.match(html,/Отключён/);assert.match(html,/Добавить пользователя/);assert.match(html,/Фильтр: Статус/);
 });
 test('cohort well connections are readable without source identity edit controls',()=>{
   const {WellConnections}=load('../src/components/integrations/WellConnections.tsx',{
@@ -102,7 +103,7 @@ test('anonymous and shared-key directory never reveal cached private colleague p
 });
 test('safe directory zero-permission list uses safe profile links without administrative fields',()=>{
  const {PeoplePage}=load('../src/pages/PeoplePage.tsx',{'@/api/people':{peopleApi:{list:()=>{throw Error('Unexpected network');}}},'@/auth/AuthProvider':{useAuth:()=>directoryAuth()},'@/components/access/UsersPanel':{AccessError:()=>null}});
- const cache=client();cache.setQueryData(['people','list',0,'',false,undefined],{items:[colleague],next_cursor:null});const html=render(PeoplePage,cache);
+ const cache=client();cache.setQueryData(['table','people',0,{version:1,sort:[],filters:[{field:'active',op:'in',values:[true]}]},undefined,undefined],{items:[colleague],next_cursor:null});const html=render(PeoplePage,cache);
  assert.match(html,/href="\/people\/23"/);assert.match(html,/Безопасный коллега/);assert.doesNotMatch(html,/PRIVATE_LOGIN|PRIVATE_LAST_LOGIN|users.update|777|Настроить/);
 });
 
@@ -114,9 +115,9 @@ test('employee profile back navigation is a single semantic link across its whol
 test('mobile directory preserves safe manager name, link and inactive status',()=>{
  const {PeoplePage}=load('../src/pages/PeoplePage.tsx',{'@/api/people':{peopleApi:{list:()=>{throw Error('Unexpected network');}}},'@/auth/AuthProvider':{useAuth:()=>directoryAuth()},'@/components/access/UsersPanel':{AccessError:()=>null}});
  for(const manager of [colleague.manager,null]){
- const cache=client();cache.setQueryData(['people','list',0,'',false,undefined],{items:[{...colleague,manager}],next_cursor:null});const html=render(PeoplePage,cache);const mobile=html.slice(html.indexOf('<div class="access-mobile">'),html.indexOf('access-paging'));
+ const cache=client();cache.setQueryData(['table','people',0,{version:1,sort:[],filters:[{field:'active',op:'in',values:[true]}]},undefined,undefined],{items:[{...colleague,manager}],next_cursor:null});const html=render(PeoplePage,cache);const mobile=html;
  assert.match(mobile,/Руководитель/);
- if(manager){assert.match(mobile,/href="\/people\/24"/);assert.match(mobile,/Учётная запись руководителя отключена/);}else assert.match(mobile,/Не указан/);
+ if(manager){assert.match(mobile,/href="\/people\/24"/);assert.match(mobile,/Учётная запись отключена/);}else assert.match(mobile,/Не указан/);
  assert.doesNotMatch(mobile,/PRIVATE_LOGIN|PRIVATE_LAST_LOGIN|users.update|777/);
  }
 });

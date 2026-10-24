@@ -1,3 +1,4 @@
+export type PulseId = number | string;
 // Types mirroring the FastAPI Pydantic schemas (src/schemas/*).
 
 export interface Well {
@@ -5,7 +6,7 @@ export interface Well {
  archived_at:string|null;
  responsible:string|null;
   fund_type: 'operational' | 'presentation';
-  id: number;
+  id: PulseId;
   unitek_id: number | null;
   armits_id: number | null;
   well_number: string | null;
@@ -27,7 +28,7 @@ export interface WellUpdate {
 
 export interface Prediction {
   id: number;
-  well_id: number;
+  well_id: PulseId;
   status: string;
   parameters: Record<string, unknown>;
   processing_date: string; // ISO date
@@ -36,7 +37,7 @@ export interface Prediction {
 
 export interface Complication {
   id: number;
-  well_id: number | null;
+  well_id: PulseId | null;
   code: string;
   name: string;
   category: string | null;
@@ -46,7 +47,7 @@ export interface Complication {
 }
 
 export interface WellClassification {
-  well_id: number;
+  well_id: PulseId;
   classification: string | null;
 }
 
@@ -108,7 +109,7 @@ export interface AuditEntry {
 
 export interface Incident {
   id: number;
-  well_id: number;
+  well_id: PulseId;
   failure_type: string;
   failure_date: string;
   days_before: number;
@@ -127,7 +128,7 @@ export interface RunArchiveEvent {
   dag_id: string;
   run_id: string;
   execution_date: string;
-  well_id: number | null;
+  well_id: PulseId | null;
   ngdu: number | null;
   department: number | null;
   status_type: string;

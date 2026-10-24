@@ -5,14 +5,14 @@ import { incidentsApi } from '@/api/incidents';
 import { toApiError } from '@/api/client';
 import type { IncidentCreate } from '@/api/types';
 
-export const useIncidents = (wellId: number) =>
+export const useIncidents = (wellId: number | string) =>
   useQuery({
     queryKey: ['incidents', wellId],
     queryFn: () => incidentsApi.listForWell(wellId),
-    enabled: useAuth().can('incidents.read') && wellId > 0,
+    enabled: useAuth().can('incidents.read') && Number(wellId) > 0,
   });
 
-export const useCreateIncident = (wellId: number) => {
+export const useCreateIncident = (wellId: number | string) => {
   const {can}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();
@@ -26,7 +26,7 @@ export const useCreateIncident = (wellId: number) => {
   });
 };
 
-export const useDeleteIncident = (wellId: number) => {
+export const useDeleteIncident = (wellId: number | string) => {
   const {can}=useAuth();
   const qc = useQueryClient();
   const { message } = App.useApp();

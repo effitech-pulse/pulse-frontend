@@ -1,3 +1,5 @@
+import {legacyAuth} from './auth-fixture.mjs';
+import {loadDependency} from './load-dependency.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
@@ -16,7 +18,7 @@ const {QueryClient,QueryClientProvider,InfiniteQueryObserver}=require('@tanstack
 const root=fileURLToPath(new URL('../src/',import.meta.url));
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/events-examples.json',import.meta.url)));
 const epoch=new PrivateEpoch();
-const auth={mode:'local',principal:{name:'Viewer',role:'viewer'},privateEpoch:0,privateBlocked:false,isAdmin:false,canOperate:false,capturePrivate:()=>epoch.capture()};
+const auth={...legacyAuth(),capturePrivate:()=>epoch.capture()};auth.canAny=(...sets)=>sets.some(set=>set.every(key=>legacyAuth(auth.principal.role).can(key)));
 let legacyCalls=0,legacyLocation;
 // React's server renderer cannot run layout effects. Keep that known warning
 // counted, while forwarding all other diagnostics (including hook-order errors).
@@ -55,7 +57,8 @@ function harness(url){
 }
 function queryClient(){return new QueryClient({defaultOptions:{queries:{retry:false,gcTime:Infinity,staleTime:Infinity,retryOnMount:false}}});}
 function putDetail(client,data,id=data.event.event_id){client.setQueryData(logic.eventQueryKey('detail',auth.privateEpoch,id),data);}
-function putList(client,data,filters={}){client.setQueryData(logic.eventQueryKey('list',auth.privateEpoch,logic.buildEventsURL(filters)),{pages:[data],pageParams:[undefined]});}
+const tableListKey=()=>['events',auth.privateEpoch,'table',{version:1,sort:[],filters:[]},undefined,undefined];
+function putList(client,data,filters={}){client.setQueryData(logic.eventQueryKey('list',auth.privateEpoch,logic.buildEventsURL(filters)),{pages:[data],pageParams:[undefined]});client.setQueryData(tableListKey(),data);}
 function stream(element){return new Promise((resolve,reject)=>{let html='';const out=new Writable({write(chunk,_encoding,done){html+=chunk.toString();done();}});out.on('finish',()=>resolve(html.replaceAll('<!-- -->','')));out.on('error',reject);const rendering=renderToPipeableStream(element,{onAllReady(){rendering.pipe(out);},onError:reject});});}
 async function renderRoute(url,client=queryClient()){
  const h=harness(url);const {router}=h.load('router.tsx');
@@ -100,12 +103,12 @@ test('saved result renders all typed metrics, timeline false/null/zero and prove
 test('list cards retain source order, default25 controls and loaded count without total or raw detail',async()=>{
  const page=structuredClone(fixture.responses.list_all_types.body);page.items[0].comment='PRIVATE_COMMENT';
  const client=queryClient();putList(client,page);const html=await renderRoute('/events',client);
- assert.match(html,/История событий/);assert.match(html,/Загружено 6/);assert.match(html,/Тип события/);assert.match(html,/Открыть событие/);assert.match(html,/не полный аудит/);
+ assert.match(html,/История событий/);assert.match(html,/Фильтр: Тип события/);assert.match(html,/Тип события/);assert.match(html,/Открыть событие/);assert.match(html,/не полный аудит/);
  assert.ok(html.indexOf('Скважина восстановлена')<html.indexOf('Скважина архивирована'));assert.doesNotMatch(html,/PRIVATE_COMMENT|Всего событий|Всего 6/);client.clear();
 });
 test('list empty, loading and detail HTTP errors render honest feedback',async()=>{
- let client=queryClient();putList(client,fixture.responses.list_empty.body);assert.match(await renderRoute('/events',client),/Сохранённых событий в выбранных условиях нет/);client.clear();
- client=queryClient();assert.match(await renderRoute('/events',client),/Загрузка истории/);client.clear();
+ let client=queryClient();putList(client,fixture.responses.list_empty.body);assert.match(await renderRoute('/events',client),/Нет данных/);client.clear();
+ client=queryClient();assert.match(await renderRoute('/events',client),/История событий/);client.clear();
  for(const [status,bodyError,expected] of [[503,{code:'external_service_error'},'Событие временно недоступно'],[404,{code:'not_found'},'Событие недоступно'],[403,{code:'forbidden'},'Нет доступа к истории событий'],[401,{code:'unauthorized'},'Войдите, чтобы продолжить']]){
   client=queryClient();const data=body[0];const key=logic.eventQueryKey('detail',auth.privateEpoch,data.event.event_id);
   client.getQueryCache().build(client,{queryKey:key}).setState({status:'error',fetchStatus:'idle',error:{isAxiosError:true,response:{status,data:bodyError}}});
@@ -132,29 +135,15 @@ test('all read roles have events navigation while technical audit remains admin 
   const filename=path.join(root,'components/layout/AppLayout.tsx');
   const source=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
   const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));
-  mod.require=id=>id==='@/auth/AuthProvider'?{useAuth:()=>auth}:id==='@/theme/ThemeProvider'?{useTheme:()=>({dark:false,toggle(){}})}:id==='./WorkspaceMenu'?{WorkspaceProfile:()=>null,WorkspaceEvents:()=>null}:require(id);mod._compile(source,filename);
+  mod.require=id=>id==='@/auth/AuthProvider'?{useAuth:()=>auth}:id==='@/theme/ThemeProvider'?{useTheme:()=>({dark:false,toggle(){}})}:id==='./WorkspaceMenu'?{WorkspaceProfile:()=>null,WorkspaceEvents:()=>null}:loadDependency(id,filename,{ '@/auth/AuthProvider':{useAuth:()=>auth} });mod._compile(source,filename);
   const html=renderToStaticMarkup(React.createElement(routerLib.MemoryRouter,{initialEntries:['/events']},React.createElement(mod.exports.AppLayout)));
   assert.match(html,/href="\/events"/);assert.equal(html.includes('href="/audit"'),role==='admin');if(role==='admin')assert.match(html,/Технический журнал/);
  }
  auth.principal.role='viewer';auth.isAdmin=false;auth.canOperate=false;
 });
 
-test('rendered continuation503 retains current cards; only exact422 discriminator offers restart; access errors hide cards',async()=>{
- for(const [status,errorBody,expected,keepsRows] of [
-  [503,{code:'external_service_error',message:'SQL_SECRET'},'Не удалось загрузить продолжение',true],
-  [422,{code:'validation_error',detail:'cursor_restart_required'},'История изменилась. Обновите список',true],
-  [422,{code:'validation_error',detail:null,message:'cursor_restart_required'},'Проверьте условия поиска',true],
-  [403,{code:'forbidden'},'Нет доступа к истории событий',false],
-  [404,{code:'not_found'},'История выбранной скважины недоступна',false],
-  [401,{code:'unauthorized'},'Войдите, чтобы продолжить',false],
- ]){
-  const client=queryClient();putList(client,fixture.responses.list_continuation_example.body);
-  const key=logic.eventQueryKey('list',auth.privateEpoch,logic.buildEventsURL({}));
-  client.getQueryCache().find({queryKey:key,exact:true}).setState({status:'error',fetchStatus:'idle',fetchMeta:{fetchMore:{direction:'forward'}},error:{isAxiosError:true,response:{status,data:errorBody}}});
-  const html=await renderRoute('/events',client);assert.ok(html.includes(expected),expected);
-  assert.equal(html.includes('Открыть событие'),keepsRows);assert.doesNotMatch(html,/SQL_SECRET/);
-  assert.equal(html.includes('Обновить список'),status===422&&errorBody.detail==='cursor_restart_required');client.clear();
- }
+test('server list denial removes cached event links without displaying raw error payload',async()=>{
+ for(const status of [401,403,404]){const client=queryClient();putList(client,fixture.responses.list_continuation_example.body);client.getQueryCache().find({queryKey:tableListKey(),exact:true}).setState({status:'error',fetchStatus:'idle',error:{isAxiosError:true,response:{status,data:{code:status===401?'unauthorized':'forbidden',message:'SQL_SECRET'}}}});const html=await renderRoute('/events',client);assert.doesNotMatch(html,/Открыть событие|SQL_SECRET/);client.clear();}
 });
 test('epoch change never renders prior cached details or event links',async()=>{
  const client=queryClient();putList(client,fixture.responses.list_all_types.body);putDetail(client,body[0]);auth.privateEpoch=1;
@@ -164,14 +153,9 @@ test('epoch change never renders prior cached details or event links',async()=>{
  }finally{auth.privateEpoch=0;client.clear();}
 });
 
-test('pending continuation retains a focusable loading button rather than disabling the active native control',async()=>{
- const client=queryClient();putList(client,fixture.responses.list_continuation_example.body);
- const key=logic.eventQueryKey('list',auth.privateEpoch,logic.buildEventsURL({}));
- client.getQueryCache().find({queryKey:key,exact:true}).setState({status:'success',fetchStatus:'fetching',fetchMeta:{fetchMore:{direction:'forward'}}});
- const html=await renderRoute('/events',client);const button=html.match(/<button\b[^>]*ant-btn-loading[^>]*>/)?.[0];
- assert.ok(button,'Rendered continuation loading button must remain present');assert.doesNotMatch(button,/\bdisabled(?:=|\s|>)/);client.clear();
+test('pending server page keeps current rows and disables continuation to prevent duplicate requests',async()=>{
+ const client=queryClient();putList(client,fixture.responses.list_continuation_example.body);client.getQueryCache().find({queryKey:tableListKey(),exact:true}).setState({status:'success',fetchStatus:'fetching'});const html=await renderRoute('/events',client);assert.match(html,/Открыть событие/);assert.match(html,/disabled/);client.clear();
 });
-
 test('terminal append focus snapshot selects only a newly appended available link and respects ownership/session',()=>{
  const {EventAppendFocusBoundary}=harness('/events').load('pages/EventsPage.tsx');
  assert.equal(typeof EventAppendFocusBoundary,'function');
@@ -205,16 +189,9 @@ test('terminal append focus snapshot selects only a newly appended available lin
   assert.equal(scenario({beforeCount:null}),'load-more');assert.equal(scenario({staleBefore:true}),'load-more');assert.equal(scenario({staleAfter:true}),'BODY');
  }finally{if(priorDocument===undefined)delete globalThis.document;else globalThis.document=priorDocument;if(priorAnchor===undefined)delete globalThis.HTMLAnchorElement;else globalThis.HTMLAnchorElement=priorAnchor;}
 });
-test('cursor restart keeps one continuation control in place with restart action label',async()=>{
- for(const restart of [false,true]){
-  const client=queryClient();putList(client,fixture.responses.list_continuation_example.body);
-  if(restart){const key=logic.eventQueryKey('list',auth.privateEpoch,logic.buildEventsURL({}));client.getQueryCache().find({queryKey:key,exact:true}).setState({status:'error',fetchStatus:'idle',fetchMeta:{fetchMore:{direction:'forward'}},error:{isAxiosError:true,response:{status:422,data:{code:'validation_error',detail:'cursor_restart_required'}}}});}
-  const html=await renderRoute('/events',client);const control=html.match(/<button\b[^>]*id="events-continuation"[^>]*>[\s\S]*?<\/button>/)?.[0];
-  assert.ok(control,'Same continuation button slot must remain rendered');assert.ok(control.includes(restart?'Обновить список':'Загрузить ещё'));
-  assert.equal((html.match(/>Обновить список</g)??[]).length,restart?1:0);client.clear();
- }
+test('ordinary event list exposes shared two-row filter and sort controls',async()=>{
+ const client=queryClient();putList(client,fixture.responses.list_continuation_example.body);const html=await renderRoute('/events',client);assert.match(html,/Фильтры: ID Pulse, № скважины/);assert.match(html,/Тип события\. Без сортировки/);assert.match(html,/Далее/);client.clear();
 });
-
 test('explicit F3 retry transfers owned focus before removal, but never steals changed or stale-session focus',()=>{
  const {focusEventRetry,EventFeedback}=harness('/events').load('components/events/EventDetailView.tsx');
  assert.equal(typeof focusEventRetry,'function');

@@ -325,6 +325,7 @@ export function queryAccess(principal: Principal | null, resource: PermissionKey
 }
 export function routeAccess(principal: Principal | null, path: string): boolean {
  if (path === '/people' || path.startsWith('/people/')) return principal?.authenticated === true && principal.mechanism === 'session' && principal.account_id != null;
+ if (path.startsWith('/events')) return canAny(principal, ['checks.read'], ['alerts.read'], ['wells.history.read']);
  if (path === '/') return canAny(principal, ['wells.read'], ['risks.read'], ['metrics.read']);
  if (path.startsWith('/accounts') || path.startsWith('/system/access')) return canAny(principal, ['users.read'], ['groups.read'], ['roles.read']);
  if (path.startsWith('/upload-check')) return canAny(principal, ['filechecks.read'], ['filechecks.run']) || canFull(principal,'filechecks.legacy.run');

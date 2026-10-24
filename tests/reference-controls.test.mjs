@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -18,8 +19,8 @@ function renderPanel(name) {
   '@/components/departments/DepartmentModal': {DepartmentModal: () => null},
  };
  const code = ts.transpileModule(readFileSync(filename,'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
- const mod = new Module(filename); mod.filename=filename; mod.paths=Module._nodeModulePaths(path.dirname(filename)); mod.require=id=>boundaries[id]??require(id); mod._compile(code,filename);
- return renderToStaticMarkup(React.createElement(mod.exports[`${name}Panel`]));
+ const mod = new Module(filename); mod.filename=filename; mod.paths=Module._nodeModulePaths(path.dirname(filename)); mod.require=id=>boundaries[id]??loadDependency(id,filename,boundaries); mod._compile(code,filename);
+ return renderToStaticMarkup(React.createElement(require('react-router-dom').MemoryRouter,null,React.createElement(mod.exports[`${name}Panel`])));
 }
 for (const [panel,entity] of [['Ngdu','НГДУ'],['Departments','цех']]) test(`${panel} edit/delete buttons have contextual Russian names and decorative icons`,()=>{
  const html=renderPanel(panel);

@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {fileURLToPath} from 'node:url';
@@ -37,7 +38,7 @@ const boundaries={
 };
 const filename=root+'/src/pages/AccountsPage.tsx';
 const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
-const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>id.endsWith('.css')?{}:boundaries[id]??require(id);mod._compile(code,filename);
+const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>id.endsWith('.css')?{}:boundaries[id]??loadDependency(id,filename,boundaries);mod._compile(code,filename);
 globalThis.document={getElementById:()=>null,activeElement:null};globalThis.window={addEventListener(){},removeEventListener(){}};
 let tree;
 async function render(){pointer=0;effects=[];tree=mod.exports.AccountsPage({userEditorID:routeID});const queue=effects;effects=[];for(const effect of queue)effect();await Promise.resolve();await Promise.resolve();}

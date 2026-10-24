@@ -1,5 +1,6 @@
+import {LocalEntityTable} from '@/components/common/LocalEntityTable';
 import {useAuth} from '@/auth/AuthProvider';
-import { Button, Popconfirm, Space, Table, Typography } from 'antd';
+import { Button, Popconfirm, Space, Typography } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
@@ -54,7 +55,7 @@ export function NgduPanel() {
         таблице скважин.
       </Typography.Paragraph>
       <PageSpin loading={isLoading} error={error}>
-        <Table rowKey="id" columns={columns} dataSource={data ?? []} pagination={false} size="middle" />
+        <LocalEntityTable tableKey="NgduPanel" fields={[{key:'id',label:'Код НГДУ',kind:'number',read:r=>r.id},{key:'name',label:'Название',kind:'text',read:r=>r.name}]} defaultSort={[{field:'id',direction:'asc'}]} rowKey="id" columns={columns} dataSource={data ?? []} pagination={false} size="middle" />
       </PageSpin>
       <NgduModal open={open} ngdu={editing} onClose={() => setOpen(false)} />
     </>

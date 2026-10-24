@@ -1,3 +1,4 @@
+import {parseLosslessJSON} from '../lib/fileJobs';
 import axios, { AxiosError } from 'axios';
 import type { ApiError } from './types';
 
@@ -10,6 +11,7 @@ export const apiClient = axios.create({
   baseURL,
   withCredentials: true,
   timeout: 30_000,
+  transformResponse: [(raw:unknown) => {if(typeof raw!=='string'||!raw.trim())return raw;try{return parseLosslessJSON(raw);}catch{return raw;}}],
   headers: {
     'Content-Type': 'application/json',
     ...(apiKey ? { 'X-API-Key': apiKey } : {}),

@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import {legacyAuth} from './auth-fixture.mjs';
 import * as authorization from '../src/auth/authorization.ts';
 import * as fileJobs from '../src/lib/fileJobs.ts';
@@ -21,7 +22,7 @@ function load(relative, boundaries = {}, transform = source => source) {
   const filename = fileURLToPath(new URL(relative, import.meta.url));
   const js = ts.transpileModule(transform(readFileSync(filename, 'utf8')), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;
   const mod = new Module(filename); mod.filename = filename; mod.paths = Module._nodeModulePaths(path.dirname(filename));
-  mod.require = id => id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries, id) ? boundaries[id] : require(id);
+  mod.require = id => id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries, id) ? boundaries[id] : loadDependency(id,filename,boundaries);
   mod._compile(js, filename); return mod.exports;
 }
 const { toApiError } = load('../src/api/client.ts', {}, s => s.replaceAll('import.meta.env', '({})'));
@@ -71,7 +72,7 @@ function setup(url = '/wells/42', { well = defaultWell, outcome = defaultOutcome
   const { WellDetailPage } = load('../src/pages/WellDetailPage.tsx', {
     '@/lib/fileJobs':fileJobs,
     'react-router-dom': { ...require('react-router-dom'), useNavigate: () => router.navigate },
-    antd: { ...antd, Tabs: props => { tabs = props; return React.createElement(antd.Tabs, props); } },
+    antd: { ...antd, Tabs: props => { if(props?.items) tabs = props; return React.createElement(antd.Tabs, props); } },
     '@/hooks/useWells': { useWell: () => ({ data: well, isLoading: false, error }), useDepartments: () => ({ data: [{ id: 3, name: 'Цех 3' }] }), useWellComplications: () => ({ data: [{ id: 1, code: 'C1', name: 'Осложнение из паспорта', category: 'Категория' }], isLoading: false }) },
     '@/lib/displayTime': displayTime,
     '@/api/wells': { wellsApi: { classification: unexpected } },
@@ -95,6 +96,7 @@ function setup(url = '/wells/42', { well = defaultWell, outcome = defaultOutcome
 test('real well card exposes the six approved tabs and legacy/default/unknown routes select Risks', () => {
   for (const key of [undefined, 'overview', 'unknown', 'constructor', 'telemetry', 'checks', 'failures', 'history', 'details']) {
     const view = setup(`/wells/42${key ? '?tab=' + key : ''}`);
+    assert.ok(view.tabs,`Tabs must render for ${key}: ${view.html.slice(0,300)}`);
     assert.deepEqual(view.tabs.items.map(t => [t.key, t.label]), [['overview', 'Риски'], ['telemetry', 'Телеметрия'], ['checks', 'Проверки'], ['failures', 'Отказы'], ['history', 'История'], ['details', 'Сведения']]);
     assert.equal(view.tabs.activeKey, ['telemetry', 'checks', 'failures', 'history', 'details'].includes(key) ? key : 'overview');
     assert.equal(view.tabs.destroyInactiveTabPane, false, 'visited forms retain their state');
