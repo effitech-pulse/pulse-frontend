@@ -25,6 +25,9 @@ const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage').then(m =>
 const TelemetryPage = lazy(() => import('@/pages/TelemetryPage').then(m => ({ default: m.TelemetryPage })));
 
 const AccountsPage=lazy(()=>import('@/pages/AccountsPage').then(m=>({default:m.AccountsPage})));
+const UserEditorPage=lazy(()=>import('@/pages/UserEditorPage').then(m=>({default:m.UserEditorPage})));
+const PeoplePage=lazy(()=>import('@/pages/PeoplePage').then(m=>({default:m.PeoplePage})));
+const EmployeeProfilePage=lazy(()=>import('@/pages/EmployeeProfilePage').then(m=>({default:m.EmployeeProfilePage})));
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -38,6 +41,10 @@ export const router = createBrowserRouter([
       { path: 'upload-check', element: <UploadCheckPage /> },
       { path:'accounts',element:<Navigate to="/system/access?tab=users" replace /> },
       { path:'system/access',element:<AccountsPage /> },
+      { path:'system/access/users/new',element:<UserEditorPage /> },
+      { path:'system/access/users/:id/edit',element:<UserEditorPage /> },
+      { path:'people',element:<PeoplePage /> },
+      { path:'people/:id',element:<EmployeeProfilePage /> },
       { path: 'audit', element: <AuditPage /> },
       { path: 'analytics', element: <AnalyticsPage /> },
       { path: 'integrations', element: <IntegrationsPage /> },

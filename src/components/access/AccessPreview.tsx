@@ -1,6 +1,6 @@
 import { Alert, Button, Input, Skeleton, Space, Table } from 'antd';
 import type { AccessImpact, AccessPreviewResponse, AccessSnapshot, PermissionDefinition } from '@/api/access';
-import { impactCounts } from '@/lib/accessDraft';
+import { impactCounts, sessionEffectMessage } from '@/lib/accessDraft';
 import { organizationLabel } from './UsersPanel';
 function PermissionSources({snapshot,names}:{snapshot:AccessSnapshot;names:Record<string,string>}){
  return <>{Object.entries(snapshot.permission_sources??{}).map(([key,sources])=><div key={key}><strong>{names[key]??key}</strong>{sources.map((source,index)=><div key={index}>{source.role_name} → {source.group_id===null?'напрямую':`группа «${source.group_name}»`}</div>)}</div>)}</>;
@@ -20,7 +20,8 @@ export function AccessPreview({ preview, search, onSearch, loading, onNext, onBa
     const names = Object.fromEntries(catalog.map(p => [p.key, p.name]));
     const label = (p: string) => names[p] ?? p;
     return <div className="access-form"><p>Затронуто пользователей: {counts.assigned ?? '—'} · Права изменятся: {counts.changed ?? '—'} · Среди затронутых отключены: {counts.disabled ?? '—'}</p>
- <div className="pulse-system-callout"><strong>{userChange ? 'Изменения завершат затронутые действующие сеансы' : 'Подразделения участников не изменятся'}</strong><p>Пользователям потребуется войти снова. Предпросмотр ещё не изменяет назначения.</p></div>
+ <div className="pulse-system-callout"><strong>{userChange ? sessionEffectMessage(preview?.session_effect) : 'Подразделения участников не изменятся'}</strong><p>Предпросмотр ещё не изменяет сведения и назначения.</p></div>
+ {preview?.profile_change && <section className="profile-preview" aria-label="Сведения сотрудника"><h2>Сведения сотрудника</h2>{([['До изменения',preview.profile_change.before],['После изменения',preview.profile_change.after]] as const).map(([label,snapshot])=><div key={label}><h3>{label}</h3>{snapshot?<><p>{snapshot.name}</p><dl>{([['Должность',snapshot.profile.job_title],['Организация',snapshot.profile.workplace.organization],['Подразделение',snapshot.profile.workplace.division],['Отдел',snapshot.profile.workplace.department],['Руководитель',snapshot.profile.manager_id===null?null:`ID ${snapshot.profile.manager_id}`]] as const).map(([name,value])=><div key={name}><dt>{name}</dt><dd>{value??'Не указано'}</dd></div>)}</dl></>:<p>Новый сотрудник</p>}</div>)}</section>}
  <label>Поиск пользователей<Input placeholder="Поиск по имени или логину" value={search} onChange={e => onSearch(e.target.value)} allowClear/></label>
  {loading && !preview ? <Skeleton active/> : <Table<AccessImpact> rowKey={i => i.user.access_id!} loading={loading} scroll={{ x: 780 }} pagination={false} dataSource={preview?.items} locale={{ emptyText: search ? <><p>Ничего не найдено</p><Button onClick={() => onSearch('')}>Сбросить поиск</Button></> : 'Нет пользователей в последствиях изменения' }} columns={[
                 { title: 'Пользователь', render: (_, i) => i.user.name },

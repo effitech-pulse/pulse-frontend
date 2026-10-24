@@ -1,3 +1,4 @@
+import type { ManagedProfile } from './people';
 import { parseAccessFields } from '../auth/authorization';
 import { apiClient } from './client';
 export type Role = 'admin' | 'technologist' | 'viewer';
@@ -62,6 +63,7 @@ export interface AuthState {
     principal: Principal | null;
 }
 export interface Account extends AccessFields {
+    profile?: ManagedProfile;
     id: number;
     login: string;
     name: string;
@@ -134,6 +136,7 @@ export interface OrganizationOptions {
     actor_scope: OrganizationScope | null;
 }
 export interface UserChange {
+    profile?: ManagedProfile;
     id: Decimal | null;
     revision: Decimal;
     login: string;
@@ -185,6 +188,8 @@ export interface AccessImpact {
     retained_by_other_source: string[];
 }
 export interface AccessPreviewResponse {
+    profile_change?: { before: { name: string; profile: ManagedProfile } | null; after: { name: string; profile: ManagedProfile } } | null;
+    session_effect?: 'none' | 'revoke_on_apply';
     graph_revision: Decimal;
     actor_epoch: Decimal;
     fingerprint: string;
@@ -202,6 +207,7 @@ export interface AccessApply {
     fingerprint: string;
 }
 export interface AccessResult {
+    session_effect?: 'none' | 'revoked';
     user: Account | null;
     role: AccessRole | null;
     group: AccessGroup | null;

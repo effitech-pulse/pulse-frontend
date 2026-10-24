@@ -449,3 +449,81 @@ fixture завершиласьexit0, схема удалена (read-only COUNT0
 API18088 и headless Chrome остановлены. Рабочая БД и приложение8088 не
 переключались; ветки сохранены для последующего переноса. Прежние ограничения
 ручного accessibility/zoom/contrast QA остаются в силе.
+
+### USERS-PAGE · source implementation checkpoint · 24.10.2026
+
+Новые editable frames: file `km4tIbp3LnMTRrV6yi6Qho`, профиль Light976:3547,
+редактирование Light976:3667, создание Light976:3895. Прочитаны high-fidelity
+context и screenshots. Исходные shell/icons/Roboto/Ant Design переиспользованы;
+Figma raster в UI не добавляется. Исправляемая designer height1 проблема
+свободных TEXT не переносится в CSS: применяется нормальная высота строк28/40,
+14/20 и13/20 с интервалами20px между панелями и16px внутри.
+
+UserEditorPage — только route wrapper; AccountsPage остаётся единственным
+владельцем draft/password/Preview/Apply/private epoch. `/accounts` compatibility
+и access tabs сохранены; старые user entity-query URLs переводятся в страницу.
+Успех возвращает к users-tab с поиском. На профиль-only успехе инвалидируются
+оба кэша access и people. Формы не пишут пароль/черновик в URL или storage.
+
+Руководитель выбирается через safe directory search/cursor, включая отключённые
+аккаунты. Выбранный ID сохраняется вне текущей страницы и отдельно читается
+для подписи; self исключён, цикл проверяет сервер. Неподдерживаемый старым API
+профиль не получает выдуманную revision. Изменение только метаданных показывает
+profile_change при items[] и server session_effect=none, без обещания отзыва.
+
+409/422 сохраняют draft и инвалидируют receipt. Неопределённый сетевой исход
+не повторяет запись: явное чтение показывает сохранённую managed запись,
+сохраняя черновик и пароль в памяти. Для create поиск точного логина проходит
+все необходимые управленческие страницы на одной graph revision. Загрузка
+серверной версии отдельно подтверждается и очищает draft/password; пароль
+невозможно проверить чтением. Настоящая смена private epoch/401 очищает память
+через существующий AuthProvider. Reload/Back и pending защищены guard.
+
+Unit/SSR/transport tests подтверждают profile revision/payload/Unicode/null,
+сохранение multiple assignments, zero-permission routing, отсутствие security
+данных в safe markup, inactive manager, endpoint/query routing и profile-only
+Preview. Browser/live/theme/mobile проверяет координатор на изолированном
+runtime; до его evidence полное runtime визуальное соответствие не заявляется.
+Ручной SR/VoiceOver, native zoom200% и полный contrast audit не выполнены.
+
+Финальная дизайнерская передача подтвердила те же три Light desktop IDs и PNG
+после autogrow fix. Создание directory/Dark/mobile source не подтверждено из-за
+Figma transport error; возможный partial batch в wrapper975:3546 не повторялся.
+Новые IDs этих вариантов отсутствуют. Список использует текущие table/card
+conventions, Dark и320/390px — существующие Pulse tokens/breakpoints и явные
+адаптивные правила передачи. Их runtime проверка принадлежит координатору.
+
+USERS-PAGE pre-review corrections: exact422 validation_error сообщения
+«Цикл руководителей недопустим» и «Руководитель не найден» связаны с manager
+полем и ссылкой из summary; форма возвращается из Preview к полю, draft остаётся.
+Generic «Некорректный профиль сотрудника» связывается с manager только при
+детерминированной self-reference в текущем typed draft, иначе остаётся summary.
+Маршрут new/edit/profile фокусирует свой заголовок один раз при открытии,
+перерисовка формы/загрузка профиля не перехватывает фокус у поля. Own profile
+использует canonical access_id; legacy numeric fallback разрешён только для
+положительного Number.isSafeInteger, иначе ссылка отсутствует.
+
+USERS-PAGE source recovery завершён: прежний OPEN transport статус выше
+заменён подтверждёнными editable кадрами и12designer PNG. Каталог
+Light981:3743/Dark981:4409, desktop profile/edit/create Dark981:3891/981:3997/
+981:4203; mobile profile Light981:4534/Dark981:4640, edit Light981:4746/
+Dark981:4952. Scope оригинального kit и прежних ролей/групп сохранён.
+Frontend дополнительно прочитал high-fidelity contexts/screenshots каталога
+обеих тем и mobile profile Light; runtime сравнение поздних вариантов остаётся
+обязанностью координатора. Source availability больше не является блокером.
+
+Scoped review corrections F1–F4: после подтверждения найденного create readback
+открывается canonical edit найденного ID с server account/profile revisions,
+назначениями и сохранённым поиском списка. При отсутствии записи отдельное
+подтверждение начинает новую операцию с сохранённым содержимым и очищенным
+паролем; автоматического повторения записи нет. Возврат в каталог теперь
+семантическая ссылка с44px зоной; мобильный каталог сохраняет имя/ссылку/статус
+руководителя и честный null. CSS checkbox row scoped только к people toolbar.
+
+Runtime correction F5: CUA320px на разрешённых name120/title200 и workplace200
+подтвердил переполнение страницы длинными строками. Profile и mobile people
+получили локальный inherited overflow-wrap:anywhere, shrinkable containers и
+links с max-width100%/normal whitespace. Имя, subtitle/отдел, имя/должность
+руководителя и поля карточки остаются целиком читаемыми; truncation/скрытие
+или горизонтальная прокрутка страницы не применяются. CSS проверяется живым
+320/390px повтором координатора, не source-snapshot тестом.

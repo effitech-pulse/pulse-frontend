@@ -1,7 +1,7 @@
 import { Alert, Button, Card, Empty, Input, Skeleton, Space, Table } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { managementApi, type Account, type AccessPage, type PageQuery, type OrganizationScope } from '@/api/access';
 import { toApiError } from '@/api/client';
@@ -68,13 +68,13 @@ export function UsersPanel({ open }: {
     return <ListFrame label="Поиск пользователя" placeholder="Имя или логин" search={page.search} onSearch={page.setSearch} action={can('users.create') ? <Button type="primary" onClick={() => open(null)}>Добавить пользователя</Button> : null}>
  <Card className="access-list-card">{page.isError ? <AccessError error={page.error} retry={page.reset}/> : page.isPending ? <Skeleton active/> : <>
  <div className="access-desktop"><Table<Account> rowKey={u => u.access_id!} pagination={false} dataSource={page.data?.items} locale={{ emptyText: <Empty description={page.search ? 'Ничего не найдено' : 'Пользователей пока нет'}>{page.search && <Button onClick={() => page.setSearch('')}>Сбросить поиск</Button>}</Empty> }} columns={[
-                { title: 'Пользователь', width: '26%', render: (_, u) => <div>{u.name}{u.access_id === principal?.access_id ? ' · вы' : ''}<span className="pulse-cell-meta">{u.login}</span></div> },
+                { title: 'Пользователь', width: '26%', render: (_, u) => <div><Link className="employee-name-link" to={`/people/${encodeURIComponent(u.access_id!)}`}><span>{u.name}{u.access_id === principal?.access_id ? ' · вы' : ''}<span className="pulse-cell-meta">{u.login}</span></span></Link></div> },
                 { title: 'Роли и группы', width: '23%', render: (_, u) => <>{u.roles?.map(r => r.name).join(', ') || 'Роли не назначены'}<span className="pulse-cell-meta">{u.groups?.map(g => `Группа «${g.name}»`).join(', ') || (u.direct_roles?.length ? 'Назначены напрямую' : '')}</span></> },
                 { title: 'Подразделение', width: '23%', render: (_, u) => organizationLabel(u.organization_scope, u.legacy_scope) },
                 { title: 'Статус', width: '12%', render: (_, u) => u.active ? 'Активен' : 'Отключён' },
-                { title: 'Действие', render: (_, u) => <Button type="link" onClick={() => open(u.access_id!)}>Настроить</Button> }
+                { title: 'Действие', render: (_, u) => can('users.update') ? <Button type="link" onClick={() => open(u.access_id!)}>Настроить</Button> : null }
             ]}/></div>
- <div className="access-mobile">{page.data?.items.map(u => <div key={u.access_id}><Card><strong>{u.name}</strong><p>{organizationLabel(u.organization_scope, u.legacy_scope)}<br />{u.active ? 'Активен' : 'Отключён'} · {u.roles?.map(r => r.name).join(', ') || 'Нет ролей'}<br />{u.groups?.map(g => `Группа «${g.name}»`).join(', ')}</p></Card><Button block onClick={() => open(u.access_id!)}>Настроить пользователя</Button></div>)}</div><PageControls page={page}/></>}
+ <div className="access-mobile">{page.data?.items.map(u => <div key={u.access_id}><Card><strong><Link className="employee-name-link" to={`/people/${encodeURIComponent(u.access_id!)}`}>{u.name}</Link></strong><p>{organizationLabel(u.organization_scope, u.legacy_scope)}<br />{u.active ? 'Активен' : 'Отключён'} · {u.roles?.map(r => r.name).join(', ') || 'Нет ролей'}<br />{u.groups?.map(g => `Группа «${g.name}»`).join(', ')}</p></Card>{can('users.update') && <Button block onClick={() => open(u.access_id!)}>Настроить пользователя</Button>}</div>)}</div><PageControls page={page}/></>}
  </Card></ListFrame>;
 }
 /** Paginated selectors preserve selected values absent from the currently searched page. */

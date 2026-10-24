@@ -14,6 +14,7 @@ const MONITORING = [
   { key: '/ml-risk', icon: <AlertOutlined />, label: <Link to="/ml-risk">Тревоги</Link>, title: 'Тревоги' },
 ];
 const TOOLS = [
+  { key: '/people', icon: <UserOutlined />, label: <Link to="/people">Сотрудники</Link>, title: 'Сотрудники' },
   { key: '/upload-check', icon: <FileSearchOutlined />, label: <Link to="/upload-check">Проверка файла</Link>, title: 'Проверка файла' },
   { key: '/audit', icon: <HistoryOutlined />, label: <Link to="/audit">Журнал</Link>, title: 'Журнал действий' },
   { key: '/integrations', icon: <ApiOutlined />, label: <Link to="/integrations">Интеграции</Link>, title: 'Источники данных' },

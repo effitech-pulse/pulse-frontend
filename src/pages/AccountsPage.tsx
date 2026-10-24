@@ -2,12 +2,12 @@ import { Alert, App, Button, Drawer, Skeleton, Space } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { useBlocker, useSearchParams } from 'react-router-dom';
+import { useBlocker, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { managementApi, type Account, type AccessChange, type AccessPreviewResponse, type GroupChange, type RoleChange, type UserChange } from '@/api/access';
 import { useAuth } from '@/auth/AuthProvider';
 import { toApiError } from '@/api/client';
-import { acceptPreview, applyReceipt, createDraft, previewTicket, rejectApply, updateDraft, userChange, validateUserChange, AccessFieldError, blockAccessNavigation, type AccessDraft } from '@/lib/accessDraft';
+import { acceptPreview, applyReceipt, createDraft, previewTicket, rejectApply, updateDraft, userChange, validateUserChange, AccessFieldError, blockAccessNavigation, type AccessDraft, userEditorLocation, sessionEffectMessage, serverUserFieldError, focusRouteHeading } from '@/lib/accessDraft';
 import { UsersPanel, AccessError } from '@/components/access/UsersPanel';
 import { GroupsPanel } from '@/components/access/GroupsPanel';
 import { RolesPanel } from '@/components/access/RolesPanel';
@@ -23,7 +23,8 @@ const tabs: {
     label: string;
     permission: 'users.read' | 'groups.read' | 'roles.read';
 }[] = [{ key: 'users', label: 'Пользователи', permission: 'users.read' }, { key: 'groups', label: 'Группы пользователей', permission: 'groups.read' }, { key: 'roles', label: 'Роли', permission: 'roles.read' }];
-export function AccountsPage() {
+export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
+    const navigate = useNavigate();
     const auth = useAuth();
     const { can, principal, privateEpoch, capturePrivate, refreshSession } = auth;
     const client = useQueryClient();
@@ -43,6 +44,9 @@ export function AccountsPage() {
     const [error, setError] = useState<unknown>();
     const [forbidden, setForbidden] = useState(false);
     const [uncertain, setUncertain] = useState(false);
+    const [readback, setReadback] = useState<Account | null>();
+    const [readingBack, setReadingBack] = useState(false);
+    const [loadVersion,setLoadVersion] = useState(0);
     const [previewMode, setPreviewMode] = useState(false);
     const [previewSearch, setPreviewSearch] = useState('');
     const [previewPage, setPreviewPage] = useState<AccessPreviewResponse | null>(null);
@@ -58,6 +62,7 @@ export function AccountsPage() {
     const observedGraph = useRef(principal?.graph_revision);
     const opener = useRef<HTMLElement | null>(null);
     const errorRef = useRef<HTMLDivElement>(null);
+    const focusedRoute=useRef<string>();
     const blocker = useBlocker(({ currentLocation, nextLocation }) => { if (bypassNavigation.current) {
         bypassNavigation.current = false;
         return false;
@@ -77,6 +82,7 @@ export function AccountsPage() {
             onCancel: () => { blockingModal.current = false; blocker.reset(); },
         });
     }, [blocker, modal, busy, message]);
+    useEffect(() => { const guard = (event: BeforeUnloadEvent) => { if (blockAccessNavigation(draftRef.current?.dirty === true || !!password,busy)) {event.preventDefault();event.returnValue='';} }; window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard); },[busy,password]);
     const catalog = useQuery({ queryKey: ['access', 'permissions', privateEpoch], queryFn: managementApi.permissions, enabled: modern && available.length > 0, retry: false });
     useEffect(() => { if (modern && tab && params.get('tab') !== tab) {
         const p = new URLSearchParams(params);
@@ -111,15 +117,19 @@ export function AccountsPage() {
             setError(new Error('Граф доступа изменился. Обновите предпросмотр.'));
         }
     }, [principal?.graph_revision]);
-    const entity = params.get('entity');
-    const entityID = params.get('id');
+    const entity = userEditorID ? 'users' : params.get('entity');
+    const entityID = userEditorID ?? params.get('id');
+    useEffect(() => { if(userEditorID && modern) focusedRoute.current=focusRouteHeading(`user:${entityID}`,document.getElementById('user-page-heading'),focusedRoute.current); },[userEditorID,entityID,modern]);
+    useEffect(() => { if (!userEditorID && entity === 'users' && entityID) navigate(userEditorLocation(entityID === 'new' ? null : entityID, params), {replace:true}); }, [userEditorID,entity,entityID,navigate]);
     useEffect(() => {
-        if (entity === 'roles' && previewMode) document.getElementById('role-page-heading')?.focus();
+        if ((entity === 'roles' || userEditorID) && previewMode) document.getElementById(userEditorID ? 'user-page-heading' : 'role-page-heading')?.focus();
     }, [entity, previewMode]);
     useEffect(() => {
         clearTimeout(searchTimer.current);
         setBusy(false);
+        setReadingBack(false);
         setRoleRows(null);
+        if(entity === 'users' && !userEditorID) {sequence.current++;setDraft(null);setPassword('');setLoading(true);return;}
         if (!modern || !entity) {
             sequence.current++;
             setDraft(null);
@@ -145,6 +155,7 @@ export function AccountsPage() {
         setError(undefined);
         setForbidden(false);
         setUncertain(false);
+        setReadback(undefined);
         setPassword('');
         setPreviewMode(false);
         setPreviewPage(null);
@@ -158,7 +169,7 @@ export function AccountsPage() {
                     if (entityID === 'new') {
                         if (!can('users.create'))
                             throw new Error('Создание пользователя недоступно');
-                        change = { user: { id: null, revision: '0', name: '', login: '', active: true, role_ids: [], group_ids: [], reset_password: true } };
+                        change = { user: { id: null, revision: '0', name: '', login: '', active: true, role_ids: [], group_ids: [], reset_password: true, profile: {revision:'0',job_title:null,workplace:{organization:null,division:null,department:null},manager_id:null} } };
                     }
                     else {
                         const u = await managementApi.user(entityID!);
@@ -191,12 +202,12 @@ export function AccountsPage() {
             }
         }
         void load();
-    }, [entity, entityID, params.get('copy'), privateEpoch, modern]);
+    }, [entity, entityID, params.get('copy'), privateEpoch, modern, loadVersion]);
     useEffect(() => {
         if (draft?.change.role && catalog.data && roleRows === null)
             setRoleRows(createPrivileges(draft.change.role.permission_keys, catalog.data, principal?.permission_keys ?? []));
     }, [draft?.change.role, catalog.data, roleRows, principal?.permission_keys]);
-    function open(kind: Tab, id: string | null, copy = false) { opener.current = document.activeElement as HTMLElement; const p = new URLSearchParams(params); p.set('tab', kind); p.set('entity', kind); p.set('id', id ?? 'new'); if (copy)
+    function open(kind: Tab, id: string | null, copy = false) { if (kind === 'users') { navigate(userEditorLocation(id,params)); return; } opener.current = document.activeElement as HTMLElement; const p = new URLSearchParams(params); p.set('tab', kind); p.set('entity', kind); p.set('id', id ?? 'new'); if (copy)
         p.set('copy', '1');
     else
         p.delete('copy'); setParams(p); }
@@ -208,7 +219,7 @@ export function AccountsPage() {
         setPassword(''); setDraft(null); setRoleRows(null); setPreviewPage(null);
         const next = new URLSearchParams(params);
         next.delete('entity'); next.delete('id'); next.delete('copy');
-        setParams(next);
+        if(userEditorID) {next.set('tab','users');navigate(`/system/access?${next}`);} else setParams(next);
         setTimeout(() => {
             if (opener.current?.isConnected) opener.current.focus();
             else if (roleExit) document.querySelector<HTMLInputElement>('#access-panel-roles input')?.focus();
@@ -230,6 +241,41 @@ export function AccountsPage() {
     }
     function groupPatch(patch: Partial<GroupChange>) { if (draft?.change.group)
         edit({ group: { ...draft.change.group, ...patch } }); }
+    async function readSavedUser() {
+        const current=draftRef.current?.change.user;
+        if(!current || busy || readingBack) return;
+        const ticket=capturePrivate(); const n=sequence.current;
+        setReadingBack(true);
+        try {
+            let id=current.id;
+            if(id===null){
+                let cursor: string | undefined; let graph: string | undefined;
+                do { const page=await managementApi.users({search:current.login,limit:100,cursor,graph_revision:graph});
+                    if(!ticket.current()||n!==sequence.current)return;
+                    id=page.items.find(u=>u.login===current.login)?.access_id??null;
+                    graph=page.graph_revision;cursor=page.next_cursor??undefined;
+                } while(id===null&&cursor);
+            }
+            const saved=id===null?null:await managementApi.user(id);
+            if(ticket.current()&&n===sequence.current)setReadback(saved);
+        }catch(e){if(ticket.current()&&n===sequence.current){setError(e);if(axios.isAxiosError(e)&&e.response?.status===403){setForbidden(true);setDraft(null);setPassword('');setReadback(undefined);}}}
+        finally{if(ticket.current()&&n===sequence.current)setReadingBack(false);}
+    }
+    function loadSavedUser() {
+        if(!readback?.access_id)return;
+        const id=readback.access_id;
+        const ticket=capturePrivate();
+        modal.confirm({rootClassName:'access-confirm-modal',title:'Загрузить серверную версию?',content:'Черновик и введённый пароль будут очищены. Пароль нельзя проверить перечитыванием; при необходимости задайте новый явно.',okText:'Загрузить',cancelText:'Сохранить черновик',onOk:()=>{
+            if(!ticket.current())return;
+            setPassword('');
+            if(entityID===id)setLoadVersion(v=>v+1);
+            else {bypassNavigation.current=true;navigate(userEditorLocation(id,params),{replace:true});}
+        }});
+    }
+    function restartUnconfirmedCreate() {
+        const ticket=capturePrivate();
+        modal.confirm({rootClassName:'access-confirm-modal',title:'Начать новую операцию создания?',content:'На момент чтения запись с этим логином не найдена. Черновик сохранится, введённый пароль будет очищен. Новую запись нужно проверить и подтвердить отдельно.',okText:'Начать новую операцию',cancelText:'Сохранить текущий черновик',onOk:()=>{if(!ticket.current())return;setPassword('');setUncertain(false);setReadback(undefined);setPreviewMode(false);setError(undefined);}});
+    }
     const writable = draft?.change.user ? can(draft.change.user.id === null ? 'users.create' : 'users.update') : draft?.change.role ? can('roles.manage', 'access.manage_global') : draft?.change.group ? can('groups.manage', 'access.manage_global') : false;
     async function preview(search = '', cursor?: string, history: string[] = [],filter=false) {
         const current = draftRef.current;
@@ -262,7 +308,9 @@ export function AccountsPage() {
         }
         catch (e) {
             if (ticket.current() && n === sequence.current) {
-                setError(e);
+                const fieldError=axios.isAxiosError(e)?serverUserFieldError(e.response?.status??0,e.response?.data,draftRef.current?.change.user):null;
+                setError(fieldError??e);
+                if(fieldError)setPreviewMode(false);
                 if (axios.isAxiosError(e) && e.response?.status === 403) {
                     setForbidden(true);
                     setDraft(null);
@@ -286,13 +334,15 @@ export function AccountsPage() {
         if (result.user)
             client.setQueryData(['access', 'committed-user', result.user.access_id], result.user);
         closeNow();
-        message.success('Изменения сохранены. Затронутые сеансы завершены.');
-        await client.invalidateQueries({ queryKey: ['access'] });
+        message.success(`Изменения сохранены. ${sessionEffectMessage(result.session_effect)}`);
+        await Promise.all([client.invalidateQueries({ queryKey: ['access'] }), client.invalidateQueries({ queryKey: ['people'] })]);
         await refreshSession();
     }
     catch (e) {
         if (ticket.current() && n === sequence.current) {
-            setError(e);
+            const fieldError=axios.isAxiosError(e)?serverUserFieldError(e.response?.status??0,e.response?.data,draftRef.current?.change.user):null;
+            setError(fieldError??e);
+            if(fieldError)setPreviewMode(false);
             const status = axios.isAxiosError(e) ? e.response?.status ?? 0 : 0;
             setDraft(d => d ? rejectApply(d, status) : d);
             if (status === 403) {
@@ -314,7 +364,7 @@ export function AccountsPage() {
     if (!modern)
         return <Alert type="info" message="Управление доступом пока недоступно" description="Для постоянных ролей и групп требуется включённая серверная модель доступа. Прежний режим не поддерживает этот редактор."/>;
     const rolePage = entity === 'roles';
-    const backToEditor = () => { setPreviewMode(false); setPreviewPage(null); if (rolePage) setTimeout(() => document.getElementById('access-field-name')?.focus(), 0); };
+    const backToEditor = () => { setPreviewMode(false); setPreviewPage(null); if (rolePage || userEditorID) setTimeout(() => document.getElementById('access-field-name')?.focus(), 0); };
     const actions = <Space wrap className="access-editor-actions">
         {!forbidden && draft && writable && !uncertain && (previewMode ? <>
             <Button aria-label={rolePage ? 'Сохранить роль' : 'Применить изменения'} type="primary" loading={busy ? { icon: <LoadingOutlined aria-hidden="true" /> } : false} aria-busy={busy} disabled={!draft.preview || draft.conflict} onClick={() => void apply()}>{rolePage ? 'Сохранить роль' : 'Применить изменения'}</Button>
@@ -326,14 +376,27 @@ export function AccountsPage() {
                 if (draft.change.group) groupPatch({ delete: !draft.change.group.delete });
             }}>{(draft.change.role ?? draft.change.group)?.delete ? 'Отменить удаление' : 'Удалить'}</Button>}
         </>)}
-        {(!rolePage || !previewMode) && <Button disabled={busy} onClick={close}>Отмена</Button>}
+        {(!(rolePage || userEditorID) || !previewMode) && <Button disabled={busy} onClick={close}>Отмена</Button>}
     </Space>;
-    const errorBlock = error != null && <div ref={errorRef} tabIndex={-1}><Alert type="error" message={forbidden ? 'Доступ к сведениям закрыт' : error instanceof AccessFieldError || error instanceof RoleFormError ? error.message : toApiError(error).message} description={draft?.conflict ? 'Черновик сохранён. Данные изменились. Проверьте последствия повторно.' : uncertain ? 'Результат записи неизвестен. Закройте карточку и перечитайте данные перед дальнейшей записью.' : undefined} action={draft?.conflict ? <Button disabled={busy} onClick={() => void preview()}>Обновить предпросмотр</Button> : undefined} /></div>;
+    const errorBlock = error != null && <div ref={errorRef} tabIndex={-1}><Alert type="error" message={forbidden ? 'Доступ к сведениям закрыт' : error instanceof AccessFieldError ? <a href={`#access-field-${error.field}`} onClick={event=>{event.preventDefault();document.getElementById(`access-field-${error.field}`)?.focus();}}>{error.message}</a> : error instanceof RoleFormError ? error.message : toApiError(error).message === 'profile_revision_conflict' ? 'Профиль изменён другим пользователем. Перечитайте серверную версию.' : toApiError(error).message} description={draft?.conflict ? 'Черновик сохранён. Данные изменились. Перечитайте серверную версию или проверьте последствия повторно.' : uncertain ? 'Результат записи неизвестен. Сначала перечитайте сохранённые данные. Пароль нельзя проверить таким чтением; прежняя запись автоматически не повторяется.' : undefined} action={draft?.conflict ? <Button disabled={busy} onClick={() => void preview()}>Обновить предпросмотр</Button> : undefined} /></div>;
     const previewBody = <AccessPreview preview={previewPage} loading={busy} search={previewSearch} onSearch={search => { setPreviewSearch(search); clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => void preview(search, undefined, [], true), 300); }} onNext={() => {
         if (previewPage?.next_cursor) void preview(previewSearch, previewPage.next_cursor, [...previewHistory, previewPage.next_cursor], true);
     }} onBack={() => { const history = previewHistory.slice(0, -1); void preview(previewSearch, history.at(-1), history, true); }} hasBack={previewHistory.length > 0} catalog={catalog.data ?? []} userChange={!!draft?.change.user} />;
     const catalogError = catalog.isError && <AccessError error={catalog.error} retry={() => void catalog.refetch()} />;
     const deletionWarning = (draft?.change.role ?? draft?.change.group)?.delete && <Alert type="warning" message="Выбрано удаление. Сервер проверит зависимые назначения." />;
+    if(entity === 'users' && !userEditorID) return <Skeleton active/>;
+    if (userEditorID) return <div className="pulse-stack pulse-system-page access-page user-page">
+        <Button type="text" className="user-back" disabled={busy} onClick={previewMode ? backToEditor : close}>{previewMode ? 'К редактированию' : 'К управлению доступом'}</Button>
+        <div className="pulse-page-heading"><h1 id="user-page-heading" tabIndex={-1}>{previewMode ? 'Проверка изменений пользователя' : entityID === 'new' ? 'Новый пользователь' : 'Редактирование пользователя'}</h1><p>{account?.name ?? 'Сведения о сотруднике, учётная запись и права доступа.'}</p></div>
+        {errorBlock}{catalogError}
+        {(uncertain || draft?.conflict) && <div className="employee-panel access-form"><Button loading={readingBack} disabled={busy} onClick={()=>void readSavedUser()}>Перечитать сохранённые данные</Button>
+        {readback !== undefined && <><h2>Сейчас на сервере</h2>{readback?<><p>{readback.name} · {readback.active?'Учётная запись активна':'Учётная запись отключена'}</p><p>{readback.profile?.job_title??'Должность не указана'}</p><p>{readback.profile?[readback.profile.workplace.organization,readback.profile.workplace.division,readback.profile.workplace.department].filter(Boolean).join(' → ')||'Место работы не указано':'Профиль не поддерживается'}</p><p>Руководитель: {readback.profile?.manager_id??'Не указан'}</p><p>Версия учётной записи: {readback.access_revision} · Профиля: {readback.profile?.revision??'недоступна'}</p></>:<p>Учётная запись с указанным логином не найдена.</p>}<p>Черновик сохранён. Пароль не доступен для сверки.</p>{readback?<Button onClick={loadSavedUser}>Загрузить серверную версию</Button>:draft?.change.user?.id===null?<Button onClick={restartUnconfirmedCreate}>Начать новую операцию создания</Button>:null}</>}
+        </div>}
+        {loading ? <Skeleton active/> : draft?.change.user && !forbidden ? previewMode ? <div className="employee-panel access-form">{previewBody}{actions}</div> : <>
+            <UserAccessDrawer value={draft.change.user} account={account} password={password} onPassword={value => {setPassword(value); userPatch({reset_password:!!value || draft.change.user!.id===null});}} onChange={userPatch} onDepartmentPending={setDepartmentPending} onClose={close} fieldError={error instanceof AccessFieldError ? error : undefined} catalog={catalog.data??[]} disabled={busy || !writable || catalog.isError}/>
+            <p>Проверьте изменения перед применением. Предпросмотр покажет сведения, назначения, область скважин и влияние на сеансы.</p>{actions}
+        </> : null}
+    </div>;
     if (rolePage) return <div className="pulse-stack pulse-system-page access-page role-page">
         <Button className="role-back" type="text" disabled={busy} onClick={previewMode ? backToEditor : close}>{previewMode ? 'К редактированию' : 'К списку ролей'}</Button>
         <h1 id="role-page-heading" tabIndex={-1}>{previewMode ? 'Проверка роли' : entityID === 'new' || params.get('copy') === '1' ? 'Создание роли' : 'Редактирование роли'}</h1>

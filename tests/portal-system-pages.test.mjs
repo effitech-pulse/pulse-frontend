@@ -70,3 +70,53 @@ test('profile uses actual modern role/group summaries including empty groups and
  assert.deepEqual(profileAccessSummary({access_model:'rbac_v1',role:'admin',roles:[],groups:[]}),{label:'Роли',roles:'Роли не назначены',groups:'Группы не назначены'});
  assert.deepEqual(profileAccessSummary({access_model:'legacy',role:'viewer'}),{label:'Роль',roles:'Наблюдатель',groups:null});
 });
+test('users management list sends name links to safe profiles and keeps configure action separate',()=>{
+ const html=usersHtml();
+ assert.match(html,/href="\/people\/11"/);
+ assert.match(html,/Настроить/);
+});
+test('profile-only preview uses server none effect and renders metadata even without authority impacts',()=>{
+ const {AccessPreview}=load('../src/components/access/AccessPreview.tsx',{'@/lib/accessDraft':accessDraft,'./UsersPanel':{organizationLabel:()=>''}});
+ const p={revision:'2',job_title:'Ведущий технолог',workplace:{organization:null,division:'Производство',department:'Цех 2'},manager_id:null};
+ const preview={graph_revision:'7',actor_epoch:'1',fingerprint:'p',assigned_users:0,changed_users:0,disabled_users:0,self_affected:false,next_cursor:null,items:[],session_effect:'none',profile_change:{before:null,after:{name:'Коллега',profile:p}}};
+ const html=render(AccessPreview,client(),{preview,search:'',onSearch:()=>{},loading:false,onNext:()=>{},onBack:()=>{},hasBack:false,catalog:[],userChange:true});
+ assert.match(html,/Ведущий технолог/);assert.match(html,/Производство/);assert.match(html,/Цех 2/);
+ assert.doesNotMatch(html,/потребуется войти снова|завершат затронутые/iu);
+});
+const directoryAuth=(patch={})=>({mode:'local',principal:{authenticated:true,mechanism:'session',account_id:23,access_id:'23',access_model:'rbac_v1',permission_keys:[],role:'viewer',...patch},privateEpoch:0,privateBlocked:false});
+const colleague={id:'23',name:'Безопасный коллега',active:false,job_title:'Инженер',workplace:{organization:null,division:'Производство',department:'Диагностика'},manager:{id:'24',name:'Руководитель',job_title:null,active:false},login:'PRIVATE_LOGIN',scope:{ngdus:[777]},last_login:'PRIVATE_LAST_LOGIN',permission_keys:['users.update']};
+function profileHtml(auth=directoryAuth()){
+ const {EmployeeProfilePage}=load('../src/pages/EmployeeProfilePage.tsx',{
+  '@/api/people':{peopleApi:{get:()=>{throw new Error('unexpected network');}}},
+  '@/auth/AuthProvider':{useAuth:()=>auth},'@/components/access/UsersPanel':{AccessError:()=>null},
+  'react-router-dom':{...require('react-router-dom'),useParams:()=>({id:'23'})},
+ });
+ const cache=client();cache.setQueryData(['people','profile',0,'23'],colleague);return render(EmployeeProfilePage,cache);
+}
+test('zero permission colleague profile renders only safe fields and honest inactive manager status',()=>{
+ const html=profileHtml();assert.match(html,/Безопасный коллега/);assert.match(html,/Производство/);assert.match(html,/Диагностика/);assert.match(html,/href="\/people\/24"/);assert.match(html,/Учётная запись руководителя отключена/);
+ assert.doesNotMatch(html,/PRIVATE_LOGIN|PRIVATE_LAST_LOGIN|users.update|777|Настроить|Редактировать/);
+});
+test('anonymous and shared-key directory never reveal cached private colleague profile',()=>{
+ for(const patch of [{authenticated:false},{mechanism:'legacy',account_id:null}]){const html=profileHtml(directoryAuth(patch));assert.doesNotMatch(html,/Безопасный коллега|Производство|Диагностика/);assert.match(html,/входа/);}
+});
+test('safe directory zero-permission list uses safe profile links without administrative fields',()=>{
+ const {PeoplePage}=load('../src/pages/PeoplePage.tsx',{'@/api/people':{peopleApi:{list:()=>{throw Error('Unexpected network');}}},'@/auth/AuthProvider':{useAuth:()=>directoryAuth()},'@/components/access/UsersPanel':{AccessError:()=>null}});
+ const cache=client();cache.setQueryData(['people','list',0,'',false,undefined],{items:[colleague],next_cursor:null});const html=render(PeoplePage,cache);
+ assert.match(html,/href="\/people\/23"/);assert.match(html,/Безопасный коллега/);assert.doesNotMatch(html,/PRIVATE_LOGIN|PRIVATE_LAST_LOGIN|users.update|777|Настроить/);
+});
+
+test('employee profile back navigation is a single semantic link across its whole button-sized target',()=>{
+ const html=profileHtml();
+ assert.doesNotMatch(html,/<button[^>]*user-back/);
+ assert.match(html,/<a[^>]*class="[^"]*user-back[^"]*"[^>]*href="\/people"[^>]*>К сотрудникам<\/a>/);
+});
+test('mobile directory preserves safe manager name, link and inactive status',()=>{
+ const {PeoplePage}=load('../src/pages/PeoplePage.tsx',{'@/api/people':{peopleApi:{list:()=>{throw Error('Unexpected network');}}},'@/auth/AuthProvider':{useAuth:()=>directoryAuth()},'@/components/access/UsersPanel':{AccessError:()=>null}});
+ for(const manager of [colleague.manager,null]){
+ const cache=client();cache.setQueryData(['people','list',0,'',false,undefined],{items:[{...colleague,manager}],next_cursor:null});const html=render(PeoplePage,cache);const mobile=html.slice(html.indexOf('<div class="access-mobile">'),html.indexOf('access-paging'));
+ assert.match(mobile,/Руководитель/);
+ if(manager){assert.match(mobile,/href="\/people\/24"/);assert.match(mobile,/Учётная запись руководителя отключена/);}else assert.match(mobile,/Не указан/);
+ assert.doesNotMatch(mobile,/PRIVATE_LOGIN|PRIVATE_LAST_LOGIN|users.update|777/);
+ }
+});

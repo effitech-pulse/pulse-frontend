@@ -166,3 +166,45 @@
 .role-privilege-controls > .ant-btn {white-space:nowrap;padding-inline:8px;}
 .role-action-tag {line-height:20px;height:28px;}
 .role-privilege-controls .ant-select-multiple .ant-select-selection-overflow-item {line-height:28px;align-self:center;}
+
+/* Employee source976:3547/3667/3895: existing shell and 960px flat panels. */
+.user-page,.employee-profile-page {gap:20px;min-width:0;}
+.user-page h1,.employee-profile-page h1 {margin:0;font-size:28px;line-height:40px;font-weight:500;}
+.user-back {align-self:flex-start;min-width:180px;}
+.employee-panel {box-sizing:border-box;width:100%;max-width:960px;padding:20px;background:var(--pulse-surface);border:1px solid var(--pulse-border);border-radius:4px;min-width:0;}
+.employee-panel label,.employee-panel > .access-assignment {width:100%;max-width:560px;}
+.employee-panel h2,.employee-panel p {margin:0;}
+.employee-panel .access-note,.user-page .access-note {color:var(--pulse-ink);}
+.employee-panel dl,.profile-preview dl {margin:0;display:flex;flex-direction:column;gap:16px;}
+.employee-panel dl > div,.profile-preview dl > div {display:flex;flex-direction:column;gap:6px;min-width:0;}
+.employee-panel dt,.profile-preview dt {font-size:13px;line-height:20px;}
+.employee-panel dd,.profile-preview dd {margin:0;padding:12px;min-height:44px;box-sizing:border-box;overflow-wrap:anywhere;}
+.user-page > p,.user-page > .access-editor-actions {max-width:960px;}
+.user-page .access-editor-actions .ant-btn-primary {min-width:230px;}
+.profile-preview {display:flex;flex-direction:column;gap:16px;}
+.profile-preview > div {padding:16px;border:1px solid var(--pulse-border);border-radius:4px;}
+.people-page .access-toolbar > .ant-checkbox-wrapper {display:flex;flex-direction:row;align-items:center;align-self:flex-end;gap:8px;min-height:44px;flex:0 1 auto;}
+.people-page .ant-table-cell {overflow-wrap:anywhere;}
+@media(max-width:600px){
+ .employee-panel {padding:20px;}
+ .user-page .access-editor-actions {display:flex;flex-direction:column;align-items:stretch;width:100%;}
+ .user-page .access-editor-actions .ant-space-item,.user-page .access-editor-actions .ant-btn {width:100%;min-width:0;}
+ .user-page .ant-space {max-width:100%;}
+ .employee-panel .ant-space-item {max-width:100%;}
+ .employee-panel .ant-btn {white-space:normal;height:auto;min-height:44px;}
+}
+.employee-name-link {display:inline-flex;align-items:center;min-height:44px;overflow-wrap:anywhere;}
+.employee-profile-page section > .employee-name-link {align-self:flex-start;padding-inline:16px;}
+.employee-name-link:focus-visible {outline:2px solid var(--pulse-blue);outline-offset:2px;}
+
+.employee-back-link {display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;padding:0 16px;color:var(--pulse-ink);border-radius:4px;text-decoration:none;font-size:13px;line-height:20px;}
+.employee-back-link:hover {color:var(--pulse-blue);background:var(--pulse-selected);}
+.employee-back-link:focus-visible {outline:2px solid var(--pulse-blue);outline-offset:2px;}
+.people-page .employee-mobile-manager p {margin:8px 0 0;}
+@media(max-width:600px){.people-page .access-toolbar > .ant-checkbox-wrapper {align-self:stretch;}}
+/* Confirmed 320px long-content case: keep every safe profile value readable. */
+.employee-profile-page,.people-page .access-mobile {overflow-wrap:anywhere;}
+.employee-profile-page .pulse-page-heading,.employee-profile-page .employee-panel,
+.people-page .access-mobile .ant-card,.people-page .access-mobile .ant-card-body {min-width:0;max-width:100%;}
+.employee-profile-page .employee-name-link,.people-page .access-mobile .employee-name-link {min-width:0;max-width:100%;white-space:normal;}
+.people-page .access-mobile .ant-card-body {padding:16px;}
