@@ -74,8 +74,8 @@ RBAC editor или backend enforcement.
 | Группы · 1440×1024 | [880:1645](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1645) | [890:3595](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-3595) |
 | Роли · 1440×1024 | [880:1788](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1788) | [890:3752](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-3752) |
 | Пользователь / перевод · 600×1418 | [880:1931](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1931) | [890:3919](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-3919) |
-| Редактор роли · 760×1098 | [880:1932](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1932) | [890:4002](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4002) |
-| Редактор группы · 760×1183 | [880:1933](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1933) | [890:4064](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4064) |
+| Редактор роли · актуальный 24.10 · 1440×1024 | [923:2520](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=923-2520) | [927:5116](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=927-5116) |
+| Редактор группы · актуальный 24.10 · 760×1063 | [923:2722](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=923-2722) | [927:5598](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=927-5598) |
 | Предпросмотр · 960×977 | [880:1934](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1934) | [890:4152](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4152) |
 | Состояния и правила · 1440×1427 | [880:1935](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1935) | [890:4227](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4227) |
 | Пользователи · 390×976 | [880:1936](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=880-1936) | [890:4293](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=890-4293) |
