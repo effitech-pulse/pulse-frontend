@@ -1,3 +1,5 @@
+import {createEmptyTableQuery,type TableQuery} from '@/lib/tableQuery';
+import {tablePageParams} from '@/lib/tableTransport';
 import { Alert, App, Button, Drawer, Skeleton, Space } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,7 +9,7 @@ import axios from 'axios';
 import { managementApi, type Account, type AccessChange, type AccessPreviewResponse, type GroupChange, type RoleChange, type UserChange } from '@/api/access';
 import { useAuth } from '@/auth/AuthProvider';
 import { toApiError } from '@/api/client';
-import { acceptPreview, applyReceipt, createDraft, previewTicket, rejectApply, updateDraft, userChange, validateUserChange, AccessFieldError, blockAccessNavigation, type AccessDraft, userEditorLocation, sessionEffectMessage, serverUserFieldError, focusRouteHeading } from '@/lib/accessDraft';
+import { acceptPreview, applyReceipt, createDraft, previewTicket, rejectApply, updateDraft, userChange, validateUserChange, AccessFieldError, blockAccessNavigation, blockAccessLocationNavigation, type AccessDraft, userEditorLocation, sessionEffectMessage, serverUserFieldError, focusRouteHeading } from '@/lib/accessDraft';
 import { UsersPanel, AccessError } from '@/components/access/UsersPanel';
 import { GroupsPanel } from '@/components/access/GroupsPanel';
 import { RolesPanel } from '@/components/access/RolesPanel';
@@ -47,8 +49,11 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
     const [readback, setReadback] = useState<Account | null>();
     const [readingBack, setReadingBack] = useState(false);
     const [loadVersion,setLoadVersion] = useState(0);
+    const previewAbort=useRef<AbortController>();
+    useEffect(()=>()=>previewAbort.current?.abort(),[]);
     const [previewMode, setPreviewMode] = useState(false);
     const [previewSearch, setPreviewSearch] = useState('');
+    const [previewQuery,setPreviewQuery]=useState<TableQuery>(createEmptyTableQuery);
     const [previewPage, setPreviewPage] = useState<AccessPreviewResponse | null>(null);
     const [previewHistory, setPreviewHistory] = useState<string[]>([]);
     const [baselineReady, setBaselineReady] = useState(false);
@@ -66,7 +71,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
     const blocker = useBlocker(({ currentLocation, nextLocation }) => { if (bypassNavigation.current) {
         bypassNavigation.current = false;
         return false;
-    } return blockAccessNavigation(draftRef.current?.dirty === true,busy) && (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search); });
+    } return blockAccessLocationNavigation(draftRef.current?.dirty === true,busy,currentLocation,nextLocation,draftRef.current?.change.group?.id); });
     useEffect(() => {
         if (blocker.state !== 'blocked' || blockingModal.current) return;
         if (busy) {
@@ -277,13 +282,14 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
         modal.confirm({rootClassName:'access-confirm-modal',title:'Начать новую операцию создания?',content:'На момент чтения запись с этим логином не найдена. Черновик сохранится, введённый пароль будет очищен. Новую запись нужно проверить и подтвердить отдельно.',okText:'Начать новую операцию',cancelText:'Сохранить текущий черновик',onOk:()=>{if(!ticket.current())return;setPassword('');setUncertain(false);setReadback(undefined);setPreviewMode(false);setError(undefined);}});
     }
     const writable = draft?.change.user ? can(draft.change.user.id === null ? 'users.create' : 'users.update') : draft?.change.role ? can('roles.manage', 'access.manage_global') : draft?.change.group ? can('groups.manage', 'access.manage_global') : false;
-    async function preview(search = '', cursor?: string, history: string[] = [],filter=false) {
+    async function preview(search = '', cursor?: string, history: string[] = [],filter=false,tableQuery=previewQuery) {
         const current = draftRef.current;
         if (!current || applying.current || (busy&&!filter))
             return;
         const ticket = capturePrivate();
         const n = ++sequence.current;
         const dt = previewTicket(current);
+        previewAbort.current?.abort();const controller=new AbortController();previewAbort.current=controller;
         setBusy(true);
         setError(undefined);
         try {
@@ -297,7 +303,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
             }
             else if (!c.group?.name.trim())
                 throw new AccessFieldError('name','Введите название.');
-            const response = await managementApi.preview(current.change, { search, cursor, graph_revision: current.conflict ? undefined : current.preview?.graph_revision, limit: 25 });
+            const response = await managementApi.preview(current.change, { ...tablePageParams({query:tableQuery,cursor,pageSize:25}), graph_revision: current.conflict ? undefined : current.preview?.graph_revision },controller.signal);
             if (!ticket.current() || n !== sequence.current || dt.version !== draftRef.current?.version)
                 return;
             setDraft(d => d ? acceptPreview(d, response, dt, privateEpoch) : d);
@@ -307,6 +313,10 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
             setPreviewHistory(history);
         }
         catch (e) {
+            if(controller.signal.aborted)return;
+            if(filter&&cursor&&ticket.current()&&n===sequence.current&&axios.isAxiosError(e)&&e.response?.status===400&&e.response.data?.message==='invalid_table_cursor'){
+                setPreviewHistory([]);void preview('',undefined,[],true,tableQuery);return;
+            }
             if (ticket.current() && n === sequence.current) {
                 const fieldError=axios.isAxiosError(e)?serverUserFieldError(e.response?.status??0,e.response?.data,draftRef.current?.change.user):null;
                 setError(fieldError??e);
@@ -335,7 +345,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
             client.setQueryData(['access', 'committed-user', result.user.access_id], result.user);
         closeNow();
         message.success(`Изменения сохранены. ${sessionEffectMessage(result.session_effect)}`);
-        await Promise.all([client.invalidateQueries({ queryKey: ['access'] }), client.invalidateQueries({ queryKey: ['people'] })]);
+        await Promise.all([client.invalidateQueries({ queryKey: ['access'] }), client.invalidateQueries({ queryKey: ['people'] }),client.invalidateQueries({queryKey:['table']})]);
         await refreshSession();
     }
     catch (e) {
@@ -379,7 +389,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
         {(!(rolePage || userEditorID) || !previewMode) && <Button disabled={busy} onClick={close}>Отмена</Button>}
     </Space>;
     const errorBlock = error != null && <div ref={errorRef} tabIndex={-1}><Alert type="error" message={forbidden ? 'Доступ к сведениям закрыт' : error instanceof AccessFieldError ? <a href={`#access-field-${error.field}`} onClick={event=>{event.preventDefault();document.getElementById(`access-field-${error.field}`)?.focus();}}>{error.message}</a> : error instanceof RoleFormError ? error.message : toApiError(error).message === 'profile_revision_conflict' ? 'Профиль изменён другим пользователем. Перечитайте серверную версию.' : toApiError(error).message} description={draft?.conflict ? 'Черновик сохранён. Данные изменились. Перечитайте серверную версию или проверьте последствия повторно.' : uncertain ? 'Результат записи неизвестен. Сначала перечитайте сохранённые данные. Пароль нельзя проверить таким чтением; прежняя запись автоматически не повторяется.' : undefined} action={draft?.conflict ? <Button disabled={busy} onClick={() => void preview()}>Обновить предпросмотр</Button> : undefined} /></div>;
-    const previewBody = <AccessPreview preview={previewPage} loading={busy} search={previewSearch} onSearch={search => { setPreviewSearch(search); clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => void preview(search, undefined, [], true), 300); }} onNext={() => {
+    const previewBody = <AccessPreview query={previewQuery} onQueryChange={next=>{setPreviewQuery(next);void preview('',undefined,[],true,next);}} preview={previewPage} loading={busy} search={previewSearch} onSearch={search => { setPreviewSearch(search); clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => void preview(search, undefined, [], true), 300); }} onNext={() => {
         if (previewPage?.next_cursor) void preview(previewSearch, previewPage.next_cursor, [...previewHistory, previewPage.next_cursor], true);
     }} onBack={() => { const history = previewHistory.slice(0, -1); void preview(previewSearch, history.at(-1), history, true); }} hasBack={previewHistory.length > 0} catalog={catalog.data ?? []} userChange={!!draft?.change.user} />;
     const catalogError = catalog.isError && <AccessError error={catalog.error} retry={() => void catalog.refetch()} />;

@@ -1,6 +1,7 @@
+import {LocalEntityTable} from '@/components/common/LocalEntityTable';
 import {useAuth} from '@/auth/AuthProvider';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, App, Button, Card, Checkbox, DatePicker, Drawer, Dropdown, Empty, Modal, Radio, Segmented, Select, Slider, Space, Switch, Table, Tag, Typography } from 'antd';
+import { Alert, App, Button, Card, Checkbox, DatePicker, Drawer, Dropdown, Empty, Modal, Radio, Segmented, Select, Slider, Space, Switch, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckVerdict } from './ManualChecks';
@@ -27,7 +28,7 @@ export function TelemetryWorkspace({ wellId }: { wellId: string }) {
   const [zoom, setZoom] = useState<ZoomRange>([0, 1]); const [cursor, setCursor] = useState<number | null>(null);
   const [picker, setPicker] = useState(false); const [importOpen, setImportOpen] = useState(false); const [exportOpen, setExportOpen] = useState(false); const [format, setFormat] = useState<'csv' | 'xlsx' | 'parquet'>('csv'); const [busy, setBusy] = useState(false);
   const [liveMode, setLiveMode] = useState(false), [refreshSeconds, setRefreshSeconds] = useState(60);
-  const [settings, setSettings] = useState(false); const [quality, setQuality] = useState('all'); const [hidden, setHidden] = useState<string[]>([]);
+  const [settings, setSettings] = useState(false); const [hidden, setHidden] = useState<string[]>([]);
   const [score, setScore] = useState<ManualCheck | null>(null), [scoring, setScoring] = useState(false);
   const request = useRef<{period: string; id: string} | null>(null);
   const checking = useRef(false);
@@ -47,7 +48,7 @@ export function TelemetryWorkspace({ wellId }: { wellId: string }) {
       const saved = await integrationsApi.createCheck(wellId, start, end, request.current.id);
       if(!ticket.current())return;
       setScore(saved);
-      await client.invalidateQueries({queryKey:['manual-checks', wellId]});
+      await Promise.all([client.invalidateQueries({queryKey:['manual-checks', wellId]}),client.invalidateQueries({queryKey:['table',`manual-checks-${wellId}`]})]);
       try { sessionStorage.removeItem(key); } catch { /* запись уже сохранена на сервере */ }
       request.current = null;
       message.success('Проверка сохранена в истории скважины');
@@ -78,7 +79,7 @@ export function TelemetryWorkspace({ wellId }: { wellId: string }) {
     return ranges;
   }, [live, otherPoints, active.join(','), normalized]);
   function subset(ps: Measurement[]) { if (!ps.length) return []; const lo = Date.parse(ps[0].timestamp), span = Date.parse(ps[ps.length - 1].timestamp) - lo; return ps.filter(p => { const f = span ? (Date.parse(p.timestamp) - lo) / span : 0; return f >= zoom[0] && f <= zoom[1]; }); }
-  const visibleRows = subset(live).filter(p => quality === 'all' || active.some(k => p.values[k] == null));
+  const visibleRows = subset(live);
   const [displayA, displayB] = alignComparison(live, otherPoints, alignment, [[period[0].toISOString(), live.at(-1)?.timestamp ?? period[1].toISOString()], [compare[0].toISOString(), compare[1].toISOString()]]);
   const chart = (ps: Measurement[], keys = active, shared = false) => <TelemetryChart points={ps} selected={keys} normalized={view !== 'channels' && normalized} dual={normalization === 'dual' && units.length === 2} elapsed={view === 'compare' && alignment === 'elapsed'} zoom={zoom} onZoom={setZoom} cursor={cursor} onCursor={setCursor} sharedBounds={shared && commonAxes ? commonBounds : undefined} />;
   const periodControl = (value: typeof period, onChange: (v: typeof period) => void) => <RangePicker showTime format="DD.MM.YYYY HH:mm" value={value} allowClear={false} onChange={v => { if (v?.[0] && v[1]) { setLiveMode(false); onChange([v[0], v[1]]); } }} />;
@@ -96,8 +97,11 @@ export function TelemetryWorkspace({ wellId }: { wellId: string }) {
     <div className="pulse-toolbar"><Space wrap>{periodControl(period, setPeriod)}<Button onClick={() => setPicker(true)}>Параметры · {selected.length}</Button></Space><Typography.Text type="secondary">МСК{query.data?.resolution ? ` · ${query.data.resolution}` : ''}{query.isFetching ? ' · обновление…' : ''}</Typography.Text></div>
     {view !== 'channels' && normalized && <Typography.Text type="secondary">Изменение от первого валидного значения, %. Исходные значения — в подсказках и таблице.</Typography.Text>}
     <Space wrap>{selected.map((k, i) => <Button type="text" key={k} aria-pressed={!hidden.includes(k)} onClick={() => setHidden(v => v.includes(k) ? v.filter(x => x !== k) : [...v, k])} style={{ color: seriesColors[i % seriesColors.length], opacity: hidden.includes(k) ? .45 : 1 }}>━ {channels.find(c => c.key === k)?.label ?? k}</Button>)}</Space>
-    {!selected.length ? <Empty description="Выберите параметры для просмотра" /> : view === 'table' ? <Card title={`Измерения · ${visibleRows.length.toLocaleString('ru')} записей`} extra={<Select aria-label="Качество записей" value={quality} onChange={setQuality} options={[{ value: 'all', label: 'Все записи' }, { value: 'missing', label: 'С пропусками' }]} />}>
-      <Table<Measurement> rowKey={p => `${p.well_id}:${p.timestamp}`} loading={query.isLoading} scroll={{ x: 900 }} size="small" pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: [20, 50, 100] }} dataSource={visibleRows} columns={[{ title: 'Время, МСК', dataIndex: 'timestamp', fixed: 'left', width: 190, sorter: (a, b) => a.timestamp.localeCompare(b.timestamp), render: s => new Date(s).toLocaleString('ru', { timeZone: 'Europe/Moscow' }) }, ...active.map(k => ({ title: `${channels.find(c => c.key === k)?.label ?? k}, ${channels.find(c => c.key === k)?.unit ?? ''}`, render: (_: unknown, p: Measurement) => p.values[k]?.toLocaleString('ru', { maximumFractionDigits: 3 }) ?? '—' })), { title: 'Качество', render: (_, p) => active.some(k => p.values[k] == null) ? <Tag color="gold">Пропуски</Tag> : p.quality ?? 'Корректно' }]} />
+    {!selected.length ? <Empty description="Выберите параметры для просмотра" /> : view === 'table' ? <Card title={`Измерения · ${visibleRows.length.toLocaleString('ru')} записей`}>
+      <LocalEntityTable<Measurement> onRefresh={()=>void query.refetch()} refreshing={query.isFetching} refreshDisabled={!can('telemetry.read')} tableKey={`telemetry-${wellId}`} fields={[
+ {key:'timestamp',label:'Время, МСК',kind:'datetime',read:r=>r.timestamp},
+ ...active.map(k=>({key:k,label:`${channels.find(c=>c.key===k)?.label??k}, ${channels.find(c=>c.key===k)?.unit??''}`,kind:'number' as const,unit:channels.find(c=>c.key===k)?.unit,read:(r:Measurement)=>r.values[k]})),
+ {key:'quality',label:'Качество',kind:'enum',read:r=>active.some(k=>r.values[k]==null)?'missing':r.quality??'unknown',options:[{value:'missing',label:'Пропуски'},{value:'unknown',label:'Качество не передано'},...Array.from(new Set(live.map(r=>r.quality).filter((v):v is string=>!!v))).map(value=>({value,label:value}))]}]} defaultSort={[{field:'timestamp',direction:'asc'}]} rowKey={p => `${p.well_id}:${p.timestamp}`} loading={query.isLoading} scroll={{ x: 900 }} size="small" pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: [20, 50, 100] }} dataSource={visibleRows} columns={[{ title: 'Время, МСК', dataIndex: 'timestamp', fixed: 'left', width: 190, sorter: (a, b) => a.timestamp.localeCompare(b.timestamp), render: s => new Date(s).toLocaleString('ru', { timeZone: 'Europe/Moscow' }) }, ...active.map(k => ({ title: `${channels.find(c => c.key === k)?.label ?? k}, ${channels.find(c => c.key === k)?.unit ?? ''}`, render: (_: unknown, p: Measurement) => p.values[k]?.toLocaleString('ru', { maximumFractionDigits: 3 }) ?? '—' })), { title: 'Качество', render: (_, p) => active.some(k => p.values[k] == null) ? <Tag color="gold">Пропуски</Tag> : p.quality ?? 'Качество не передано' }]} />
     </Card> : view === 'compare' ? <>
       <Space wrap><Radio.Group value={alignment} onChange={e => setAlignment(e.target.value)} options={[{ label: 'От начала периода', value: 'elapsed' }, { label: 'По календарю', value: 'calendar' }]} optionType="button" /><Checkbox checked={commonAxes} onChange={e => setCommonAxes(e.target.checked)}>Общие шкалы</Checkbox></Space>
       <div className="pulse-two-columns"><Card title="Период A · исходный">{periodControl(period, setPeriod)}{chart(displayA, active, true)}</Card><Card title="Период B · сравнение">{periodControl(compare, setCompare)}{chart(displayB, active, true)}</Card></div>

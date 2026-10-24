@@ -150,3 +150,15 @@ export async function purgeEventAccess(client:import('@tanstack/react-query').Qu
  }
  await cancellation;
 }
+/** Старые event URL сохраняют [from,to), новые табличные интервалы включают обе границы. */
+export function legacyEventsTableQuery(params:URLSearchParams):import('./tableQuery.ts').TableQuery {
+ const legacy=new URLSearchParams(params);for(const key of [...legacy.keys()])if(key.startsWith('table.'))legacy.delete(key);
+ const old=parseEventFilters(legacy);
+ let inclusiveTo:string|undefined;
+ if(old.to){
+  const canonical=normalizeEventTimestamp(old.to),microseconds=BigInt(Date.parse(canonical.slice(0,19)+'Z'))*1000n+BigInt(canonical.slice(20,26))-1n;
+  let seconds=microseconds/1000000n,fraction=microseconds%1000000n;if(fraction<0){seconds--;fraction+=1000000n;}
+  inclusiveTo=new Date(Number(seconds*1000n)).toISOString().slice(0,19)+'.'+String(fraction).padStart(6,'0')+'Z';
+ }
+ return {version:1,sort:[],filters:[...(old.well_id?[{field:'well_id',op:'contains' as const,value:old.well_id}]:[]),...(old.archive&&old.archive!=='all'?[{field:'archive',op:'in' as const,values:[old.archive]}]:[]),...(old.types&&old.types.length<6?[{field:'event_type',op:'in' as const,values:[...old.types]}]:[]),...(old.from||inclusiveTo?[{field:'occurred_at',op:'range' as const,from:old.from,to:inclusiveTo}]:[])]};
+}

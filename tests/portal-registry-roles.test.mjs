@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import {legacyAuth} from './auth-fixture.mjs';
 import * as authorization from '../src/auth/authorization.ts';
 import test from 'node:test';
@@ -30,7 +31,7 @@ function renderRegistry(role, management = false, registryError = null, assessme
     '@/components/wells/AddWellModal': { AddWellModal: () => null },
   };
   const mod = new Module(filename); mod.filename = filename; mod.paths = Module._nodeModulePaths(path.dirname(filename));
-  mod.require = id => id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries, id) ? boundaries[id] : require(id);
+  mod.require = id => id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries, id) ? boundaries[id] : loadDependency(id,filename,boundaries);
   mod._compile(code, filename);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   client.setQueryData(['ml-wells'], {});
@@ -39,10 +40,10 @@ function renderRegistry(role, management = false, registryError = null, assessme
 for (const role of ['viewer', 'technologist', 'admin']) {
   test(`${role} retains archive, activity selection and export in monitoring`, () => {
     const html = renderRegistry(role);
-    assert.match(html, /Состояние реестра/);
+    assert.match(html, /Фильтр: Архив/);
     assert.match(html, /Архив/);
     assert.match(html, /Экспорт в Excel/);
-    assert.match(html, /Показывать неактивные скважины/);
+    assert.match(html, /Фильтры: Активность, Полнота окна/);
     assert.doesNotMatch(html, /Импорт из Excel|>Добавить</);
   });
 }

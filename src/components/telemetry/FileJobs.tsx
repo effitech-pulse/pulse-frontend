@@ -1,4 +1,6 @@
-import {Alert,Button,Card,Drawer,Empty,Space,Spin,Table,Typography} from 'antd';
+import {ServerEntityTable} from '@/components/common/ServerEntityTable';
+import {getTablePage} from '@/api/table';
+import {Alert,Button,Card,Drawer,Empty,Space,Spin,Typography} from 'antd';
 import {useEffect,useRef,useState} from 'react';
 import {useQuery} from '@tanstack/react-query';
 import {Link,useSearchParams} from 'react-router-dom';
@@ -41,21 +43,18 @@ export function FileProblem({problem,onRetry}:{problem:{message:string;http_requ
 }
 export function FileJobsHistory({wellId}:{wellId:string}){
  const auth=useAuth();const capability=useFileCapabilities();const request=usePrivateFileRequest();const [search,setSearch]=useSearchParams();
- const [cursors,setCursors]=useState<(string|undefined)[]>([undefined]);const before=cursors.at(-1);
  const [selected,setSelected]=useState<string>();const link=parseFileCheckLink(search.get('check'));const job=link.kind==='file'?link.id:selected;
- const list=useQuery({queryKey:['file-jobs',auth.privateEpoch,wellId,before],enabled:capability.enabled,retry:false,queryFn:({signal})=>request(s=>fileJobsApi.list(wellId,before,s),signal)});
  function close(){setSelected(undefined);if(link.kind==='file')setSearch(p=>{p.delete('check');return p;});}
  if(auth.privateBlocked)return <Alert type="warning" message="Проверка недоступна"/>;
  if(!auth.can('filechecks.read')||auth.mode!=='local')return null;
  return <section className="pulse-stack" aria-label="Мои проверки файлов"><h2>Мои проверки файлов</h2>
   {capability.enabled?<>
    {auth.can('filechecks.run')&&<Link to={`/upload-check?well=${wellId}`}>Новая проверка синтетического файла</Link>}
-   {list.isError&&<FileProblem problem={fileProblem(list.error)} onRetry={()=>void list.refetch()}/>}
-   <Table<FileJobStatus> rowKey="id" loading={list.isLoading} dataSource={list.data?.items??[]} pagination={false} scroll={{x:620}} locale={{emptyText:<Empty description="У вас пока нет сохранённых проверок файлов"/>}} columns={[
+   <ServerEntityTable<FileJobStatus> tableKey={`file-jobs-${wellId}`} enabled={capability.enabled} read={(q,s)=>request(signal=>getTablePage(`/api/v1/wells/${wellId}/file-check-jobs`,q,signal),s)}
+ fields={[{key:'created_at',label:'Проверка',kind:'datetime',read:r=>r.created_at},{key:'state',label:'Состояние',kind:'enum',options:Object.entries(fileJobStates).map(([value,label])=>({value,label})),read:r=>r.state},{key:'model_name',label:'Модель',kind:'text',read:r=>r.execution.model_name}]} rowKey="id" scroll={{x:620}} locale={{emptyText:<Empty description="У вас пока нет сохранённых проверок файлов"/>}} columns={[
     {title:'Проверка',dataIndex:'created_at',render:(value,row)=><Button type="link" onClick={()=>{if(row.state==='succeeded'&&row.check_id)setSearch(p=>{p.set('check',row.check_id!);return p;});else setSelected(row.id);}}>{new Date(value).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})} МСК</Button>},
     {title:'Состояние',dataIndex:'state',render:value=>fileJobStates[value]??'Состояние не передано'},{title:'Модель',render:(_,row)=>row.execution.model_name||'Не передана'},
    ]}/>
-   <Space wrap><Button disabled={cursors.length===1} onClick={()=>setCursors(v=>v.slice(0,-1))}>Назад</Button><Button disabled={!list.data?.next_before} onClick={()=>setCursors(v=>[...v,list.data!.next_before!])}>Далее</Button><Button onClick={()=>void list.refetch()}>Обновить</Button></Space>
   </>:<Typography.Text type="secondary">Сохранённая проверка файлов сейчас недоступна.</Typography.Text>}
   <Drawer title={`Проверка файла · ID Pulse ${wellId}`} open={!!job&&search.get('tab')==='checks'} onClose={close} destroyOnClose width={960}>{job&&<FileJobPanel key={`${wellId}/${job}`} well={wellId} job={job}/>}</Drawer>
  </section>;

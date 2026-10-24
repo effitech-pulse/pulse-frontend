@@ -1,3 +1,5 @@
+import {ServerEntityTable} from '@/components/common/ServerEntityTable';
+import {getTablePage} from '@/api/table';
 import {useAuth} from '@/auth/AuthProvider';
 import { Alert, Button, Card, Descriptions, Drawer, Empty, Space, Table, Tag, Typography } from 'antd';
 import { TelemetryChart, type ZoomRange } from './TelemetryChart';
@@ -18,11 +20,8 @@ export function CheckVerdict({result}: {result: TelemetryScore}) {
 export function ManualChecks({wellId,periodEnabled=true}: {wellId: string;periodEnabled?:boolean}) {
   const {can}=useAuth();
   const [search, setSearch] = useSearchParams();
-  const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
-  const before = cursors[cursors.length - 1];
   const selected=parseFileCheckLink(search.get('check'));
   const id=selected.kind==='period'?selected.id:null;
-  const list = useQuery({queryKey: ['manual-checks', wellId, before], queryFn: () => integrationsApi.checks(wellId, before),enabled:can('checks.read')&&periodEnabled});
   const detail = useQuery({queryKey: ['manual-check', wellId, id], queryFn: () => integrationsApi.savedCheck(wellId, id!), enabled: can('checks.read') && !!id});
   const open = (value?: string) => setSearch(p => { if (value) p.set('check', value); else p.delete('check'); return p; });
   const v = detail.data, r = v?.result;
@@ -30,14 +29,16 @@ export function ManualChecks({wellId,periodEnabled=true}: {wellId: string;period
     <h2>Проверки за период</h2>
     {selected.kind==='invalid'&&<Alert type="warning" message="Некорректная ссылка на проверку"/>}
     <Typography.Text type="secondary">Сохранённые ручные проверки телеметрии. Для новой проверки выберите период от 30 суток во вкладке «Телеметрия» → «⋯» → «Проверить моделью».</Typography.Text>
-    {list.isError && <Alert type="error" message={toApiError(list.error).message} action={<Button disabled={!can('checks.read')} onClick={() => list.refetch()}>Повторить</Button>} />}
-    <Table<ManualCheck> rowKey="id" loading={list.isLoading} dataSource={list.data} pagination={false} scroll={{x: 760}} locale={{emptyText: <Empty description="Сохранённых проверок пока нет" />}} columns={[
+    <ServerEntityTable<ManualCheck> tableKey={`manual-checks-${wellId}`} read={(q,s)=>getTablePage(`/api/v1/wells/${wellId}/checks`,q,s)} enabled={can('checks.read')&&periodEnabled}
+ fields={[{key:'created_at',label:'Проверка, МСК',kind:'datetime',read:r=>r.created_at},
+ {key:'period',label:'Период, МСК',kind:'datetime',read:r=>r.start,readEnd:r=>r.end},
+ {key:'verdict',label:'Результат',kind:'enum',options:Object.entries(verdicts).map(([value,label])=>({value,label})),read:r=>r.result.verdict},
+ {key:'model_name',label:'Модель',kind:'text',read:r=>r.result.model_name}]} rowKey="id" scroll={{x: 760}} locale={{emptyText: <Empty description="Сохранённых проверок пока нет" />}} columns={[
       {title: 'Проверка, МСК', dataIndex: 'created_at', render: (value: string, row) => <Button type="link" onClick={() => open(row.id)}>{dates(value)}</Button>},
       {title: 'Период, МСК', render: (_, row) => `${dates(row.start)} — ${dates(row.end)}`},
       {title: 'Результат', render: (_, row) => <CheckVerdict result={row.result} />},
       {title: 'Модель', render: (_, row) => row.result.model_name ?? 'Версия не передана'},
     ]} />
-    <Space><Button disabled={cursors.length === 1} onClick={() => setCursors(c => c.slice(0,-1))}>Назад</Button><Button disabled={list.data?.length !== 25} onClick={() => setCursors(c => [...c, list.data!.at(-1)!.id])}>Далее</Button><Button disabled={!can('checks.read')} onClick={() => list.refetch()} loading={list.isFetching}>Обновить</Button></Space>
     <FileJobsHistory key={wellId} wellId={wellId}/>
     <Drawer title={`Ручная проверка · ID Pulse ${wellId}`} open={!!id && search.get('tab') === 'checks'} onClose={() => open()} width={960}>
       {detail.isLoading && <Typography.Text>Загрузка проверки…</Typography.Text>}

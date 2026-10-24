@@ -1,3 +1,4 @@
+import {LocalEntityTable} from '@/components/common/LocalEntityTable';
 import {useAuth} from '@/auth/AuthProvider';
 import {
   Button,
@@ -8,7 +9,6 @@ import {
   Popconfirm,
   Select,
   Space,
-  Table,
 } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -28,9 +28,9 @@ const FAILURE_TYPES = [
   'нормальный режим',
 ].map((v) => ({ value: v, label: v }));
 
-export function IncidentsTab({ wellId }: { wellId: number }) {
+export function IncidentsTab({ wellId }: { wellId: number|string }) {
   const {can}=useAuth();
-  const { data, isLoading, error } = useIncidents(wellId);
+  const { data, isLoading, error, refetch, isFetching } = useIncidents(wellId);
   const create = useCreateIncident(wellId);
   const del = useDeleteIncident(wellId);
   const [form] = Form.useForm();
@@ -85,7 +85,11 @@ export function IncidentsTab({ wellId }: { wellId: number }) {
       </Card>}
 
       <PageSpin loading={isLoading} error={error}>
-        <Table rowKey="id" columns={columns} dataSource={data ?? []} pagination={false} size="small" />
+        <LocalEntityTable onRefresh={()=>void refetch()} refreshing={isFetching} refreshDisabled={!can('incidents.read')||Number(wellId)<=0} tableKey={`incidents-${wellId}`} fields={[
+ {key:'failure_type',label:'Тип поломки',kind:'enum',options:FAILURE_TYPES,read:r=>r.failure_type},
+ {key:'failure_date',label:'Дата отказа',kind:'date',read:r=>r.failure_date},
+ {key:'days_before',label:'История, дней',kind:'number',unit:'дней',read:r=>r.days_before},
+ ]} defaultSort={[{field:'failure_date',direction:'desc'}]} rowKey="id" columns={columns} dataSource={data ?? []} pagination={false} size="small" />
       </PageSpin>
     </div>
   );
