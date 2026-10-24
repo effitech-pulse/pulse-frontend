@@ -418,6 +418,9 @@ Arrow/Enter/Escape и typing search. Home/End option jump библиотекой
 synthetic-key/private API wrapper. Source keyboard annotations уточнены тем же
 правилом. Add/Remove/Preview heading/Back/Cancel восстанавливают focus; page не
 создаёт focus trap, confirm dialog остаётся modal. Native browser200%, SR/VoiceOver
-и полный runtime contrast остаются вне выполненных проверок. Следующий этап —
-одно scoped review этого diff по поручению координатора, без повторения прежнего
-полного RBAC review.
+и полный runtime contrast остаются вне выполненных проверок. Единое scoped review
+приняло implementation `639fca0c40b943eb0b463ae8cf4d8c80cfd61ac2` со статусом
+ACCEPTED, блокирующих дефектов — 0. Приёмка относится к описанному UI-only diff
+и mocked-API evidence; новый real API run и полный прежний RBAC review не
+выполнялись. Необязательные P3 о плотности подсказок и фоне двухстрочного chip
+зафиксированы без расширения отложенного пользователем дизайна.
