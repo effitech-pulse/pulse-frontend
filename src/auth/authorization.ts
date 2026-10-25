@@ -2,6 +2,11 @@ import type {Principal, AccessFields} from '../api/access';
 
 /** Fixed catalogue shipped with this client. Prerequisites are checked after server union. */
 const prerequisites = {
+ "equipment_passports.read": ["wells.read"],
+ "equipment_passports.update": ["equipment_passports.read"],
+ "equipment_passports.history.read": ["equipment_passports.read"],
+ "equipment_passports.import": ["equipment_passports.update"],
+ "equipment_passports.export": ["equipment_passports.read"],
  "wells.read": [],
  "wells.create": [
   "wells.read"

@@ -6,7 +6,7 @@ export interface IncompletePrivilege { rowId: string; field: 'resource' | 'actio
 const resourceOf = (key: string) => key.split('.')[0];
 const unique = (keys: string[]) => [...new Set(keys)];
 const resources: Record<string, string> = {
-    access: 'Доступ', alerts: 'Тревоги', analytics: 'Аналитика', audit: 'Аудит', checks: 'Проверки',
+    equipment_passports: 'Паспорта оборудования', access: 'Доступ', alerts: 'Тревоги', analytics: 'Аналитика', audit: 'Аудит', checks: 'Проверки',
     cohort: 'Прогоны фонда', cohortjobs: 'Задания проверки фонда', collectionjobs: 'Задания сбора',
     filechecks: 'Файловые проверки', groups: 'Группы пользователей', incidents: 'Инциденты',
     integrations: 'Интеграции', metrics: 'Метрики', parameters: 'Параметры', presentation: 'Сценарий презентационного фонда',

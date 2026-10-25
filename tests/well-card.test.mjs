@@ -93,12 +93,12 @@ function setup(url = '/wells/42', { well = defaultWell, outcome = defaultOutcome
   const html = render();
   return { html, router, render, get tabs() { return tabs; } };
 }
-test('real well card exposes the six approved tabs and legacy/default/unknown routes select Risks', () => {
-  for (const key of [undefined, 'overview', 'unknown', 'constructor', 'telemetry', 'checks', 'failures', 'history', 'details']) {
+test('real well card exposes the seven approved tabs and legacy/default/unknown routes select Risks', () => {
+  for (const key of [undefined, 'overview', 'unknown', 'constructor', 'telemetry', 'checks', 'failures', 'history', 'equipment', 'details']) {
     const view = setup(`/wells/42${key ? '?tab=' + key : ''}`);
     assert.ok(view.tabs,`Tabs must render for ${key}: ${view.html.slice(0,300)}`);
-    assert.deepEqual(view.tabs.items.map(t => [t.key, t.label]), [['overview', 'Риски'], ['telemetry', 'Телеметрия'], ['checks', 'Проверки'], ['failures', 'Отказы'], ['history', 'История'], ['details', 'Сведения']]);
-    assert.equal(view.tabs.activeKey, ['telemetry', 'checks', 'failures', 'history', 'details'].includes(key) ? key : 'overview');
+    assert.deepEqual(view.tabs.items.map(t => [t.key, t.label]), [['overview', 'Риски'], ['telemetry', 'Телеметрия'], ['checks', 'Проверки'], ['failures', 'Отказы'], ['history', 'История'], ['equipment', 'Оборудование'], ['details', 'Сведения']]);
+    assert.equal(view.tabs.activeKey, ['telemetry', 'checks', 'failures', 'history', 'equipment', 'details'].includes(key) ? key : 'overview');
     assert.equal(view.tabs.destroyInactiveTabPane, false, 'visited forms retain their state');
   }
 });
