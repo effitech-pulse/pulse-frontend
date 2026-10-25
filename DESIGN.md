@@ -186,3 +186,42 @@ Light981:4534/Dark981:4640, mobile редактор Light981:4746/Dark981:4952.
 Изменения независимого ревью сохраняют источники: возврат из профиля — единая
 44px ссылка; checkbox каталога имеет локальное row alignment без изменения
 стилей labels прочих разделов.
+
+## F4 · персональные уведомления · source25.10.2026
+
+Новые editable source в том же Figma: [Light1136:5624](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1136-5624),
+[Dark1143:9882](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-9882),
+[scoped library1136:5543](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1136-5543).
+Это дизайнерский source до React; архитектурное согласование и runtime приёмка
+выполняются отдельно. Существующие макеты F3/RBAC/оборудования/таблиц сохранены.
+
+Существующий Bell и правый Drawer440px получают «Непрочитанные / Все».
+Строка содержит тип, безопасный текст, recorded_at, точный объект и отдельные
+«Открыть» / «Отметить прочитанным». Close/Escape/навигация не отмечают read.
+Mark pending/error/retry, first loading, оба empty, no_families, feature_off,
+401/403, count/list errors, pagination/restart и buffered new head показаны
+отдельными состояниями. Badge max99+, ошибка count не становится0.
+
+Основная композиция1440: [Light1137:5564](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1137-5564) /
+[Dark1143:9887](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-9887);
+390px: [Light1137:5873](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1137-5873) /
+[Dark1143:10107](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10107).
+Exact saved alert390: [Light1139:5776](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1139-5776) /
+[Dark1143:10284](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10284);
+safe source390: [Light1139:5817](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1139-5817) /
+[Dark1143:10320](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10320).
+Полная матрица24 пар и правила — [HANDOFF](design/HANDOFF.md#f4--персональные-уведомления--передача-source25102026).
+
+Roboto14/20 body,16/22 section,12/17 metadata; radius4, gap12, row padding16,
+Drawer padding20/16 и44px controls. Semantic Pulse variables и Ant Button
+переиспользованы;7 scoped row/tab components, без нового UI raster.
+Проверены Figma renders Light/Dark/390, Roboto-only,0 image-filled nodes,
+11 контрастных пар ≥4.5:1. Это проверка source, не browser/WCAG PASS.
+
+Точная тревога открывается dedicated reader по well/run/alert IDs строками;
+latest не подставляется. Safe source использует static route
+`/integrations/source-overview?source_id=<encoded>` и безопасный API
+`/api/v1/notification-targets/source?source_id=<encoded>`, decode один раз.
+Прошлая попытка и текущий status независимы; raw error/config/logs не выводятся.
+Read success удерживает focus в списке; automatic polling не перехватывает его.
+Revoke/private epoch очищает F4 данные и игнорирует поздние ответы.

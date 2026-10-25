@@ -694,3 +694,141 @@ feature cache и Blob URLs. Поздние callbacks защищены epoch/sequ
 Vite build, real HTTP e2e, обе темы1440/1280/1024/390,320/200%zoom, keyboard,
 VoiceOver и визуальная сверка этой реализации остаются отдельным runtime gate.
 Figma screenshots и исходные токены не объявляются доказательством browser PASS.
+
+## F4 · персональные уведомления · передача source25.10.2026
+
+Статус: Figma source готов до React. Дизайнер передаёт координатору для одного
+architect-analyst agreement с финальным контрактом. F4 runtime/migration/UI flag
+этой записью не включены. Источники существующих функций и их проверки сохранены.
+
+В том же файле `km4tIbp3LnMTRrV6yi6Qho`:
+Light wrapper1136:5624, Dark1143:9882, scoped components1136:5543.
+
+| Поверхность | Light | Dark |
+| --- | --- | --- |
+| Drawer / unread desktop | [1137:5564](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1137-5564) | [1143:9887](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-9887) |
+| Drawer / all | [1137:5821](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1137-5821) | [1143:10095](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10095) |
+| Drawer / unread mobile | [1137:5873](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1137-5873) | [1143:10107](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10107) |
+| Read pending/error/receipt | [1137:5928](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1137-5928) | [1143:10120](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10120) |
+| Mark retry mobile | [1137:5967](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1137-5967) | [1143:10128](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10128) |
+| Keyboard / update rules | [1137:6011](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1137-6011) | [1143:10139](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10139) |
+| Initial loading | [1138:5711](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1138-5711) | [1143:10157](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10157) |
+| Unread empty | [1138:5727](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1138-5727) | [1143:10173](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10173) |
+| All empty / first run | [1138:5738](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1138-5738) | [1143:10178](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10178) |
+| No permitted families | [1138:5742](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1138-5742) | [1143:10182](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10182) |
+| Feature off | [1138:5751](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1138-5751) | [1143:10187](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10187) |
+| Unauthorized / cleared | [1138:5755](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1138-5755) | [1143:10191](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10191) |
+| Bell 0 / 3 / 99+ / unknown / stale | [1138:5767](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1138-5767) | [1143:10197](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10197) |
+| List and count errors | [1138:5800](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1138-5800) | [1143:10230](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10230) |
+| Pagination / restart | [1138:5818](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1138-5818) | [1143:10240](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10240) |
+| Focus / buffered new head | [1138:5848](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1138-5848) | [1143:10252](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10252) |
+| Exact saved alert / content | [1139:5747](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1139-5747) | [1143:10261](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10261) |
+| Exact saved alert / mobile | [1139:5776](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1139-5776) | [1143:10284](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10284) |
+| Safe source overview / content | [1139:5801](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1139-5801) | [1143:10307](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10307) |
+| Safe source overview / mobile | [1139:5817](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1139-5817) | [1143:10320](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10320) |
+| Exact unavailable | [1139:5834](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1139-5834) | [1143:10334](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10334) |
+| Null / archived / legacy result absent | [1139:5850](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1139-5850) | [1143:10341](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10341) |
+| Detail loading / error | [1139:5862](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1139-5862) | [1143:10352](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1143-10352) |
+| Source current failure / null times | [1146:5796](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1146-5796) | [1146:13150](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1146-13150) |
+
+Высоты source показывают полный scroll content. Desktop1440 сохраняет
+существующий shell;1024px target frames — контент внутри workspace. На390px
+Drawer занимает всю ширину, viewport ограничен100dvh, прокручивается body.
+Padding20/16, строка16, gap12, radius4; controls44px. Roboto body14/20,
+section16/22, metadata12/17. Цвета/spacing/radius — existing semantic variables,
+Light3:0 / Dark128:0. Новые строки/вкладки —7 scoped main components; Ant
+Button745:333 и BellOutlined исходной оболочки переиспользованы.
+
+### Персональный поток и состояния
+
+Default unread; «Все» включает прочитанные. Семейства «Тревога» и «Сбор данных»
+в одной серверной ленте. Identity — notification_id, порядок recorded_at/PK.
+Изменение review или восстановление источника не удаляют факт и не пишут read.
+Открытие, закрытие, Escape, переход и просмотр также не пишут read.
+
+Open и Mark — отдельные44px действия. Pending блокирует повторную отметку этой
+строки, показывает «Сохраняем отметку…». После PUT200 unread-строка удаляется;
+all-строка остаётся с серверным read_at. Ошибка/потеря ответа оставляет строку
+непрочитанной с inline retry того же ID, безопасным благодаря идемпотентности.
+
+Count200 value0/cappedfalse скрывает badge;100+ показывает99+ по value99/cappedtrue.
+Initial unknown/error не показывают0. Старое значение допускается только с
+явной stale меткой и только в той же private boundary. List error не означает
+empty. Initial skeleton; unread-empty и all-empty различаются. Feature off и
+no_families — самостоятельные объяснения без list/count/read и без legacy
+snapshot как F4. В shared режиме персональных запросов нет; нужен local вход.
+
+Count30с visible/online, head только при открытой панели, один controller на
+Bell+Drawer. Focus/online сначала session refresh. Backoff30/60/120с,
+explicit retry немедленно. Load more — server cursor, dedupe по identity, без
+global total. Append error сохраняет разрешённые строки и тот же cursor.
+Continuation422 требует явного restart; применённая новая голова сбрасывает tail.
+
+Если auto head заменит активную строку или нарушит scroll, response буферизуется
+в памяти, появляется «Есть новые уведомления». Явное обновление применяет
+голову с удержанием focus. Новые факты не открывают Drawer, не создают toast
+и не перехватывают focus. Revoke не сохраняет данные в таком buffer.
+
+### Safe targets и wire
+
+Alert route `/wells/<well>/alerts/<alert>?run_id=<run>` читает только dedicated
+GET `/api/v1/wells/<well>/runs/<run>/alerts/<alert>`. Все новые ID decimal
+strings; нельзя пропускать их через legacy selectedRun=Number. Показаны
+исходный risk/window, exact run и сохранённый outcome, а текущий alert_status
+отдельно. Null не становится0/нормой; legacy saved_result=null объясняет
+отсутствие полного снимка. «Текущая карточка скважины» — отдельное действие.
+Mismatch/hidden/deleted404 не подменяется последним прогоном.
+
+Source route `/integrations/source-overview?source_id=<encoded>` читает
+GET `/api/v1/notification-targets/source?source_id=<encoded>`. Static query
+с URLSearchParams/params encoder сохраняет opaque source ID, decode один раз;
+slash, literal%2F, percent, question, plus и Unicode не нормализуются.
+Прежнее path-param предложение не используется.
+
+Safe overview DTO: id/name/kind/status/interval_seconds/last_received/
+last_measured/error_code. Config/raw source.error/endpoint/logs не читаются
+и не выводятся. error_code=collection_failed — фиксированное безопасное
+«Попытка сбора завершилась ошибкой». Текущий status отображается отдельно от
+historical caption. Прямой overview не содержит receipt/date; точная дата
+остаётся в notification row. Null time — «—», unknown — «Неизвестно».
+Обычные интеграции/actions сохраняются отдельно со своими permissions.
+
+Capabilities enabled/reason/families предшествуют private list/count.
+List items содержат notification_id/kind/code/text/recorded_at/read_at/typed
+target, next_cursor. Mark PUT имеет0 body bytes, без account/time.
+Target alert содержит well{id,number,active,archived_at},run_id,alert_id,
+nullable risk/window_end; exact context добавляет run metadata, current
+alert_status,nullable snapshot_id и saved_result. Unknown fields не рендерятся.
+
+### Клавиатура, приватность и проверка
+
+Явное открытие фокусирует heading/container Drawer; native trap и Escape,
+возврат к Bell. Tab проходит close→tabs→Open/Mark→Load more→Refresh;
+Ant Tabs поддерживают Arrow/Home/End. После read success в unread focus —
+следующий Open, иначе предыдущий, иначе empty heading. Error сохраняет retry
+focus. Load more сообщает loaded count через одну polite/atomic region.
+Route h1 фокусируется однократно; возврат к исходному действию допускается
+только внутри действующей private boundary.
+
+Logout/401/account/epoch/релевантные grants/scope changes очищают F4
+items/count/cursor/pending/buffer, отменяют polling и отбрасывают late replies.
+403 очищает F4 перед session recheck; target404 оставляет generic unavailable.
+AuthProvider остаётся authority owner; чужие Q1/F3/profile-only правила не
+переписываются. Payload не сохраняется в browser storage/query persistence.
+
+При320/390 текст/ID переносятся, min-width0/max-width100%, page overflow нет.
+200%zoom/reflow и viewport scroll не перекрывают focus. Reduced motion
+отключает slide/необязательные transitions/shimmer; status текст остаётся.
+Цвет дополнен текстом;44px targets и видимый theme-blue focus обязательны.
+
+Designer source QA: обе темы/390px по Figma PNG, Roboto-only и0 image fills;
+выбранные11 text/background pairs ≥4.5:1. Light muted/surface4.77,
+blue/white4.55; подписи на canvas используют ink. Технические annotations
+state boards не являются продуктовой копией. Примеры имён/чисел/рисков
+не переносятся в API. Полный WCAG/SR/runtime contrast не заявляется.
+
+Далее обязательны реальные API/PG readA/readB/relogin, private epoch и late
+responses, canary raw-error absence, exact tuple/max-int64/opaque-ID tests;
+browser Light/Dark1440/1280/1024/390/320,200%zoom, keyboard/Escape/focusreturn,
+pending/error/retry, buffered head и cursor restart. Source screenshots
+не заменяют эти проверки. Рабочие8088/8018/БД55439 designer не использовал.
