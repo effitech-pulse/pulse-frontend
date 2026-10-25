@@ -208,3 +208,44 @@
 .people-page .access-mobile .ant-card,.people-page .access-mobile .ant-card-body {min-width:0;max-width:100%;}
 .employee-profile-page .employee-name-link,.people-page .access-mobile .employee-name-link {min-width:0;max-width:100%;white-space:normal;}
 .people-page .access-mobile .ant-card-body {padding:16px;}
+
+/* USER-EDITOR-COLLAPSE: single native 44px summary; body stays mounted. */
+.user-page .user-editor-section {display:block;}
+.user-page .user-editor-summary {display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;list-style:none;cursor:pointer;}
+.user-page .user-editor-summary::-webkit-details-marker {display:none;}
+.user-page .user-editor-summary h2 {flex:1;min-width:0;margin:0;font-size:16px;font-weight:500;line-height:22px;overflow-wrap:anywhere;}
+.user-page .user-editor-section-action {flex:0 0 88px;text-align:right;font-size:13px;font-weight:500;line-height:19px;color:var(--pulse-blue);}
+.user-page .user-editor-summary:focus-visible {outline:2px solid var(--pulse-blue);outline-offset:2px;border-radius:4px;}
+.user-page .user-editor-section-body {margin-top:16px;}
+.user-page .user-editor-section:not([open]) > .user-editor-section-body,.user-page .user-editor-section:not([open]) > summary .user-editor-when-open,.user-page .user-editor-section[open] > summary .user-editor-when-closed {display:none;}
+@media(max-width:600px){.user-page .user-editor-section {padding:16px;}}
+
+.people-view-switch {display:flex;gap:8px;flex-wrap:wrap;}
+.people-view-switch .ant-btn {min-width:120px;}
+.people-page .people-view-switch .ant-btn,.people-page .organization-tree-state .ant-btn {min-height:44px;height:auto;white-space:normal;}
+.organization-tree-panel {min-width:0;padding:20px;border:1px solid var(--pulse-border);border-radius:12px;background:var(--pulse-surface);}
+.organization-chart-toolbar {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;min-width:0;}
+.organization-tree-count {margin:0;font-size:13px;line-height:19px;font-weight:500;min-width:0;overflow-wrap:anywhere;}
+.organization-chart-camera {display:flex;align-items:center;gap:8px;flex:none;width:256px;}
+.organization-chart-camera .ant-btn {height:44px;min-width:44px;padding:0;flex:none;}
+.organization-chart-camera .ant-btn:last-child {width:100px;padding:0 8px;}
+.organization-chart-camera output {width:44px;flex:none;text-align:center;font-size:14px;line-height:20px;font-variant-numeric:tabular-nums;}
+.organization-tree-hint {margin:0 0 12px;color:var(--pulse-muted);font-size:12px;line-height:17px;overflow-wrap:anywhere;}
+.organization-tree-viewport {height:640px;overflow:auto;min-width:0;max-width:100%;border-radius:8px;background:var(--pulse-canvas);overflow-anchor:none;cursor:grab;scrollbar-color:var(--pulse-muted) var(--pulse-canvas);}
+.organization-tree-viewport:active {cursor:grabbing;}
+.organization-chart-spacer {position:relative;min-width:100%;min-height:100%;isolation:isolate;overflow:hidden;}
+.organization-chart-world {position:absolute;left:0;top:0;transform-origin:0 0;}
+.organization-chart-position {position:absolute;box-sizing:border-box;min-width:0;}
+.organization-chart-connectors {position:absolute;pointer-events:none;overflow:hidden;}
+.organization-chart-connectors line {stroke:var(--pulse-muted);stroke-width:1.5;fill:none;}
+.organization-chart-card {box-sizing:border-box;display:flex;flex-direction:column;align-items:stretch;gap:4px;width:248px;min-width:0;min-height:88px;padding:12px 12px 8px;border:1px solid var(--pulse-border);border-radius:12px;background:var(--pulse-surface);color:var(--pulse-ink);white-space:normal;overflow-wrap:anywhere;text-align:left;text-decoration:none;font:inherit;cursor:pointer;}
+.organization-chart-level,.organization-tree-meta,.organization-tree-title {font-size:12px;font-weight:400;line-height:17px;}
+.organization-chart-level,.organization-tree-meta {color:var(--pulse-muted);}
+.organization-tree-branch-label {font-size:13px;font-weight:500;line-height:19px;}
+.organization-tree-name {color:var(--pulse-blue);font-size:14px;line-height:20px;}
+.organization-chart-footer {display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;}
+.organization-chart-footer .organization-tree-meta {flex:1;min-width:0;}
+.organization-chart-disclosure {display:flex;align-items:center;justify-content:center;flex:0 0 100px;min-height:44px;color:var(--pulse-blue);font-size:13px;line-height:20px;}
+.organization-chart-card:focus-visible {outline:2px solid var(--pulse-blue);outline-offset:2px;}
+.organization-chart-card:hover {background:var(--pulse-selected);color:var(--pulse-ink);}
+@media(max-width:600px){.organization-tree-panel {padding:16px;}.organization-chart-toolbar {align-items:flex-start;flex-direction:column;}.organization-tree-viewport {height:520px;}.people-page .access-toolbar > .ant-checkbox-wrapper {min-width:0;white-space:normal;}}

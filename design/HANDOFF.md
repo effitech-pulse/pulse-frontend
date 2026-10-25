@@ -533,6 +533,108 @@ links с max-width100%/normal whitespace. Имя, subtitle/отдел, имя/д
 руководителя и поля карточки остаются целиком читаемыми; truncation/скрытие
 или горизонтальная прокрутка страницы не применяются. CSS проверяется живым
 320/390px повтором координатора, не source-snapshot тестом.
+
+### USER-EDITOR-COLLAPSE · source implementation · 24.10.2026
+
+Существующие шесть editor/create кадров обновлены только заголовками:
+edit1440 Light976:3667/Dark981:3997; create1440 Light976:3895/Dark981:4203;
+edit390 Light981:4746/Dark981:4952. Closed320 board1016:4236 включает
+Light1016:4237/Dark1016:4396. Header source1016:4218, closed1016:4262/4275/4285.
+Прочитаны high-fidelity context и screenshots header/обеих closed320 тем.
+
+UserEditorSection использует независимые native details без общего name,
+default-open и всегда смонтированный body. Summary — одна44px цель: заголовок
+16/22, action13/19, ширина action88px, gap12px; panel padding20desktop/16narrow,
+body gap16. Native open state не хранится в draft/URL/storage и не изменяет
+preview receipt/password/permissions/search. Private/target key создаёт новые
+sections; обычные controlled rerenders не сбрасывают native collapse.
+
+revealAccessField раскрывает ancestor details снаружи внутрь до focus/scroll.
+Один helper подключён к AccessFieldError effect, повторному summary-link и
+post-render возврату пользователя из Preview к имени. Delayed focus проверяет
+private ticket и актуальный sequence, затем ищет текущий DOM target. Различие
+workplace_department и security department сохраняется через прежние IDs.
+Preview lifecycle/условный remount не переделывался; role editor back неизменён.
+
+Unit/source-execution/SSR проверки покрывают reveal order, повторное раскрытие,
+все field IDs, текущие3sections/default-open/mounted fields, сохранение
+черновика/пароля/assignments, server422 и guard позднего фокуса. Native keyboard,
+collapse→rerender state, hidden Tab order и320/390 геометрию проверяет координатор
+на настоящем CUA runtime; один SSR не является доказательством этих свойств.
+
+### USER-ORGANIZATION-TREE · source implementation · 24.10.2026
+
+Source: wrapper1019:4196; desktop1022:4253/1022:4481,
+390px1022:4671/1022:4885, row family1022:4226, responsive search1022:4247,
+long320 leaf1022:5099. Прочитаны final designer handoff и high-fidelity
+context/screenshots desktop Light, обеих390тем и320long proof. Directory source
+981:3743/981:4409 сохраняет список и получает только44px переключатель.
+
+Search/include_inactive общие для list/structure; list cursor сбрасывается при
+возврате. Дерево читает один GET /api/v1/people/organization/tree, без cursor-all
+fallback, Account/manager API и клиентской группировки страницы. Strict complete,
+arrays/counts/positive string int64 parser не показывает partial/malformed200.
+404/405/501 имеют unsupported state и явный возврат к списку;400/generic errors,
+typed503too_large/timeout и401/403 отличаются. Counts относятся к совпавшим
+сотрудникам снимка, не штатной численности. Политика5k/8MiB/5s — серверные
+защитные границы, не измеренная production capacity.
+
+Null узлы сохраняют все уровни и отличаются от реального placeholder-name.
+Точные серверные keys/order сохранены. Все организации исходно свёрнуты;
+поиск не инициирует expand-all. Branch buttons и employee profile Links имеют
+44px минимум; Arrow/Home/End управляют roving focus, Enter/Space ветвей native,
+листья открываются Enter. Visible rows измеряются ResizeObserver, окно620desktop/
+520mobile ограничивает DOM и учитывает auto-height/long labels. Один focused row
+может оставаться смонтированным вне viewport, предотвращая потерю фокуса при
+прокрутке; keyboard moves прокручивают к актуальной строке.
+
+Tree query key включает privateEpoch, normalized search и inactive; успешная
+профильная invalidation ['people'] уже охватывает новый вид. Новая выборка/reset
+response очищает expansion/measurements; фильтр/private scope размонтирует старый
+subtree. Error state скрывает stale data. Native auth boundary и cancellation
+signal защищают поздние ответы. CSS scoped к people tree; collapse editor не менялся.
+
+Unit/transport/SSR/source-state проверки отделены от CUA: root проверяет old API
+unsupported→new API,320/390 Light/Dark, keyboard, long rows и bounded DOM на
+настоящем fixture. Реальные latency/RAM и полный accessibility audit не заявлены.
+
+
+## Графическая структура сотрудников · 24.10.2026
+
+Актуальный renderer `/people` → «Структура» — карточки с линиями по workplace,
+вместо исторического списка с отступами. Figma file `km4tIbp3LnMTRrV6yi6Qho`,
+wrapper1033:4536: [Light1440](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1034-4566),
+Dark1440 1037:4652; Light390 1037:4821 / Dark390 1037:4994;
+long320 Light1037:5168 / Dark1037:5188; card family1034:4540.
+API/complete parser/people query/auth/errors/list/profile/editor сохранены.
+
+Card248world, minheight88; обычный branch110/employee88, padding12top/sides8bottom,
+border1/radius12, gap104 между subtree,24 между уровнями/сотрудниками и left rail24.
+Parent над первой дочерней колонкой; сотрудники отдела одной вертикальной колонкой,
+общий rail связывает их с отделом. Full raw strings wrap, autoheight измеряется в
+world units. HTML native branch button / employee Link и декоративные SVG connectors
+используют один geometry;2D card/edge clipping + один pinned active ограничивают DOM.
+5000 сотрудников могут дать20000 logical nodes; нет paging/discard/fake root.
+
+Первый существующий org/div/dept путь раскрыт при100%; соседние branches закрыты.
+Zoom50–200%, step25, toolbar44px вне transform; min88world даёт44screen при50%.
+«По центру» →100% activecard, иначе initialpath, без сброса expansion/query/focus.
+Viewport640desktop/520mobile имеет внутреннюю2D прокрутку; background mouse drag
+после5px threshold, native scroll/touch и browser zoom сохранены. Управление tree
+клавиатурой использует preorder; отложенные measurements уточняют target camera,
+wheel/pointer/touch/выход focus снимают keyboard intent. Измерения mounted карточек
+применяются одной пачкой на animation frame, чтобы mount→measure→camera не создавал
+неограниченную вложенную цепочку React commits; cleanup отменяет позднюю пачку.
+Private/query scope remount
+сбрасывает локальную camera/expansion/measurements; snapshot refresh сохраняет
+surviving active key. Независимое CUA проверяет geometry/focus/scroll/темы/320/390;
+unit/SSR не заменяют браузерное evidence. Новых raster assets/dependencies нет.
+
+Scaled spacer ограничивает overflow внутренних world/SVG точными logical bounds;
+viewport-sized SVG overlay не расширяет native scroll extent вслед за camera.
+Zoom clamp по scaled bounds и reveal active после world-center anchor сохраняют
+активную карточку видимой, включая collapsed forest, который уже viewport.
+
 ## F3 — история событий и exact основание, 23.10.2026
 
 O-06 designer/architect-analyst принят координатором. Новые страницы повторяют
@@ -694,6 +796,21 @@ feature cache и Blob URLs. Поздние callbacks защищены epoch/sequ
 Vite build, real HTTP e2e, обе темы1440/1280/1024/390,320/200%zoom, keyboard,
 VoiceOver и визуальная сверка этой реализации остаются отдельным runtime gate.
 Figma screenshots и исходные токены не объявляются доказательством browser PASS.
+
+### Интеграция пользователей с актуальными таблицами · 25.10.2026
+
+Список `/people` сохраняет ServerEntityTable: column filters, multi-sort,
+URL query/cursor/revision и AbortSignal. Переключатель «Список / Структура»
+не изменяет URL-состояние списка. Поиск и показ отключённых записей структуры
+независимы; продуктовая подсказка объясняет это рядом с её контролами.
+Полный snapshot структуры получает только search/include_inactive, без
+переноса табличных фильтров и без построения из страниц списка.
+
+AccountsPage сохраняет текущий table-query Preview, отмену предыдущего запроса,
+восстановление invalid_table_cursor и инвалидацию access/people/table после Apply.
+RevealAccessField раскрывает native секции перед фокусом на ошибку/возвратом
+из Preview; keyed секции по private epoch/target сохраняются. Новое визуальное
+решение не вводилось: использованы принятые source collapse/chart и таблиц.
 
 ## F4 · персональные уведомления · передача source25.10.2026
 

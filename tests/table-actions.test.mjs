@@ -23,11 +23,11 @@ test('three stable actions occupy only the second header row, reuse explicit las
   const result=rendered({columns:cols}).columns;assert.equal(result.length,cols.length+1);assert.equal(result.at(-1).fixed,undefined);assert.equal(result.at(-1).children[0].render({}),null);assert.equal(actions(result).length,3);
  }
 });
-test('reset actions preserve each other and remain enabled during loading; refresh uses its own guard and busy state',()=>{
+test('query reset actions notify the controlled owner once without a separate page callback; refresh guards stay independent',()=>{
  let refreshed=0;const changes=[],pages=[];const props={onQueryChange:q=>changes.push(q),onRefresh:()=>refreshed++,pagination:{...base.pagination,onPageChange:(...p)=>pages.push(p)}};
  let buttons=actions(rendered({...props,loading:true,refreshing:true}).columns);
  assert.equal(buttons[0].props.disabled,true);assert.equal(buttons[1].props.disabled,false);assert.equal(buttons[2].props.disabled,false);
- buttons[1].props.onClick();buttons[2].props.onClick();assert.deepEqual(changes,[{...query,sort:[]},{...query,filters:[]}]);assert.deepEqual(pages,[[1,25],[1,25]]);
+ buttons[1].props.onClick();buttons[2].props.onClick();assert.deepEqual(changes,[{...query,sort:[]},{...query,filters:[]}]);assert.deepEqual(pages,[],'query owner resets pagination atomically; PulseTable must not emit a second state change');
  buttons=actions(rendered(props).columns);buttons[0].props.onClick();assert.equal(refreshed,1);assert.equal(changes.length,2);
  for(const extra of [{onRefresh:undefined},{refreshDisabled:true},{refreshing:true}])assert.equal(actions(rendered({...props,...extra}).columns)[0].props.disabled,true);
  buttons=actions(rendered({query:{version:1,filters:[],sort:[]}}).columns);assert.deepEqual(buttons.map(n=>n.props.disabled),[true,true,true]);
