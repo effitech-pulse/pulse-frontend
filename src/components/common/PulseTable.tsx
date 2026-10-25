@@ -142,7 +142,7 @@ function ColumnFilters<T>({fields, rows, query, onChange}: {fields: FieldSchema<
   if (fields.length < 2) return fields.map(field => <FilterField key={field.key} field={field} rows={rows}
     filter={query.filters.find(filter => filter.field === field.key)} onChange={next => setFilter(field, next)} />);
   const count = query.filters.filter(filter => fields.some(field => field.key === filter.field)).length;
-  return <div className="pulse-table-filter-field" onKeyDown={event => {if (open && event.key === 'Escape') {event.stopPropagation(); setOpen(false); trigger.current?.focus();}}}><Popover open={open} onOpenChange={setOpen} trigger="click" placement="bottomLeft"
+  return <div className="pulse-table-filter-field" onKeyDown={event => {if (open && event.key === 'Escape') {event.stopPropagation(); setOpen(false); trigger.current?.focus();}}}><Popover fresh open={open} onOpenChange={setOpen} trigger="click" placement="bottomLeft"
     content={<div ref={popup} className="pulse-table-compound">{fields.map(field => <section key={field.key} aria-label={field.label}>
       <div className="pulse-table-group-label">{field.label}</div><FilterField inline onClose={()=>{setOpen(false);trigger.current?.focus();}} field={field} rows={rows}
         filter={query.filters.find(filter => filter.field === field.key)} onChange={next => setFilter(field, next)} />

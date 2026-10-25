@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {loadDependency} from './load-dependency.mjs';
+import {createRequire} from 'node:module';
+
+// Exercise the installed popup memo boundary rather than assume hidden children
+// rerender. Ant Popover forwards fresh to Trigger's PopupContent cache gate.
+const require=createRequire(import.meta.url);
+const PopupContent=require('@rc-component/trigger/lib/Popup/PopupContent.js').default;
 
 function nodes(value,result=[]){
  if(!value||typeof value!=='object')return result;
@@ -11,7 +17,7 @@ function nodes(value,result=[]){
 // Stateful component boundary harness: preserve hook slots and effect dependencies
 // across prop changes. Ant controls are inspected via their public value/handlers.
 function harness(field,filter){
- let current,index,effects,query={version:1,sort:[{field:'other',direction:'asc'}],filters:[filter,{field:'other',op:'contains',value:'keep'}]};
+ let current,index,effects,cachedField,query={version:1,sort:[{field:'other',direction:'asc'}],filters:[...(filter?[filter]:[]),{field:'other',op:'contains',value:'keep'}]};
  const instances=new Map();
  const hooks={
   useMemo:fn=>fn(),
@@ -27,7 +33,9 @@ function harness(field,filter){
  function render(id,component,props){
   const owner=instances.get(id)??{slots:[],dirty:false};instances.set(id,owner);
   let tree;
-  do{current=owner;index=0;effects=[];owner.dirty=false;tree=component(props);for(const effect of effects)effect();}while(owner.dirty);
+  do{current=owner;index=0;effects=[];owner.dirty=false;tree=component(props);
+   // Owner focus/document effects belong to browser QA; range sync effects run.
+   if(id!=='compound')for(const effect of effects)effect();}while(owner.dirty);
   return tree;
  }
  function view(){
@@ -38,9 +46,11 @@ function harness(field,filter){
   const owner=render('compound',ownerElement.type,ownerElement.props);
   const popover=nodes(owner).find(node=>node.type===antd.Popover);
   const fieldElement=nodes(popover.props.content).find(node=>node.props.inline&&node.props.field?.key===field.key);
-  const content=render('range',fieldElement.type,fieldElement.props);
+  if(!cachedField||!PopupContent.compare({children:cachedField},{cache:!popover.props.open&&!popover.props.fresh,children:fieldElement}))cachedField=fieldElement;
+  const content=render('range',cachedField.type,cachedField.props);
   const inputs=nodes(content).filter(node=>node.type===antd.Input);
   return {
+   open:popover.props.open,setOpen:popover.props.onOpenChange,
    values:inputs.map(node=>node.props.value),
    edit:(bound,value)=>inputs[bound].props.onChange({target:{value}}),
    apply:()=>nodes(content).find(node=>node.type===antd.Button&&node.props.children==='Применить').props.onClick(),
@@ -59,10 +69,10 @@ const fixtures=[
  {name:'unspecified datetime',field:{kind:'datetime',timezone:'unspecified'},from:'2026-10-24T08:09:10.123456',to:'2026-10-25T08:09:10.654321',shown:['2026-10-24T08:09:10.123456','2026-10-25T08:09:10.654321']},
  {name:'overlap',field:{kind:'datetime',timezone:'unspecified',readEnd:row=>row.end},from:'2026-10-24T08:09:10.123456',to:'2026-10-25T08:09:10.654321',shown:['2026-10-24T08:09:10.123456','2026-10-25T08:09:10.654321']},
 ];
-function setup(fixture,bounds='both'){
+function setup(fixture,bounds='both',empty=false){
  const field={key:'range',label:'Интервал',read:row=>row.value,...fixture.field};
  const filter={field:'range',op:field.readEnd?'overlap':'range',...(bounds!=='upper'?{from:fixture.from}:{}),...(bounds!=='lower'?{to:fixture.to}:{})};
- return {run:harness(field,filter),filter};
+ return {run:harness(field,empty?undefined:filter),filter};
 }
 
 for(const reset of ['reset','clearCompound'])test(`${reset} clears applied compound bounds without reapplying stale values`,()=>{
@@ -97,4 +107,34 @@ test('unchanged inline bounds retain exact numeric precision, datetime timezone 
   const applied=run.query.filters.find(filter=>filter.field==='range');
   assert.deepEqual(applied,{...filter,from:filter.from,to:filter.to},`${fixture.name}/${bounds}`);
  }
+});
+
+for(const reset of ['reset','clearCompound'])test(`apply closes compound, ${reset} while hidden clears bounds on first reopen`,()=>{
+ for(const fixture of fixtures)for(const bounds of ['both','lower','upper']){
+  const {run}=setup(fixture,bounds,true);
+  run.view().setOpen(true);assert.deepEqual(run.view().values,['','']);
+  if(bounds!=='upper')run.view().edit(0,fixture.shown[0]);
+  if(bounds!=='lower')run.view().edit(1,fixture.shown[1]);
+  run.view().apply();
+  const applied=run.query.filters.find(filter=>filter.field==='range');
+  assert.ok(applied,`${fixture.name}/${bounds}: apply changed query before reset`);
+  assert.equal(applied.from!==undefined,bounds!=='upper');assert.equal(applied.to!==undefined,bounds!=='lower');
+  assert.equal(run.view().open,false,'Apply closes before the next props update');
+  run.view()[reset]();
+  assert.equal(run.query.filters.some(filter=>filter.field==='range'),false);
+  assert.equal(run.view().open,false,'reset happens without reopening first');
+  run.view().setOpen(true);
+  assert.deepEqual(run.view().values,['',''],`${fixture.name}/${bounds}: first reopen after hidden reset`);
+  run.view().apply();assert.equal(run.query.filters.some(filter=>filter.field==='range'),false);
+ }
+});
+
+test('hidden sibling update and reopen preserve an unapplied compound range draft',()=>{
+ const {run}=setup(fixtures[0],'both',true);
+ run.view().setOpen(true);run.view().edit(0,'8');run.view().edit(1,'14');
+ run.view().setOpen(false);
+ run.setQuery({...structuredClone(run.query),filters:[...structuredClone(run.query.filters),{field:'note',op:'contains',value:'sibling changed'}]});
+ assert.equal(run.view().open,false);
+ run.view().setOpen(true);assert.deepEqual(run.view().values,['8','14']);
+ assert.equal(run.query.filters.some(filter=>filter.field==='range'),false,'draft remains unapplied');
 });
