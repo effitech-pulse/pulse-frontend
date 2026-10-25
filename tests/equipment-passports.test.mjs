@@ -149,3 +149,21 @@ test('invalid zero-count preview blocks correction instead of promising a valid 
  const noOp=render([]);
  assert.match(noOp,/Все значения совпадают/);assert.match(noOp,/Завершить без изменений/);assert.doesNotMatch(noOp,/Исправьте ошибки/);
 });
+
+for(const mixed of [false,true])test(`${mixed?'mixed valid/invalid':'all-invalid'} preview retains every command target and its row error without invented diff`,()=>{
+ const {EquipmentPassportPreview}=loadDependency('@/components/equipment/EquipmentPassportPreview',new URL('../src/components/equipment/EquipmentPassportPreview.tsx',import.meta.url).pathname);
+ const invalid={...row,row_key:'invalid-2',well_id:'9007199254740999',slot:'motor',action:'void',change_reason:''};
+ const valid={...row,row_key:'valid-1',slot:'pump'};
+ const before={id:'42',component_id:'43',slot:'pump',status:'current',installed_on:null,removed_on:null,predecessor_id:null,attributes:{model:'Старая'}};
+ const actualDiff={row_key:'valid-1',well_id:'9007199254740993',slot:'pump',action:'update',before:[before],after:[{...before,attributes:{model:'Новая'}}]};
+ const html=renderToStaticMarkup(React.createElement(EquipmentPassportPreview,{preview:{...preview,expires_at:'2099-01-01T00:00:00Z',commands:{schema_version:'equipment-passport-v1',rows:mixed?[valid,invalid]:[invalid]},diff:mixed?[actualDiff]:[],changed_count:mixed?1:0,unchanged_count:0,issues:[{row_key:'invalid-2',field:'change_reason',severity:'error',code:'required',message:'Укажите причину изменения.'}]},busy:false,ambiguous:false,isImport:true,onCommit:()=>assert.fail('invalid package cannot commit'),onBack:()=>{}}));
+ const invalidRow=html.match(/<tr\b[^>]*data-row-key="invalid-2"[^>]*>([\s\S]*?)<\/tr>/)?.[1];
+ assert.ok(invalidRow,'invalid command must remain a real overview table row');
+ assert.match(invalidRow,/9007199254740999/);assert.match(invalidRow,/ПЭД/);assert.match(invalidRow,/Аннулировать запись/);
+ assert.match(invalidRow,/Ошибка/);assert.match(invalidRow,/change_reason/);assert.match(invalidRow,/Укажите причину изменения/);
+ assert.doesNotMatch(invalidRow,/эпизодов|Изменится|Без изменений/);
+ assert.match(html,/<button\b[^>]*disabled=""[^>]*><span>Исправьте ошибки<\/span><\/button>/);
+ if(mixed){const validRow=html.match(/<tr\b[^>]*data-row-key="valid-1"[^>]*>([\s\S]*?)<\/tr>/)?.[1];assert.ok(validRow);assert.match(validRow,/9007199254740993/);assert.match(validRow,/Насос/);assert.match(validRow,/Изменится/);assert.match(validRow,/1 → 1 эпизодов/);}
+ else assert.doesNotMatch(html,/ant-table-placeholder/);
+ assert.match(html,new RegExp(`Показать полный diff \\(${mixed?1:0} строк\\)`),'full diff counts only actual server diffs');
+});
