@@ -3,7 +3,7 @@ import {useAuth} from '@/auth/AuthProvider';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, App, Button, Card, Checkbox, DatePicker, Drawer, Dropdown, Empty, Modal, Radio, Segmented, Select, Slider, Space, Switch, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { CheckVerdict } from './ManualChecks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreOutlined, SettingOutlined } from '@ant-design/icons';
@@ -14,9 +14,20 @@ import { exportTelemetry } from '@/lib/telemetryFiles';
 import { TelemetryChart, seriesColors, type ZoomRange } from './TelemetryChart';
 import { ImportTelemetry } from './ImportTelemetry';
 
+import {DailyFlowPanel, DailyChoice} from './DailyFlowPanel';
+import {dailySettings, dailySearch, type DailyPeriod} from '@/lib/dailyFlow';
+
 const { RangePicker } = DatePicker;
 type View = 'channels' | 'combined' | 'compare' | 'table';
-export function TelemetryWorkspace({ wellId }: { wellId: string }) {
+export function TelemetryWorkspace({wellId}:{wellId:string}) {
+ const [search]=useSearchParams();const location=useLocation();const navigate=useNavigate();const {privateEpoch}=useAuth();
+ const settings=dailySettings(search);
+ function change(next:{mode:'daily'|'parameters';period:DailyPeriod}) {navigate({pathname:location.pathname,search:`?${dailySearch(search,next)}`,hash:location.hash});}
+ return <><div className="daily-mode"><DailyChoice label="Режим телеметрии" value={settings.mode} options={[{value:'parameters',label:'Параметры'},{value:'daily',label:'Суточный дебит'}]} onChange={mode=>change({...settings,mode})}/></div>
+  <DailyFlowPanel key={`${wellId}:${privateEpoch}`} wellId={wellId} active={settings.mode==='daily'} period={settings.period} onPeriod={period=>change({...settings,period})} onParameters={()=>change({...settings,mode:'parameters'})}/>
+  {settings.mode==='parameters'&&<ParametersWorkspace wellId={wellId}/>}</>;
+}
+function ParametersWorkspace({ wellId }: { wellId: string }) {
   const {can,capturePrivate}=useAuth();
   const { message } = App.useApp(); const client = useQueryClient();
   const [search] = useSearchParams();

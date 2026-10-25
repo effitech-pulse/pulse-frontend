@@ -1,0 +1,57 @@
+.daily-flow { display:flex; flex-direction:column; gap:16px; min-width:0; color:var(--pulse-ink); font-variant-numeric:tabular-nums; }
+.daily-flow p,.daily-flow h2,.daily-flow h3 { margin:0; }
+.daily-flow h2 { font-size:20px; font-weight:500; line-height:28px; }
+.daily-flow h3 { font-size:14px; font-weight:500; line-height:20px; }
+.daily-heading { display:flex; align-items:center; gap:16px; flex-wrap:wrap; max-width:552px; justify-content:space-between; }
+.daily-flow .daily-test-tag { margin:0; border:0; color:var(--pulse-ink); font-size:12px; }
+.daily-controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.daily-choice-container { max-width:100%; }
+.daily-choice { display:flex; width:max-content; max-width:100%; }
+.daily-choice .ant-radio-button-wrapper { min-height:44px; height:auto; display:flex; align-items:center; justify-content:center; min-width:88px; padding:10px 16px; white-space:normal; line-height:20px; border-color:var(--pulse-muted); text-align:center; }
+.daily-mode { margin-bottom:16px; }
+.daily-mode .ant-radio-button-wrapper:first-child { width:140px; }
+.daily-mode .ant-radio-button-wrapper:last-child { width:186px; }
+.daily-flow .ant-btn { min-height:44px; height:auto; white-space:normal; border-color:var(--pulse-muted); }
+.daily-controls>.ant-btn { width:154px; }
+.daily-dates { min-width:184px; }
+.daily-small { font-size:12px; line-height:17px; color:var(--pulse-ink); }
+.daily-flow [aria-live]:empty { display:none; }
+.daily-panel { padding:16px; border:1px solid var(--pulse-border); border-radius:4px; background:var(--pulse-surface); }
+.daily-summary-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:16px 0; }
+.daily-summary-values>div { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.daily-summary-values>div>span { color:var(--pulse-muted); font-size:12px; line-height:17px; }
+.daily-summary-values strong { font-size:22px; font-weight:500; line-height:30px; overflow-wrap:anywhere; }
+.daily-legend { display:flex; flex-wrap:wrap; gap:20px; margin:12px 0; font-size:12px; }
+.daily-legend span:first-child { color:var(--pulse-blue); }
+.daily-chart { position:relative; min-width:0; }
+.daily-chart svg { display:block; width:100%; overflow:visible; }
+.daily-grid { stroke:var(--pulse-border); stroke-width:1; }
+.daily-axis { fill:var(--pulse-muted); font:12px Roboto,sans-serif; }
+.daily-actual { stroke:var(--pulse-blue); fill:var(--pulse-blue); }
+.daily-expected { stroke:var(--pulse-ink); fill:var(--pulse-ink); }
+.daily-cursor { stroke:var(--pulse-muted); stroke-dasharray:3 3; }
+.daily-chart-output { min-height:24px; font-size:12px; line-height:17px; margin:4px 0; }
+.daily-days { min-width:0; }
+.daily-days>p { margin-top:8px; }
+.daily-table-region { max-height:310px; overflow:auto; margin-top:12px; background:var(--pulse-surface); }
+.daily-table { border-collapse:separate; border-spacing:0; width:100%; min-width:780px; font-size:14px; line-height:20px; }
+.daily-table th,.daily-table td { padding:12px; height:46px; box-sizing:border-box; text-align:right; border-bottom:1px solid var(--pulse-border); white-space:nowrap; font-weight:400; }
+.daily-table thead th { position:sticky; top:0; z-index:1; height:54px; background:var(--pulse-canvas); font-weight:500; font-size:12px; }
+.daily-table th:first-child,.daily-table td:last-child,.daily-table th:last-child { text-align:left; }
+.daily-scroll-hint { display:none; }
+.daily-flow :focus-visible,.daily-mode :focus-visible { outline:2px solid var(--pulse-blue); outline-offset:2px; }
+@media(max-width:600px) {
+ .daily-flow h2 { font-size:16px; line-height:22px; }
+ .daily-heading { flex-direction:column; align-items:flex-start; gap:8px; }
+ .daily-mode .daily-choice { width:100%; }
+ .daily-mode .ant-radio-button-wrapper:first-child { width:38%; }
+ .daily-mode .ant-radio-button-wrapper:last-child { width:62%; }
+ .daily-controls { align-items:stretch; gap:12px; }
+ .daily-controls .daily-choice { width:100%; }
+ .daily-controls .ant-radio-button-wrapper { min-width:0; flex:1; }
+ .daily-dates,.daily-controls>.ant-btn { width:100%; }
+ .daily-summary-values { gap:8px; }
+ .daily-controls>.daily-choice-container { width:100%; }
+ .daily-scroll-hint { display:block; }
+}
+@media(prefers-reduced-motion:reduce) { .daily-flow *,.daily-mode * { animation:none!important; transition:none!important; } }
