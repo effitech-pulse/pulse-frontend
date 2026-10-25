@@ -1,11 +1,14 @@
 import { Button, Layout, Menu, Space, Spin, Tooltip, Result } from 'antd';
-import { Suspense, useEffect, useState } from 'react';
-import { ApartmentOutlined, BarChartOutlined, DashboardOutlined, HistoryOutlined, FileSearchOutlined, AlertOutlined, ApiOutlined, BulbOutlined, MoonOutlined, UserOutlined, BellOutlined, SettingOutlined, MenuOutlined } from '@ant-design/icons';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { ApartmentOutlined, BarChartOutlined, DashboardOutlined, HistoryOutlined, FileSearchOutlined, AlertOutlined, ApiOutlined, BulbOutlined, MoonOutlined, UserOutlined, SettingOutlined, MenuOutlined } from '@ant-design/icons';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { WorkspaceEvents, WorkspaceProfile } from './WorkspaceMenu';
+import { WorkspaceProfile } from './WorkspaceMenu';
 import {routeAccess} from '@/auth/authorization';
 import { useAuth } from '@/auth/AuthProvider';
 import { useTheme } from '@/theme/ThemeProvider';
+
+import {NotificationsPrivateContext,useNotifications} from '@/hooks/useNotifications';
+import {NotificationBell,NotificationsPanel,NotificationNavigation,actionID} from '@/components/notifications/NotificationsPanel';
 
 const { Sider, Header, Content } = Layout;
 const MONITORING = [
@@ -38,6 +41,11 @@ export function AppLayout() {
   const location = useLocation();
   const { dark, toggle } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false), [eventsOpen, setEventsOpen] = useState(false);
+  const bell=useRef<HTMLButtonElement>(null),notificationHeading=useRef<HTMLHeadingElement>(null),sourceAction=useRef<string|null>(null),navigationClose=useRef(false),restoreSource=useRef(false);
+  const notifications=useNotifications(eventsOpen,()=>{const panel=document.getElementById('f4-notifications');return !!panel&&(panel.contains(document.activeElement)&&!!document.activeElement?.closest('.f4-row')||(panel.closest('.ant-drawer-body')?.scrollTop??0)>0);});
+  const sourceBoundary=useRef(notifications.boundary);
+  if(sourceBoundary.current!==notifications.boundary){sourceBoundary.current=notifications.boundary;sourceAction.current=null;}
+  const returnToNotifications=()=>{restoreSource.current=true;setEventsOpen(true);};
   const [collapsed, setCollapsed] = useState(false);
   const eventRoute=location.pathname.startsWith('/events')||(location.pathname.startsWith('/wells/')&&new URLSearchParams(location.search).has('event'));
   const forbidden = !routeAccess(principal, location.pathname);
@@ -50,7 +58,7 @@ export function AppLayout() {
   const title = eventRoute ? 'История событий' : location.pathname.startsWith('/telemetry/') ? 'Телеметрия' : location.pathname.startsWith('/wells/') ? 'Карточка скважины' : ITEMS.find(i => i.key === selectedKey)?.title;
   const name = mode === 'local' ? principal?.name : 'Рабочее пространство';
   const group = MONITORING.some(i => i.key === selectedKey) ? 'Мониторинг' : selectedKey==='/events'?'Инструменты':'Система';
-  return <Layout className="pulse-app">
+  return <NotificationsPrivateContext.Provider value={{blocked:notifications.blocked,block:notifications.controller.deny,recheck:notifications.controller.refresh}}><NotificationNavigation.Provider value={{back:returnToNotifications,remember:id=>{sourceAction.current=id;}}}><Layout className="pulse-app">
     <Sider width={224} breakpoint="lg" collapsedWidth={0} collapsed={collapsed} onCollapse={setCollapsed} trigger={null} className="app-sidebar">
       <div className="app-sidebar-inner" aria-hidden={collapsed} ref={element=>{if(element)element.toggleAttribute('inert',collapsed);}}>
         <Link to="/" className="app-brand" aria-label="Пульс скважины — обзор фонда"><img className="app-brand-mark" src="/figma/pulse-symbol.svg" alt="" aria-hidden="true" /><span><strong>Пульс скважины</strong><small>Мониторинг УЭЦН</small></span></Link>
@@ -61,13 +69,13 @@ export function AppLayout() {
     <Layout className="app-main">
       <Header className="app-header"><div className="app-header-context"><NavigationToggle collapsed={collapsed} showLabel={eventRoute} onToggle={()=>setCollapsed(v=>!v)} /><div className="app-breadcrumb">{group} / {title}</div></div><Space size={12}>
         <Tooltip title={dark?'Светлая тема':'Тёмная тема'}><Button className="app-icon-button" aria-label="Переключить тему" onClick={toggle} icon={dark?<BulbOutlined />:<MoonOutlined />} /></Tooltip>
-        <Tooltip title="Новые тревоги и ошибки сбора"><Button className="app-icon-button" type="text" aria-label="Требуют внимания" icon={<BellOutlined />} onClick={()=>setEventsOpen(true)} /></Tooltip>
+        <NotificationBell buttonRef={bell} count={notifications.count} countError={notifications.countError} open={eventsOpen} onClick={()=>setEventsOpen(true)}/>
 
       </Space></Header>
       <Content className={`app-content${location.pathname.startsWith('/analytics')?' app-content-full':''}`}>
         <Suspense fallback={<div className="app-loading"><Spin size="large" /></div>}>{forbidden?<Result status="403" title="Доступ ограничен" />:<Outlet />}</Suspense>
       </Content>
     </Layout>
-    <WorkspaceProfile open={profileOpen} onClose={()=>setProfileOpen(false)} /><WorkspaceEvents open={eventsOpen} onClose={()=>setEventsOpen(false)} />
-  </Layout>;
+    <WorkspaceProfile open={profileOpen} onClose={()=>setProfileOpen(false)} /><NotificationsPanel open={eventsOpen} notifications={notifications} headingRef={notificationHeading} onClose={()=>setEventsOpen(false)} onOpen={id=>{sourceAction.current=id;navigationClose.current=true;setEventsOpen(false);}} onEntered={()=>{if(restoreSource.current){restoreSource.current=false;(sourceAction.current?document.getElementById(actionID(sourceAction.current))??notificationHeading.current:notificationHeading.current)?.focus();}}} focusReturn={()=>{if(navigationClose.current){navigationClose.current=false;return;}(bell.current??document.querySelector<HTMLElement>('h1'))?.focus();}}/>
+  </Layout></NotificationNavigation.Provider></NotificationsPrivateContext.Provider>;
 }

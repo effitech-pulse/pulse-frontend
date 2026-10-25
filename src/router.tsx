@@ -28,6 +28,8 @@ const AccountsPage=lazy(()=>import('@/pages/AccountsPage').then(m=>({default:m.A
 const UserEditorPage=lazy(()=>import('@/pages/UserEditorPage').then(m=>({default:m.UserEditorPage})));
 const PeoplePage=lazy(()=>import('@/pages/PeoplePage').then(m=>({default:m.PeoplePage})));
 const EmployeeProfilePage=lazy(()=>import('@/pages/EmployeeProfilePage').then(m=>({default:m.EmployeeProfilePage})));
+const NotificationAlertPage=lazy(()=>import('@/pages/NotificationAlertPage').then(m=>({default:m.NotificationAlertPage})));
+const NotificationSourcePage=lazy(()=>import('@/pages/NotificationSourcePage').then(m=>({default:m.NotificationSourcePage})));
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -35,6 +37,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'wells', element: <Navigate to="/structure" replace /> },
+      { path:'wells/:wellId/alerts/:alertId',element:<NotificationAlertPage/> },
       { path: 'wells/:wellId', element: <WellEventRoute /> },
       { path: 'events', element: <EventsPage /> },
       { path: 'events/:eventId', element: <EventDetailPage /> },
@@ -49,6 +52,7 @@ export const router = createBrowserRouter([
       { path:'people/:id',element:<EmployeeProfilePage /> },
       { path: 'audit', element: <AuditPage /> },
       { path: 'analytics', element: <AnalyticsPage /> },
+      { path:'integrations/source-overview',element:<NotificationSourcePage/> },
       { path: 'integrations', element: <IntegrationsPage /> },
       { path: 'telemetry/:wellId', element: <TelemetryPage /> },
       { path: '*', element: <Navigate to="/" replace /> },

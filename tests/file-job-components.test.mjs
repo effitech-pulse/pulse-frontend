@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import {legacyAuth} from './auth-fixture.mjs';
 import * as authorization from '../src/auth/authorization.ts';
 import test from 'node:test';
@@ -11,7 +12,7 @@ import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import * as logic from '../src/lib/fileJobs.ts';
 const require=createRequire(import.meta.url);
-function load(relative,boundaries){const filename=fileURLToPath(new URL(relative,import.meta.url));const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{esModuleInterop:true,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries,id)?boundaries[id]:require(id);mod._compile(code,filename);return mod.exports;}
+function load(relative,boundaries){const filename=fileURLToPath(new URL(relative,import.meta.url));const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{esModuleInterop:true,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries,id)?boundaries[id]:loadDependency(id,filename,boundaries);mod._compile(code,filename);return mod.exports;}
 const {SavedFileCheckResult}=load('../src/components/telemetry/FileJobResult.tsx',{'./ReviewPanel':{ReviewPanel:()=>React.createElement('div',{'data-review':true})},'@/api/fileJobs':{fileJobPath:(well,job)=>`/api/v1/wells/${well}/file-check-jobs/${job}`}});
 const check={id:'q1_'+'a'.repeat(32),job_id:'a'.repeat(32),well_id:'9223372036854775807',source_kind:'uploaded_file',start:'2026-01-01',end:'2026-02-01',created_at:'2026-02-01',input_sha256:'hash',points_count:'9223372036854775807',resolution:'',result:{verdict:'insufficient',latest_risk:null,peak_risk:null}};
 test('saved insufficient projection keeps int64 and review without false zero risk or legacy session copy',()=>{
