@@ -33,3 +33,6 @@
 .pulse-table-filter-actions .pulse-table-action:not(:disabled):active { background: var(--pulse-table-selected); }
 .pulse-table-reset-icon { position: relative; display: inline-flex; width: 16px; height: 16px; }
 .pulse-table-filter-actions .pulse-table-reset-icon .pulse-table-reset-x { position: absolute; right: 0; bottom: 0; font-size: 6px; line-height: 1; background: var(--pulse-table-surface); }
+
+/* Only filter-row actions stay visible; service titles and body cells scroll normally. */
+.pulse-table .ant-table-thead > tr:nth-child(2) > th.pulse-table-actions-sticky { position: sticky; right: 0; z-index: 3; background: var(--pulse-table-surface); border-left: 1px solid var(--pulse-table-border); }

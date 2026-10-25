@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
-import type {CSSProperties, ReactNode} from 'react';
+import type {CSSProperties, FocusEvent, ReactNode} from 'react';
 import {Alert, Button, Checkbox, Empty, Input, Pagination, Popover, Space, Table, Tooltip, theme} from 'antd';
 import type {TableProps} from 'antd';
 import type {ColumnType, ColumnsType} from 'antd/es/table';
@@ -156,6 +156,36 @@ function ColumnFilters<T>({fields, rows, query, onChange}: {fields: FieldSchema<
 export function PulseTable<T extends object>(props: PulseTableProps<T>) {
   const {schema, query, onQueryChange, loading, columns} = props;
   const {token} = theme.useToken();
+  const container = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const element = container.current;
+    if (!element) return;
+    setNarrow(element.getBoundingClientRect().width < 480);
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(entries => {
+      const entry = entries.find(item => item.target === element);
+      if (entry) setNarrow(entry.contentRect.width < 480);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const revealFocusedFilter = (event: FocusEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.pulse-table-filter-cell') || target.closest('.ant-table-cell-fix-left')) return;
+    const port = target.closest<HTMLElement>('.ant-table-content, .ant-table-header, .ant-table-body');
+    const sticky = port?.querySelector<HTMLElement>('th.pulse-table-actions-sticky');
+    if (!port || !sticky || sticky.contains(target)) return;
+    const viewport = port.getBoundingClientRect();
+    const fixedLeft = Array.from(port.querySelectorAll<HTMLElement>('thead > tr:nth-child(2) > th.ant-table-cell-fix-left'));
+    // Leave room for the 2px focus outline plus its 2px offset on both sides.
+    const left = Math.max(viewport.left, ...fixedLeft.map(cell => cell.getBoundingClientRect().right)) + 4;
+    const right = Math.min(viewport.right, sticky.getBoundingClientRect().left) - 4;
+    if (right <= left) return;
+    const rect = target.getBoundingClientRect();
+    const delta = rect.width > right - left ? rect.left - left : rect.right > right ? rect.right - right : rect.left < left ? rect.left - left : 0;
+    if (delta) port.scrollLeft += delta;
+  };
   const rows = props.mode === 'local' ? props.rows : props.page.items;
   const filtered = useMemo(() => props.mode === 'local' ? applyTableQuery(props.rows, schema, query) : props.page.items, [props.mode, rows, schema, query]);
   const change = (next: TableQuery) => {if (props.mode === 'local') props.pagination.onPageChange(1, props.pagination.pageSize); onQueryChange(next);};
@@ -171,6 +201,8 @@ export function PulseTable<T extends object>(props: PulseTableProps<T>) {
     : [...columns,{key:'pulse-table-utility',title:'',width:120,render:()=>null}];
   const tableColumns: ColumnsType<T> = displayColumns.map((column,columnIndex) => {
     const {filterKeys, sortKey, ...base} = column;
+    const fixed = narrow && (column.fixed === 'left' || column.fixed === true) ? undefined : column.fixed;
+    const isActions = columnIndex === displayColumns.length - 1;
     const fieldKey = sortKey ?? (schema.fields.some(field => field.key === column.key) ? column.key : undefined);
     const index = query.sort.findIndex(sort => sort.field === fieldKey);
     const active = query.sort[index];
@@ -178,12 +210,15 @@ export function PulseTable<T extends object>(props: PulseTableProps<T>) {
       .map(key => schema.fields.find(field => field.key === key)).filter((field): field is FieldSchema<T> => Boolean(field));
     const sortLabel=typeof column.title==='string'?(fields.length>1?`${column.title}: ${schema.fields.find(field=>field.key===fieldKey)?.label??fieldKey}`:column.title):schema.fields.find(field=>field.key===fieldKey)?.label??fieldKey;
     const description = active ? `${active.direction === 'asc' ? 'По возрастанию' : 'По убыванию'}, приоритет ${index + 1}` : 'Без сортировки';
-    return {key: `heading-${column.key}`, width: column.width, fixed: column.fixed,
+    return {key: `heading-${column.key}`, width: column.width, fixed,
       title: fieldKey ? <button className="pulse-table-sort" type="button" aria-label={`${sortLabel}. ${description}`}
         onClick={() => change(cycleSort(query, fieldKey))}><span>{typeof column.title === 'function' ? column.title({}) : column.title}</span>
         {active ? <span className="pulse-table-sort-state"><span className="pulse-table-sort-arrow" aria-hidden="true">{active.direction === 'asc' ? '↑' : '↓'}</span><span aria-hidden="true">{index + 1}</span></span> : null}</button> : column.title,
       onHeaderCell: () => ({'aria-sort': index === 0 ? active?.direction === 'asc' ? 'ascending' : 'descending' : undefined}),
-      children: [{...base, title: <div className="pulse-table-filter-cell" onClick={event => event.stopPropagation()}>
+      children: [{...base, fixed, onHeaderCell: isActions ? leaf => {
+        const cell = column.onHeaderCell?.(leaf) ?? {};
+        return {...cell, className: [cell.className, 'pulse-table-actions-sticky'].filter(Boolean).join(' ')};
+      } : column.onHeaderCell, title: <div className="pulse-table-filter-cell" onClick={event => event.stopPropagation()}>
         {columnIndex === displayColumns.length-1 ? actionButtons : <ColumnFilters fields={fields} rows={rows} query={query} onChange={change} />}
       </div>}],
     };
@@ -193,7 +228,7 @@ export function PulseTable<T extends object>(props: PulseTableProps<T>) {
     '--pulse-table-accent': token.colorPrimary, '--pulse-table-error': token.colorError} as CSSProperties;
   const safePage=props.mode==='local'?Math.min(props.pagination.page,Math.max(1,Math.ceil(filtered.length/props.pagination.pageSize))):1;
   const pagedRows = props.mode === 'local' ? filtered.slice((safePage - 1) * props.pagination.pageSize, safePage * props.pagination.pageSize) : filtered;
-  return <div className="pulse-table" style={style}>
+  return <div ref={container} className="pulse-table" style={style} onFocusCapture={revealFocusedFilter}>
     {props.headerActions ? <div className="pulse-table-actions">{props.headerActions}</div> : null}
     <span className="pulse-table-sr-only" role="status">{query.sort.length ? query.sort.map((sort, index) => `${schema.fields.find(field => field.key === sort.field)?.label ?? sort.field}: ${sort.direction === 'asc' ? 'по возрастанию' : 'по убыванию'}, приоритет ${index + 1}`).join('; ') : 'Исходный порядок'}</span>
     {props.error ? <Alert type="error" showIcon message={props.error} /> : null}
