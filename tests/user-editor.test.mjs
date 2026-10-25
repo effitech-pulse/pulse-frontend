@@ -1,3 +1,4 @@
+import * as organizationTree from '../src/lib/organizationTree.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as draft from '../src/lib/accessDraft.ts';
@@ -28,7 +29,7 @@ test('router registers direct create/edit reload targets and independent safe di
  assert.equal(children.find(r=>r.path==='accounts').element.props.to,'/system/access?tab=users');
 });
 test('directory transport only uses safe endpoints and passes literal search plus cursor filters',async()=>{
- const calls=[];const {peopleApi}=load('../src/api/people.ts',{'./client':{apiClient:{get:async(url,config)=>{calls.push({url,config});return {data:{items:[],next_cursor:null}};}}}});
+ const calls=[];const {peopleApi}=load('../src/api/people.ts',{'../lib/organizationTree':organizationTree,'./client':{apiClient:{get:async(url,config)=>{calls.push({url,config});return {data:{items:[],next_cursor:null}};}}}});
  await peopleApi.list({search:'%_ Цех',include_inactive:true,limit:25,cursor:'opaque'});await peopleApi.get('9007199254740993');
  assert.deepEqual(calls,[{url:'/api/v1/people',config:{params:{search:'%_ Цех',include_inactive:true,limit:25,cursor:'opaque'}}},{url:'/api/v1/people/9007199254740993',config:undefined}]);
 });
