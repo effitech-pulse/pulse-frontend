@@ -36,16 +36,30 @@ export function NavigationToggle({collapsed, onToggle, showLabel=false}: {collap
     onClick={onToggle} icon={showLabel?undefined:<MenuOutlined />}>{showLabel?'Меню':null}</Button>;
 }
 
+/** Runs after rc-drawer's native invoker restore, without taking moved/stale focus. */
+export function restoreNotificationBellFocus(
+  bell: HTMLElement | null,
+  invoker: Element | null,
+  ticket: { current: () => boolean },
+  currentBoundary: () => boolean,
+) {
+  if (!ticket.current() || !currentBoundary()) return;
+  const active = document.activeElement;
+  if (active !== document.body && active !== bell && active !== invoker && !active?.closest('.f4-drawer')) return;
+  (bell ?? document.querySelector<HTMLElement>('h1'))?.focus();
+}
+
 export function AppLayout() {
   const { principal, mode, capturePrivate } = useAuth();
   const location = useLocation();
   const { dark, toggle } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false), [eventsOpen, setEventsOpen] = useState(false);
-  const bell=useRef<HTMLButtonElement>(null),notificationHeading=useRef<HTMLHeadingElement>(null),sourceAction=useRef<string|null>(null),navigationClose=useRef(false),restoreSource=useRef(false);
+  const bell=useRef<HTMLButtonElement>(null),notificationHeading=useRef<HTMLHeadingElement>(null),sourceAction=useRef<string|null>(null),navigationClose=useRef(false),restoreSource=useRef(false),drawerInvoker=useRef<Element|null>(null),panelOpen=useRef(eventsOpen);
+  panelOpen.current=eventsOpen;
   const notifications=useNotifications(eventsOpen,()=>{const panel=document.getElementById('f4-notifications');return !!panel&&(panel.contains(document.activeElement)&&!!document.activeElement?.closest('.f4-row')||(panel.closest('.ant-drawer-body')?.scrollTop??0)>0);});
   const sourceBoundary=useRef(notifications.boundary);
-  if(sourceBoundary.current!==notifications.boundary){sourceBoundary.current=notifications.boundary;sourceAction.current=null;}
-  const returnToNotifications=()=>{restoreSource.current=true;setEventsOpen(true);};
+  if(sourceBoundary.current!==notifications.boundary){sourceBoundary.current=notifications.boundary;sourceAction.current=null;drawerInvoker.current=null;}
+  const returnToNotifications=()=>{drawerInvoker.current=document.activeElement;restoreSource.current=true;setEventsOpen(true);};
   const [collapsed, setCollapsed] = useState(false);
   const eventRoute=location.pathname.startsWith('/events')||(location.pathname.startsWith('/wells/')&&new URLSearchParams(location.search).has('event'));
   const forbidden = !routeAccess(principal, location.pathname);
@@ -69,13 +83,13 @@ export function AppLayout() {
     <Layout className="app-main">
       <Header className="app-header"><div className="app-header-context"><NavigationToggle collapsed={collapsed} showLabel={eventRoute} onToggle={()=>setCollapsed(v=>!v)} /><div className="app-breadcrumb">{group} / {title}</div></div><Space size={12}>
         <Tooltip title={dark?'Светлая тема':'Тёмная тема'}><Button className="app-icon-button" aria-label="Переключить тему" onClick={toggle} icon={dark?<BulbOutlined />:<MoonOutlined />} /></Tooltip>
-        <NotificationBell buttonRef={bell} count={notifications.count} countError={notifications.countError} open={eventsOpen} onClick={()=>setEventsOpen(true)}/>
+        <NotificationBell buttonRef={bell} count={notifications.count} countError={notifications.countError} open={eventsOpen} onClick={()=>{drawerInvoker.current=document.activeElement;setEventsOpen(true);}}/>
 
       </Space></Header>
       <Content className={`app-content${location.pathname.startsWith('/analytics')?' app-content-full':''}`}>
         <Suspense fallback={<div className="app-loading"><Spin size="large" /></div>}>{forbidden?<Result status="403" title="Доступ ограничен" />:<Outlet />}</Suspense>
       </Content>
     </Layout>
-    <WorkspaceProfile open={profileOpen} onClose={()=>setProfileOpen(false)} /><NotificationsPanel open={eventsOpen} notifications={notifications} headingRef={notificationHeading} onClose={()=>setEventsOpen(false)} onOpen={id=>{sourceAction.current=id;navigationClose.current=true;setEventsOpen(false);}} onEntered={()=>{if(restoreSource.current){restoreSource.current=false;(sourceAction.current?document.getElementById(actionID(sourceAction.current))??notificationHeading.current:notificationHeading.current)?.focus();}}} focusReturn={()=>{if(navigationClose.current){navigationClose.current=false;const ticket=capturePrivate(),boundary=notifications.boundary;requestAnimationFrame(()=>{if(!ticket.current()||sourceBoundary.current!==boundary)return;if(document.activeElement===bell.current||document.activeElement===document.body||document.activeElement?.closest('.f4-drawer'))document.querySelector<HTMLElement>('.f4-target h1')?.focus();});return;}(bell.current??document.querySelector<HTMLElement>('h1'))?.focus();}}/>
+    <WorkspaceProfile open={profileOpen} onClose={()=>setProfileOpen(false)} /><NotificationsPanel open={eventsOpen} notifications={notifications} headingRef={notificationHeading} onClose={()=>setEventsOpen(false)} onOpen={id=>{sourceAction.current=id;navigationClose.current=true;setEventsOpen(false);}} onEntered={()=>{if(restoreSource.current){restoreSource.current=false;(sourceAction.current?document.getElementById(actionID(sourceAction.current))??notificationHeading.current:notificationHeading.current)?.focus();}}} focusReturn={()=>{if(navigationClose.current){navigationClose.current=false;const ticket=capturePrivate(),boundary=notifications.boundary;requestAnimationFrame(()=>{if(!ticket.current()||sourceBoundary.current!==boundary)return;if(document.activeElement===bell.current||document.activeElement===document.body||document.activeElement?.closest('.f4-drawer'))document.querySelector<HTMLElement>('.f4-target h1')?.focus();});return;}const ticket=capturePrivate(),boundary=notifications.boundary,invoker=drawerInvoker.current;requestAnimationFrame(()=>restoreNotificationBellFocus(bell.current,invoker,ticket,()=>sourceBoundary.current===boundary&&!panelOpen.current));}}/>
   </Layout></NotificationNavigation.Provider></NotificationsPrivateContext.Provider>;
 }
