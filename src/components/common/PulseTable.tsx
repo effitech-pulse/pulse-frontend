@@ -52,18 +52,20 @@ function FilterField<T>({field, filter, rows, onChange, inline = false, onClose}
     return () => {cancelAnimationFrame(frame); document.removeEventListener('keydown', escape);};
   }, [open]);
   const [invalid, setInvalid] = useState(false);
+  const appliedText = filter?.op === 'contains' ? filter.value : '';
+  const range = filter && (filter.op === 'range' || filter.op === 'overlap') ? filter : undefined;
   useEffect(() => {
-    setText(filter?.op === 'contains' ? filter.value : ''); setInvalid(false);
-    if (inline && filter && (filter.op === 'range' || filter.op === 'overlap')) {
+    setText(appliedText); setInvalid(false);
+    if (inline) {
       const display = (value: string | number | undefined) => {
         if (value === undefined) return '';
         if (field.kind !== 'datetime' || field.timezone === 'unspecified') return String(value);
         const time = Date.parse(String(value));
         return Number.isFinite(time) ? new Date(time + 3 * 3600000).toISOString().slice(0, 23) : '';
       };
-      setFrom(display(filter.from)); setTo(display(filter.to));
+      setFrom(display(range?.from)); setTo(display(range?.to));
     }
-  }, [filter, inline, field.kind]);
+  }, [appliedText, range?.from, range?.to, inline, field.kind, field.timezone]);
   const multi = field.kind === 'enum' || field.kind === 'boolean';
   const selected = filter?.op === 'in' ? filter.values : [];
   const options = useMemo(() => field.loadOptions ? remote : field.options ?? (field.kind === 'boolean'
@@ -78,7 +80,6 @@ function FilterField<T>({field, filter, rows, onChange, inline = false, onClose}
     {field.options?.some(option=>option.value===null)?<Checkbox checked={filter?.op==='in'&&filter.values.includes(null)} onChange={event=>onChange(event.target.checked?{field:field.key,op:'in',values:[null]}:undefined)}>{field.options.find(option=>option.value===null)?.label}</Checkbox>:null}
     {invalid ? <span role="alert" className="pulse-table-filter-error">Введите положительный ID int64</span> : null}
   </div>;
-  const range = filter && (filter.op === 'range' || filter.op === 'overlap') ? filter : undefined;
   const localValue = (value: string | number | undefined) => {
     if (value === undefined) return '';
     if (field.kind !== 'datetime' || field.timezone === 'unspecified') return String(value);
@@ -119,7 +120,7 @@ function FilterField<T>({field, filter, rows, onChange, inline = false, onClose}
   return <div className="pulse-table-filter-field"><Popover trigger="click" open={open} content={content} placement="bottomLeft"
     onOpenChange={next => {setOpen(next); if (next) {setFrom(localValue(range?.from)); setTo(localValue(range?.to)); setInvalid(false);}}}>
     <button ref={trigger} type="button" className="pulse-table-filter-trigger" aria-label={`Фильтр: ${field.label}`} aria-expanded={open}
-      onKeyDown={event => {if (event.key === 'Escape') close();}}>
+      onKeyDown={event => {if (open && event.key === 'Escape') {event.stopPropagation(); close();}}}>
       <span>{multi ? selected.length ? `Выбрано: ${selected.length}` : 'Все' : range ? 'Интервал задан' : 'Интервал'}</span><span aria-hidden="true">⌄</span>
     </button>
   </Popover>{filter ? <button type="button" className="pulse-table-filter-clear" aria-label={`Очистить: ${field.label}`} onClick={clear}>×</button> : null}</div>;
@@ -141,7 +142,7 @@ function ColumnFilters<T>({fields, rows, query, onChange}: {fields: FieldSchema<
   if (fields.length < 2) return fields.map(field => <FilterField key={field.key} field={field} rows={rows}
     filter={query.filters.find(filter => filter.field === field.key)} onChange={next => setFilter(field, next)} />);
   const count = query.filters.filter(filter => fields.some(field => field.key === filter.field)).length;
-  return <div className="pulse-table-filter-field"><Popover open={open} onOpenChange={setOpen} trigger="click" placement="bottomLeft"
+  return <div className="pulse-table-filter-field" onKeyDown={event => {if (open && event.key === 'Escape') {event.stopPropagation(); setOpen(false); trigger.current?.focus();}}}><Popover open={open} onOpenChange={setOpen} trigger="click" placement="bottomLeft"
     content={<div ref={popup} className="pulse-table-compound">{fields.map(field => <section key={field.key} aria-label={field.label}>
       <div className="pulse-table-group-label">{field.label}</div><FilterField inline onClose={()=>{setOpen(false);trigger.current?.focus();}} field={field} rows={rows}
         filter={query.filters.find(filter => filter.field === field.key)} onChange={next => setFilter(field, next)} />
