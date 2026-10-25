@@ -172,7 +172,11 @@ export class NotificationsController {
             // is consumed by this cycle's barrier before it starts private reads.
             if (!this.queuedWake) {
                 const pending = this.cycle.then(async () => {
-                    while (this.active && this.verificationRequested) await this.run(explicit, true);
+                    // Paused work is resumed by the next focus/online/visibility event.
+                    // Keep its verification flag, but never spin on an early-returned cycle.
+                    while (this.active && this.verificationRequested && this.deps.visible() && this.deps.online()) {
+                        await this.run(explicit, true);
+                    }
                 });
                 this.queuedWake = pending;
                 void pending.finally(() => { if (this.queuedWake === pending) this.queuedWake = null; });
