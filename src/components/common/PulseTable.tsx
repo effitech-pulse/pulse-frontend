@@ -13,6 +13,7 @@ export type PulseColumn<T> = Omit<ColumnType<T>, 'sorter' | 'filters' | 'sortOrd
 };
 type CommonProps<T> = Pick<TableProps<T>, 'rowKey' | 'scroll' | 'size' | 'locale' | 'rowClassName' | 'onRow' | 'components'> & {
   schema: TableSchema<T>; columns: PulseColumn<T>[]; query: TableQuery;
+  /** Владелец обновляет query и сбрасывает страницу одним действием. */
   onQueryChange: (query: TableQuery) => void; loading?: boolean; error?: ReactNode;
   headerActions?: ReactNode; emptyText?: ReactNode;
   onRefresh?:()=>void; refreshing?:boolean; refreshDisabled?:boolean;
@@ -189,7 +190,7 @@ export function PulseTable<T extends object>(props: PulseTableProps<T>) {
   };
   const rows = props.mode === 'local' ? props.rows : props.page.items;
   const filtered = useMemo(() => props.mode === 'local' ? applyTableQuery(props.rows, schema, query) : props.page.items, [props.mode, rows, schema, query]);
-  const change = (next: TableQuery) => {if (props.mode === 'local') props.pagination.onPageChange(1, props.pagination.pageSize); onQueryChange(next);};
+  const change = onQueryChange;
   const actionButtons = <div className="pulse-table-filter-actions">
     <Tooltip title="Обновить"><Button type="text" className="pulse-table-action" aria-label="Обновить" aria-busy={props.refreshing || undefined} disabled={!props.onRefresh || props.refreshDisabled === true || props.refreshing === true} onClick={props.onRefresh} icon={<ReloadOutlined spin={props.refreshing} aria-hidden="true" />} /></Tooltip>
     <Tooltip title="Сбросить сортировку"><Button type="text" className="pulse-table-action" aria-label="Сбросить сортировку" disabled={!query.sort.length} onClick={() => change(resetSort(query))} icon={<span className="pulse-table-reset-icon" aria-hidden="true"><SortAscendingOutlined /><CloseOutlined className="pulse-table-reset-x" /></span>} /></Tooltip>
