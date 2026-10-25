@@ -629,3 +629,68 @@ immutable объяснения/динамика результатов сохр�
 обоснованные исключения. Обычные списки больше не дублируют фильтры внешней панелью.
 Браузерная, Light/Dark/narrow и независимая приёмка выполняется координатором
 после фиксированного diff; сборка/unit не объявляются визуальной приёмкой.
+
+## WO-P1 · Паспорт оборудования · 25.10.2026
+
+В карточке добавлена вкладка `equipment` «Оборудование» между «История» и
+«Сведения». Она передаёт `exactWellId` в `EquipmentPassportPanel`; порядок,
+query/hash/history и посещённые панели сохраняются. Административный паспорт
+и сохранённые ML-результаты независимы от версии оборудования.
+
+Принятый источник — Figma `km4tIbp3LnMTRrV6yi6Qho` (Light/Dark):
+
+| Поверхность | Light | Dark |
+| --- | --- | --- |
+| Текущий состав | [1041:10493](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-10493) | [1046:9916](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-9916) |
+| Неизвестное / архив | [1041:10729](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-10729), [1041:10854](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-10854) | [1046:10757](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10757), [1046:11400](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11400) |
+| Register / update / replace | [1041:11040](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11040), [1041:11204](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11204), [1041:11373](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11373) | [1046:9274](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-9274), [1046:10117](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10117), [1046:10871](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10871) |
+| Linked correct / close / void | [1041:11537](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11537), [1041:11671](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11671) | [1046:11591](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11591), [1046:9403](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-9403) |
+| Manual diff / receipt | [1041:11809](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11809), [1041:11985](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11985) | [1046:10247](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10247), [1046:11000](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11000) |
+| История | [1041:12098](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12098) | [1046:11714](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11714) |
+| Excel selection / errors / diff / no-op | [1041:12298](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12298), [1041:12471](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12471), [1041:12630](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12630), [1041:12839](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12839) | [1046:9520](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-9520), [1046:10436](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10436), [1046:11118](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11118), [1046:11879](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11879) |
+| Recovery / loading | [1041:12994](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12994) | [1046:9662](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-9662) |
+| Mobile current / editor / full diff entry | [1041:13164](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-13164), [1041:13255](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-13255), [1041:13362](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-13362) | [1046:10576](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10576), [1046:11339](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11339), [1046:12028](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-12028) |
+| Motor/control fields / actions | [1045:6651](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1045-6651), [1045:7002](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1045-7002) | [1046:12077](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-12077), [1046:10640](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10640) |
+
+API: `GET /api/v1/wells/{id}/equipment-passport` и `/history`;
+`POST /api/v1/equipment-passports/previews`, `/import/previews`;
+`GET|DELETE /previews/{id}`, `POST /previews/{id}/commit`,
+`GET /receipts/{id}`, `POST /template`, `POST /export`.
+Используются существующие apiClient, AbortSignal, PrivateEpoch и table runtime.
+Браузер не разбирает XLSX для назначения оборудования. Template/import требуют
+`equipment_passports.import`; current export — `export`, history export —
+`history.read` + `export`. Все пять новых ключей имеют requires closure;
+legacy mappings не получают автоматических грантов.
+
+Current provenance берётся только из typed `provenance[].last_change`.
+Принятая scoped поправка25.10 в current frames1041:10493/1046:9916 и
+mobile1041:13164/1046:10576 добавляет Ant Dropdown «Ещё» заполненного слота:
+«Исправить запись» (correct), «Отметить запись ошибочной» (void, danger).
+Оба входа требуют read+update и используют exact current IDs/revisions;
+history.read и history lookup для них не требуются. Используются прежние
+reason → Preview → Commit формы. Закрытые/linked targets доступны через
+разрешённую историю; current вход не вычисляет их по соседям. Меню скрыто
+для read-only/архива/revoked; после отмены фокус возвращается к его trigger.
+История отдельно запрашивается при `history.read`, по полному серверному query:
+recorded_at/range; action,slot,source/in; actor_name,reason,changes/contains.
+Revision только справочная. Query key содержит точный well ID и private epoch;
+фильтрация истории на клиенте поверх страницы отсутствует.
+
+Preview использует `PulseTable mode=local` и owned query/page state в памяти.
+Полный diff раскрывает все эпизоды и их nullable поля вертикально на mobile.
+Перед commit требуется раскрытие полного diff, подтверждение намерения и всех
+warnings. Фильтр не исключает строки из all-or-nothing пакета. No-op завершается
+серверной квитанцией. Filename показывается только из выбранного файла текущего
+сеанса; template version в receipt не выдумывается.
+
+409 сохраняет draft и clear-намерения, блокируя новую проверку до явного
+перечитывания basis. Изменение намерения инвалидирует preview/key; сетевой retry
+commit сохраняет прежний UUID/digest и не допускает новую операцию до ответа.
+410 требует нового Prepare; 401/403/404 очищают private state, файлы, квитанции,
+feature cache и Blob URLs. Поздние callbacks защищены epoch/sequence/signal.
+
+Проверки исходников и браузерная приёмка различаются: targeted tests и
+`tsc --noEmit -p tsconfig.json` проверяют логику/компиляцию. Полный npm test,
+Vite build, real HTTP e2e, обе темы1440/1280/1024/390,320/200%zoom, keyboard,
+VoiceOver и визуальная сверка этой реализации остаются отдельным runtime gate.
+Figma screenshots и исходные токены не объявляются доказательством browser PASS.

@@ -1,3 +1,4 @@
+import {EquipmentPassportPanel} from '@/components/equipment/EquipmentPassportPanel';
 import {LocalEntityTable} from '@/components/common/LocalEntityTable';
 import { Alert, Card, Col, Descriptions, Empty, Row, Tabs } from 'antd';
 import dayjs from 'dayjs';
@@ -27,7 +28,7 @@ export function WellDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const requestedTab = search.get('tab');
-  const activeTab = ['telemetry', 'checks', 'failures', 'history', 'details'].includes(requestedTab ?? '') ? requestedTab! : 'overview';
+  const activeTab = ['telemetry', 'checks', 'failures', 'history', 'equipment', 'details'].includes(requestedTab ?? '') ? requestedTab! : 'overview';
 
   const selectedRun=Number(search.get('run_id')) || undefined;
   const well = useWell(wellId);
@@ -159,6 +160,7 @@ export function WellDetailPage() {
           { key: 'checks', disabled:!can('checks.read')&&!can('filechecks.read'), label: 'Проверки', children: <ManualChecks key={exactWellId} wellId={exactWellId} periodEnabled={Number(wellId)>0} /> },
           { key: 'failures', disabled:!can('incidents.read'), label: 'Отказы', children: <IncidentsTab wellId={wellId} /> },
           { key: 'history', disabled:!can('wells.history.read'), label: 'История', children: <WellHistoryPanel wellId={wellId} /> },
+          { key: 'equipment', disabled:!can('equipment_passports.read'), label: 'Оборудование', children: <EquipmentPassportPanel key={exactWellId} wellId={exactWellId} /> },
           { key: 'details', label: 'Сведения', children: (
             <div className="pulse-stack">
               <Card title="Паспорт скважины">
