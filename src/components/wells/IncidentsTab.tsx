@@ -30,7 +30,7 @@ const FAILURE_TYPES = [
 
 export function IncidentsTab({ wellId }: { wellId: number|string }) {
   const {can}=useAuth();
-  const { data, isLoading, error } = useIncidents(wellId);
+  const { data, isLoading, error, refetch, isFetching } = useIncidents(wellId);
   const create = useCreateIncident(wellId);
   const del = useDeleteIncident(wellId);
   const [form] = Form.useForm();
@@ -85,7 +85,7 @@ export function IncidentsTab({ wellId }: { wellId: number|string }) {
       </Card>}
 
       <PageSpin loading={isLoading} error={error}>
-        <LocalEntityTable tableKey={`incidents-${wellId}`} fields={[
+        <LocalEntityTable onRefresh={()=>void refetch()} refreshing={isFetching} refreshDisabled={!can('incidents.read')||Number(wellId)<=0} tableKey={`incidents-${wellId}`} fields={[
  {key:'failure_type',label:'Тип поломки',kind:'enum',options:FAILURE_TYPES,read:r=>r.failure_type},
  {key:'failure_date',label:'Дата отказа',kind:'date',read:r=>r.failure_date},
  {key:'days_before',label:'История, дней',kind:'number',unit:'дней',read:r=>r.days_before},

@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 function renderPanel(name) {
  const filename = fileURLToPath(new URL(`../src/components/structure/${name}Panel.tsx`, import.meta.url));
  const boundaries = {
-  '@/auth/AuthProvider': { useAuth: () => ({ canFull: () => true }) },
+  '@/auth/AuthProvider': { useAuth: () => ({ can: () => true, canFull: () => true, privateBlocked:false }) },
   '@/hooks/useWells': { useNgdus: () => ({data:[{id:0,name:'Справочник'}]}), useDepartments: () => ({data:[{id:0,name:'Справочник'}]}), useDeleteNgdu: () => ({}), useDeleteDepartment: () => ({}) },
   '@/components/common/PageSpin': {PageSpin: ({children}) => children},
   '@/components/structure/NgduModal': {NgduModal: () => null},

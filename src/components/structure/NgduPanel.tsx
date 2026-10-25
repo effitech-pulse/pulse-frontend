@@ -10,8 +10,8 @@ import { PageSpin } from '@/components/common/PageSpin';
 import { NgduModal } from '@/components/structure/NgduModal';
 
 export function NgduPanel() {
-  const {canFull}=useAuth();
-  const { data, isLoading, error } = useNgdus();
+  const {can,canFull}=useAuth();
+  const { data, isLoading, error, refetch, isFetching } = useNgdus();
   const del = useDeleteNgdu();
   const [editing, setEditing] = useState<Ngdu | null>(null);
   const [open, setOpen] = useState(false);
@@ -55,7 +55,7 @@ export function NgduPanel() {
         таблице скважин.
       </Typography.Paragraph>
       <PageSpin loading={isLoading} error={error}>
-        <LocalEntityTable tableKey="NgduPanel" fields={[{key:'id',label:'Код НГДУ',kind:'number',read:r=>r.id},{key:'name',label:'Название',kind:'text',read:r=>r.name}]} defaultSort={[{field:'id',direction:'asc'}]} rowKey="id" columns={columns} dataSource={data ?? []} pagination={false} size="middle" />
+        <LocalEntityTable onRefresh={()=>void refetch()} refreshing={isFetching} refreshDisabled={!can('references.read')} tableKey="NgduPanel" fields={[{key:'id',label:'Код НГДУ',kind:'number',read:r=>r.id},{key:'name',label:'Название',kind:'text',read:r=>r.name}]} defaultSort={[{field:'id',direction:'asc'}]} rowKey="id" columns={columns} dataSource={data ?? []} pagination={false} size="middle" />
       </PageSpin>
       <NgduModal open={open} ngdu={editing} onClose={() => setOpen(false)} />
     </>

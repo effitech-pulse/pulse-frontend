@@ -72,7 +72,7 @@ export function UsersPanel({ open }: {
                 { title: 'Роли и группы', width: '23%', render: (_, u) => <>{u.roles?.map(r => r.name).join(', ') || 'Роли не назначены'}<span className="pulse-cell-meta">{u.groups?.map(g => `Группа «${g.name}»`).join(', ') || (u.direct_roles?.length ? 'Назначены напрямую' : '')}</span></> },
                 { title: 'Подразделение', width: '23%', render: (_, u) => organizationLabel(u.organization_scope, u.legacy_scope) },
                 { title: 'Статус', width: '12%', render: (_, u) => u.active ? 'Активен' : 'Отключён' },
-                { title: 'Действие', render: (_, u) => can('users.update') ? <Button type="link" onClick={() => open(u.access_id!)}>Настроить</Button> : null }
+                { title: 'Действие', key:'actions', render: (_, u) => can('users.update') ? <Button type="link" onClick={() => open(u.access_id!)}>Настроить</Button> : null }
             ]}/></Card></>;
 }
 /** Paginated selectors preserve selected values absent from the currently searched page. */

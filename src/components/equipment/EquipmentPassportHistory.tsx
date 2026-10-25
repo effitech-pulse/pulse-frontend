@@ -29,13 +29,13 @@ export function EquipmentPassportHistory({wellId,canUpdate,canExport,busy,onBack
   <Space wrap><Button onClick={onBack}>Текущий состав</Button>{canExport?<Button disabled={busy} onClick={()=>onExport(table.state.query)}>Экспорт истории</Button>:null}</Space>
   <p>Фильтры выполняются сервером по всей доступной истории. Редакция — справочное значение. Экспорт: не более 1000 событий.</p>
   {table.notice?<p role="status">{table.notice}</p>:null}
-  <PulseTable<PassportEvent> mode="server" schema={{fields,defaultSort:initialQuery.sort,rowId:event=>event.id}} query={table.state.query} onQueryChange={table.state.setQuery} page={table.data??{items:[],next_cursor:null}} pagination={table.pagination} loading={table.isFetching} error={table.isError?'Не удалось загрузить историю':undefined}
+  <PulseTable<PassportEvent> mode="server" schema={{fields,defaultSort:initialQuery.sort,rowId:event=>event.id}} query={table.state.query} onQueryChange={table.state.setQuery} page={table.data??{items:[],next_cursor:null}} pagination={table.pagination} onRefresh={table.refresh} refreshing={table.isFetching} refreshDisabled={table.refreshDisabled} loading={table.isFetching} error={table.isError?'Не удалось загрузить историю':undefined}
    columns={entityColumns<PassportEvent>([
     {key:'time',title:'Время / автор',render:(_,event)=><span>{event.recorded_at}<br/>{event.actor.name} · {event.source}</span>},
     {key:'slot-action',title:'Слот / действие',render:(_,event)=><span>{slotLabel[event.slot]} · {actionLabel[event.action]}</span>},
     {key:'changes-reason',title:'Было → стало',render:(_,event)=><span>{event.reason||'Причина не указана'}<br/>{event.diff.before.length} → {event.diff.after.length} эпизодов</span>},
     {key:'revision',title:'Редакция',render:(_,event)=><Button type="link" onClick={()=>setSelected(event)}>{event.revision} · Открыть</Button>},
-   ],fields)} headerActions={<Button onClick={table.refresh}>Обновить</Button>}/>
+   ],fields)}/>
  </Card>{selected?<Card className="passport-surface" title={`Событие ${selected.id} · исходная запись сохранена`}>
   <dl className="passport-metadata"><dt>Способ ввода</dt><dd>{selected.source}</dd><dt>Автор</dt><dd>{selected.actor.name} · {selected.actor.account_id}</dd><dt>Время</dt><dd>{selected.recorded_at}</dd><dt>Причина</dt><dd>{selected.reason||'Не указана'}</dd><dt>Документ</dt><dd>{selected.source_reference??'Не указан'}</dd><dt>Квитанция</dt><dd>{selected.receipt_id??'Неизвестно'}</dd><dt>SHA-256</dt><dd>{selected.source_file_sha256??'Не указан'}</dd><dt>Шаблон</dt><dd>{selected.template_version??'Неизвестно'}</dd><dt>Строка источника</dt><dd>{selected.source_row?`${selected.source_row.sheet}, строка ${selected.source_row.index} · ${selected.source_row.row_key}`:'Не указана'}</dd></dl>
   <PassportFullDiff diff={selected.diff}/>

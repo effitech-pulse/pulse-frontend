@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react';
-import {Alert,Button,Space} from 'antd';
+import {Alert} from 'antd';
 import type {TableProps} from 'antd';
 import {PulseTable} from './PulseTable';
 import {entityColumns} from './LocalEntityTable';
@@ -12,5 +12,5 @@ export function ServerEntityTable<T extends object>({tableKey,fields,read,enable
  const table=useServerTable(tableKey,fields,read,enabled,initialQuery);
  const rowId=(row:T)=>typeof props.rowKey==='function'?String(props.rowKey(row)):String((row as Record<string,unknown>)[typeof props.rowKey==='string'?props.rowKey:'id']);
  return <>{table.isError&&renderError?renderError(table.error,()=>void table.refetch()):null}{table.notice?<Alert type="info" message={table.notice}/>:null}<PulseTable mode="server" schema={{fields,defaultSort:[],rowId}} columns={entityColumns(props.columns??[],fields)} query={table.state.query} onQueryChange={table.state.setQuery}
-  headerActions={<Space><Button onClick={table.refresh} loading={table.isFetching}>Обновить</Button>{table.data?.total_visible!==undefined?<span>Доступные записи: {table.data.total_visible}</span>:null}</Space>} page={table.data??{items:[],next_cursor:null}} pagination={table.pagination} error={table.isError&&!renderError?toApiError(table.error).message:undefined} loading={table.isFetching} rowKey={props.rowKey} scroll={props.scroll} size={props.size} locale={props.locale} rowClassName={props.rowClassName} onRow={props.onRow}/></>;
+  onRefresh={table.refresh} refreshing={table.isFetching} refreshDisabled={table.refreshDisabled} headerActions={table.data?.total_visible!==undefined?<span>Доступные записи: {table.data.total_visible}</span>:null} page={table.data??{items:[],next_cursor:null}} pagination={table.pagination} error={table.isError&&!renderError?toApiError(table.error).message:undefined} loading={table.isFetching} rowKey={props.rowKey} scroll={props.scroll} size={props.size} locale={props.locale} rowClassName={props.rowClassName} onRow={props.onRow}/></>;
 }

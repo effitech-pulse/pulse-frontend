@@ -10,8 +10,8 @@ import { PageSpin } from '@/components/common/PageSpin';
 import { DepartmentModal } from '@/components/departments/DepartmentModal';
 
 export function DepartmentsPanel() {
-  const {canFull}=useAuth();
-  const { data, isLoading, error } = useDepartments();
+  const {can,canFull}=useAuth();
+  const { data, isLoading, error, refetch, isFetching } = useDepartments();
   const del = useDeleteDepartment();
   const [editing, setEditing] = useState<Department | null>(null);
   const [open, setOpen] = useState(false);
@@ -54,7 +54,7 @@ export function DepartmentsPanel() {
         скважины: заведите запись с этим кодом, и название будет подтягиваться в таблице скважин.
       </Typography.Paragraph>
       <PageSpin loading={isLoading} error={error}>
-        <LocalEntityTable tableKey="DepartmentsPanel" fields={[{key:'id',label:'Код цеха (CEX)',kind:'number',read:r=>r.id},{key:'name',label:'Название',kind:'text',read:r=>r.name}]} defaultSort={[{field:'id',direction:'asc'}]} rowKey="id" columns={columns} dataSource={data ?? []} pagination={false} size="middle" />
+        <LocalEntityTable onRefresh={()=>void refetch()} refreshing={isFetching} refreshDisabled={!can('references.read')} tableKey="DepartmentsPanel" fields={[{key:'id',label:'Код цеха (CEX)',kind:'number',read:r=>r.id},{key:'name',label:'Название',kind:'text',read:r=>r.name}]} defaultSort={[{field:'id',direction:'asc'}]} rowKey="id" columns={columns} dataSource={data ?? []} pagination={false} size="middle" />
       </PageSpin>
       <DepartmentModal open={open} dept={editing} onClose={() => setOpen(false)} />
     </>

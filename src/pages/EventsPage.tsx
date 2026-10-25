@@ -56,6 +56,6 @@ export function EventsPage(){
  {title:'Время события · UTC',render:(_,r)=>formatEventTime(r.occurred_at)},
  {title:'Автор',render:(_,r)=>eventActorCopy(r.actor)},
  {title:'Результат',render:(_,r)=><>{eventVerdictCopy(r.outcome.verdict)}<small className="pulse-cell-meta">{reviewStatusCopy(r.outcome.review_status)} · {reviewConclusionCopy(r.outcome.conclusion)}</small></>},
- {title:'Действие',render:(_,r)=><Link id={`event-${r.event_id}`} to={buildEventURL(r.event_id,'spa')} state={{eventReturn:{search:location.search,epoch:auth.privateEpoch}}}>Открыть событие</Link>},
+ {title:'Действие',key:'actions',render:(_,r)=><Link id={`event-${r.event_id}`} to={buildEventURL(r.event_id,'spa')} state={{eventReturn:{search:location.search,epoch:auth.privateEpoch}}}>Открыть событие</Link>},
  ]}/><p className="pulse-event-footnote">{FOOTER}</p></section>;
 }

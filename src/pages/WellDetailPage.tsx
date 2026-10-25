@@ -185,7 +185,7 @@ export function WellDetailPage() {
                 <Col xs={24}>
                   <Card title="Осложнения">
                     <PageSpin loading={complications.isLoading} error={complications.error}>
-                      <LocalEntityTable tableKey={`complications-${wellId}`} fields={[
+                      <LocalEntityTable onRefresh={()=>void complications.refetch()} refreshing={complications.isFetching} refreshDisabled={!can('risks.read')||Number(wellId)<=0} tableKey={`complications-${wellId}`} fields={[
  {key:'code',label:'Код',kind:'text',read:r=>r.code},{key:'name',label:'Название',kind:'text',read:r=>r.name},{key:'category',label:'Категория',kind:'enum',read:r=>r.category}]} defaultSort={[{field:'code',direction:'asc'}]}
                         rowKey="id"
                         columns={[

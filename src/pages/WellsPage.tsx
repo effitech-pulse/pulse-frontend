@@ -98,7 +98,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
   const [lifecycleError,setLifecycleError]=useState('');
   const [lifecycleConflict,setLifecycleConflict]=useState(false);
   const [changingLifecycle,setChangingLifecycle]=useState(false);
-  const { data, isLoading, error } = useWells(false,false,'all');
+  const { data, isLoading, error, refetch, isFetching } = useWells(false,false,'all');
   const departments = useDepartments();
   const ngdus = useNgdus();
   const updateWell = useUpdateWell();
@@ -244,7 +244,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
     { title: 'Оценка модели', key: 'assessment', width: 180, render: (_, well) => { const result = assessments.get(String(well.id)); return <span className={result?.risk == null ? 'pulse-muted' : result.tier === 'alert' ? 'pulse-danger' : result.tier === 'watch' ? 'pulse-warning' : 'pulse-success'}>{result ? cohortStatusLabel(result) : ml.isError ? 'Не удалось загрузить' : ml.isLoading ? 'Загрузка…' : 'Без оценки'}</span>; } },
     { title: 'Режим / данные', key: 'data', render: (_, well) => { const result = assessments.get(String(well.id)); return <>{well.active ? 'Активна в реестре' : 'Неактивна в реестре'}<small className="pulse-cell-meta">{result?.data_ok === false ? 'В последнем окне есть пропуски' : result?.data_ok === true ? 'Последнее окно полное' : 'Качество окна неизвестно'}</small></>; } },
     { title: 'Период данных', key: 'updated', width: 145, render: (_, well) => { const date = assessments.get(String(well.id))?.window_end; return date ? dayjs(date).format('DD.MM.YYYY') : '—'; } },
-    { title: 'Действие', key: 'open', width: 110, align: 'right', render: (_, well) => <Link to={`/wells/${well.id}${assessments.get(String(well.id))?.run_id != null ? `?run_id=${assessments.get(String(well.id))!.run_id}` : ''}`}>Открыть</Link> },
+    { title: 'Действие', key: 'actions', width: 120, align: 'right', render: (_, well) => <Link to={`/wells/${well.id}${assessments.get(String(well.id))?.run_id != null ? `?run_id=${assessments.get(String(well.id))!.run_id}` : ''}`}>Открыть</Link> },
   ];
   const tableKey=management?'wells-management':'wells-monitor';
   const tableFields:EntityField<Well>[]=[
@@ -299,7 +299,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
       >
         <PageSpin loading={isLoading} error={error}>
           <Form form={form} component={false}>
-            <LocalEntityTable<Well> tableKey={tableKey} fields={tableFields} initialQuery={initialQuery} defaultSort={[{field:'id',direction:'asc'}]}
+            <LocalEntityTable<Well> onRefresh={()=>{void refetch();if(!management&&can('risks.read'))void ml.refetch();if(can('references.read')){void departments.refetch();void ngdus.refetch();}}} refreshing={isFetching||(!management&&ml.isFetching)||departments.isFetching||ngdus.isFetching} refreshDisabled={!can('wells.read')} tableKey={tableKey} fields={tableFields} initialQuery={initialQuery} defaultSort={[{field:'id',direction:'asc'}]}
               rowKey="id"
               loading={!management && ml.isLoading}
               scroll={{x:management ? 1100 : 950}}

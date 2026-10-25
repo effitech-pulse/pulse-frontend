@@ -167,3 +167,30 @@ for(const mixed of [false,true])test(`${mixed?'mixed valid/invalid':'all-invalid
  else assert.doesNotMatch(html,/ant-table-placeholder/);
  assert.match(html,new RegExp(`Показать полный diff \\(${mixed?1:0} строк\\)`),'full diff counts only actual server diffs');
 });
+
+// Catch a history consumer that leaves the standard sticky refresh disabled or
+// drops its busy/access state. The actual consumer and PulseTable render here;
+// only the server hook is bounded to avoid session/network side effects.
+test('equipment history uses one sticky refresh with idle, loading and denied source states',()=>{
+ const tableFile=new URL('../src/components/common/PulseTable.tsx',import.meta.url).pathname;
+ const historyFile=new URL('../src/components/equipment/EquipmentPassportHistory.tsx',import.meta.url).pathname;
+ const {PulseTable}=loadDependency('@/components/common/PulseTable',tableFile);
+ for(const source of [{isFetching:false,refreshDisabled:false},{isFetching:true,refreshDisabled:false},{isFetching:false,refreshDisabled:true}]){
+  let tableProps,reads=0;
+  const table={...source,data:{items:[],next_cursor:null},isError:false,notice:'',
+   state:{query:{version:1,filters:[],sort:[{field:'recorded_at',direction:'desc'}]},setQuery:()=>assert.fail('refresh must preserve query')},
+   pagination:{canPrevious:false,onPrevious:()=>{},onNext:()=>{}},refresh:()=>reads++};
+  const {EquipmentPassportHistory}=loadDependency('@/components/equipment/EquipmentPassportHistory',historyFile,{
+   '@/hooks/useServerTable':{useServerTable:()=>table},
+   '@/components/common/PulseTable':{PulseTable:props=>{tableProps=props;return React.createElement(PulseTable,props);}},
+  });
+  const html=renderToStaticMarkup(React.createElement(EquipmentPassportHistory,{wellId:'9007199254740993',canUpdate:false,canExport:false,busy:false,onBack:()=>{},onExport:()=>{},onEdit:()=>{},onFailure:()=>{}}));
+  const refresh=html.match(/<button\b[^>]*aria-label="Обновить"[^>]*>/g)??[];
+  assert.ok(refresh.length,'history must offer the standard refresh');
+  assert.equal(/disabled=""/.test(refresh[0]),source.isFetching||source.refreshDisabled,'idle allowed history must enable sticky refresh');
+  assert.equal(tableProps.refreshing,source.isFetching,'own source loading reaches the standard action');
+  assert.equal(tableProps.refreshDisabled,source.refreshDisabled,'access guard reaches the standard action');
+  assert.equal(tableProps.headerActions,undefined,'legacy duplicate refresh must be removed');
+  if(!source.isFetching&&!source.refreshDisabled){tableProps.onRefresh();assert.equal(reads,1,'standard refresh delegates the history reread');}
+ }
+});
