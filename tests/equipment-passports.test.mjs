@@ -104,6 +104,18 @@ function currentActionsScenario({update=true,history=false,archived=false,blocke
 test('current correct/void enter existing reason and preview flow without history permission or lookup',()=>{
  for(const action of ['correct','void']){
   const view=currentActionsScenario();const tree=view.nodes(view.render());
+  const recordRow=tree.find(node=>node.props.role==='group'&&node.props['aria-label']==='Действия с текущей записью: Насос');
+  assert.ok(recordRow,'current update and More must share the first action row');
+  const recordActions=React.Children.toArray(recordRow.props.children);
+  assert.equal(recordActions.length,2);
+  assert.equal(recordActions[0].props.children,'Исправить сведения');
+  assert.equal(recordActions[1].props.children.props.children,'Ещё');
+  const equipmentRow=tree.find(node=>node.props.role==='group'&&node.props['aria-label']==='Действия с оборудованием: Насос');
+  assert.ok(equipmentRow,'physical actions must occupy their own second row');
+  assert.deepEqual(React.Children.toArray(equipmentRow.props.children).map(node=>node.props.children),['Заменить','Снять']);
+  const renderedRows=renderToStaticMarkup(React.createElement(React.Fragment,null,recordRow,equipmentRow));
+  assert.ok(renderedRows.indexOf('Исправить сведения')<renderedRows.indexOf('>Ещё<'));
+  assert.ok(renderedRows.indexOf('>Ещё<')<renderedRows.indexOf('>Заменить<'),'rendered/Tab order keeps More before physical actions');
   const menus=tree.filter(node=>node.props.menu?.items?.some(item=>item.key==='correct'));
   assert.equal(menus.length,1,'only the populated current slot offers record actions');
   assert.deepEqual(menus[0].props.menu.items.map(item=>[item.key,item.label,!!item.danger]),[['correct','Исправить запись',false],['void','Отметить запись ошибочной',true]]);
@@ -124,4 +136,16 @@ test('current record menu is hidden for read-only, archive and revoked access',(
   const view=currentActionsScenario(options);
   assert.ok(!view.nodes(view.render()).some(node=>node.props.menu?.items?.some(item=>item.key==='correct')),JSON.stringify(options));
  }
+});
+
+test('invalid zero-count preview blocks correction instead of promising a valid no-op receipt',()=>{
+ const {EquipmentPassportPreview}=loadDependency('@/components/equipment/EquipmentPassportPreview',new URL('../src/components/equipment/EquipmentPassportPreview.tsx',import.meta.url).pathname);
+ const render=issues=>renderToStaticMarkup(React.createElement(EquipmentPassportPreview,{preview:{...preview,expires_at:'2099-01-01T00:00:00Z',commands:{schema_version:'equipment-passport-v1',rows:[{...row,action:'void',change_reason:''}]},diff:[],changed_count:0,unchanged_count:issues.length?0:1,issues},busy:false,ambiguous:false,isImport:false,onCommit:()=>assert.fail('render cannot commit'),onBack:()=>{}}));
+ const invalid=render([{row_key:'manual-1',field:'change_reason',severity:'error',code:'required',message:'Укажите причину изменения.'}]);
+ assert.match(invalid,/Укажите причину изменения/);
+ assert.doesNotMatch(invalid,/Все значения совпадают|Завершить без изменений|Завершение выдаст квитанцию/);
+ assert.match(invalid,/<button\b[^>]*disabled=""[^>]*><span>Исправьте ошибки<\/span><\/button>/);
+ assert.match(invalid,/Вернуться к вводу/);
+ const noOp=render([]);
+ assert.match(noOp,/Все значения совпадают/);assert.match(noOp,/Завершить без изменений/);assert.doesNotMatch(noOp,/Исправьте ошибки/);
 });

@@ -15,12 +15,13 @@ export function EquipmentPassportPreview({preview,busy,ambiguous,isImport,onComm
  const [ack,setAck]=useState(false),[confirmed,setConfirmed]=useState(false),[expanded,setExpanded]=useState(false),[expired,setExpired]=useState(()=>Date.now()>=Date.parse(preview.expires_at));
  useEffect(()=>{heading.current?.focus();const timer=setInterval(()=>setExpired(Date.now()>=Date.parse(preview.expires_at)),1000);return()=>clearInterval(timer);},[preview.id]);
  const issues=preview.issues??[];const errors=issues.filter(issue=>issue.severity==='error');const warnings=issues.filter(issue=>issue.severity==='warning');
+ const validNoOp=errors.length===0&&preview.changed_count===0;
  const actions=preview.commands.rows.map(row=>row.action);const excel=isImport;
  const confirmation=excel?'Подтверждаю сохранение всего пакета':actions.includes('replace')?'Подтверждаю физическую замену оборудования':actions.includes('void')?'Подтверждаю аннулирование записи без восстановления предшественника':actions.includes('close')?'Подтверждаю снятие без замены':'Подтверждаю сохранение сведений';
  return <Card className="passport-surface"><h3 ref={heading} tabIndex={-1}>Проверить все изменения</h3>
   <Alert type="info" message={`${new Set(preview.commands.rows.map(row=>row.well_id)).size} скважин · ${preview.commands.rows.length} строк · ${preview.changed_count} изменений · ${preview.unchanged_count} без изменений`} description={`Изменения ещё не сохранены. Предпросмотр действителен до ${preview.expires_at}.`}/>
   {expired?<Alert type="warning" message="Предпросмотр истёк. Вернитесь к вводу и повторите проверку."/>:null}
-  {preview.changed_count===0?<Alert type="info" message="Все значения совпадают. Завершение выдаст квитанцию без изменения версий."/>:null}
+  {validNoOp?<Alert type="info" message="Все значения совпадают. Завершение выдаст квитанцию без изменения версий."/>:null}
   <PulseTable<PassportDiff> mode="local" rows={preview.diff??[]} rowKey="row_key" query={query} onQueryChange={setQuery} pagination={{...pagination,onPageChange:(page,pageSize)=>setPagination({page,pageSize})}}
    schema={{fields:[{key:'well_id',label:'ID Pulse',kind:'pulseId',read:row=>row.well_id},{key:'slot',label:'Слот',kind:'enum',read:row=>row.slot},{key:'action',label:'Действие',kind:'enum',read:row=>row.action}],defaultSort:[],rowId:row=>row.row_key}}
    columns={[{key:'well_id',title:'Строка / скважина',render:(_,row)=><span>{row.row_key} · {row.well_id}</span>},{key:'slot',title:'Слот / действие',filterKeys:['slot','action'],render:(_,row)=><span>{slotLabel[row.slot]} · {actionLabel[row.action]}</span>},{key:'result',title:'Изменения',render:(_,row)=><span>{JSON.stringify(row.before)===JSON.stringify(row.after)?'Без изменений':'Изменится'} · {row.before.length} → {row.after.length} эпизодов</span>}]}/>
@@ -30,7 +31,7 @@ export function EquipmentPassportPreview({preview,busy,ambiguous,isImport,onComm
   {warnings.length?<><Alert type="warning" message="Требуется подтверждение предупреждений" description={warnings.map((issue,index)=><p key={index}>{issue.row_key} · {issue.message}</p>)}/><Checkbox disabled={busy||ambiguous} checked={ack} onChange={event=>setAck(event.target.checked)}>Я ознакомился со всеми предупреждениями</Checkbox></>:null}
   <Checkbox disabled={busy||ambiguous} checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}>{confirmation}</Checkbox>
   <p>Сохраняются все строки одного неизменного предпросмотра. Сортировка и фильтры меняют только отображение.</p>
-  <Space wrap><Button disabled={busy||ambiguous} onClick={onBack}>Вернуться к вводу</Button><Button type="primary" danger={actions.includes('void')} loading={busy} disabled={(expired&&!ambiguous)||!!errors.length||!expanded||!confirmed||(warnings.length>0&&!ack)} onClick={()=>onCommit(ack)}>{ambiguous?'Повторить тот же commit':preview.changed_count===0?'Завершить без изменений':`Сохранить ${preview.changed_count} изменений`}</Button></Space>
+  <Space wrap><Button disabled={busy||ambiguous} onClick={onBack}>Вернуться к вводу</Button><Button type="primary" danger={actions.includes('void')} loading={busy} disabled={(expired&&!ambiguous)||!!errors.length||!expanded||!confirmed||(warnings.length>0&&!ack)} onClick={()=>onCommit(ack)}>{errors.length?'Исправьте ошибки':ambiguous?'Повторить тот же commit':validNoOp?'Завершить без изменений':`Сохранить ${preview.changed_count} изменений`}</Button></Space>
   {!expanded?<p>Раскройте полный diff перед подтверждением.</p>:null}
  </Card>;
 }
