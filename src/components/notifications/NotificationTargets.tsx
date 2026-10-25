@@ -16,7 +16,7 @@ export function NotificationTargetFrame({ title, loading, error, onRetry, childr
     children: ReactNode;
 }) {
     const heading = useRef<HTMLHeadingElement>(null), navigation = useNotificationNavigation();
-    useEffect(() => { heading.current?.focus(); }, [title]);
+    useEffect(() => { navigation.focusTarget(heading.current); }, [title]);
     return <div className="f4-target"><Button type="text" block onClick={navigation.back}>К уведомлениям</Button><h1 tabIndex={-1} ref={heading}>{title}</h1>{loading ? <section className="f4-target-card" aria-busy="true">Загружаем сведения…</section> : error ? <section className="f4-target-card"><h2>{error}</h2>{error !== 'Объект недоступен' && error !== 'Некорректная ссылка' ? <Button onClick={() => { heading.current?.focus(); onRetry(); }}>Повторить</Button> : null}</section> : children}</div>;
 }
 const reviewLabels = { new: 'Новая', confirmed: 'Подтверждена технологом', false_positive: 'Ложная', unknown: 'Неизвестно' };

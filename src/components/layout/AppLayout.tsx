@@ -37,7 +37,7 @@ export function NavigationToggle({collapsed, onToggle, showLabel=false}: {collap
 }
 
 export function AppLayout() {
-  const { principal, mode } = useAuth();
+  const { principal, mode, capturePrivate } = useAuth();
   const location = useLocation();
   const { dark, toggle } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false), [eventsOpen, setEventsOpen] = useState(false);
@@ -58,7 +58,7 @@ export function AppLayout() {
   const title = eventRoute ? 'История событий' : location.pathname.startsWith('/telemetry/') ? 'Телеметрия' : location.pathname.startsWith('/wells/') ? 'Карточка скважины' : ITEMS.find(i => i.key === selectedKey)?.title;
   const name = mode === 'local' ? principal?.name : 'Рабочее пространство';
   const group = MONITORING.some(i => i.key === selectedKey) ? 'Мониторинг' : selectedKey==='/events'?'Инструменты':'Система';
-  return <NotificationsPrivateContext.Provider value={{blocked:notifications.blocked,block:notifications.controller.deny,recheck:notifications.controller.refresh}}><NotificationNavigation.Provider value={{back:returnToNotifications,remember:id=>{sourceAction.current=id;}}}><Layout className="pulse-app">
+  return <NotificationsPrivateContext.Provider value={{blocked:notifications.blocked,block:notifications.controller.deny,recheck:notifications.controller.refresh}}><NotificationNavigation.Provider value={{back:returnToNotifications,remember:id=>{sourceAction.current=id;},focusTarget:heading=>{if(!navigationClose.current)heading?.focus();}}}><Layout className="pulse-app">
     <Sider width={224} breakpoint="lg" collapsedWidth={0} collapsed={collapsed} onCollapse={setCollapsed} trigger={null} className="app-sidebar">
       <div className="app-sidebar-inner" aria-hidden={collapsed} ref={element=>{if(element)element.toggleAttribute('inert',collapsed);}}>
         <Link to="/" className="app-brand" aria-label="Пульс скважины — обзор фонда"><img className="app-brand-mark" src="/figma/pulse-symbol.svg" alt="" aria-hidden="true" /><span><strong>Пульс скважины</strong><small>Мониторинг УЭЦН</small></span></Link>
@@ -76,6 +76,6 @@ export function AppLayout() {
         <Suspense fallback={<div className="app-loading"><Spin size="large" /></div>}>{forbidden?<Result status="403" title="Доступ ограничен" />:<Outlet />}</Suspense>
       </Content>
     </Layout>
-    <WorkspaceProfile open={profileOpen} onClose={()=>setProfileOpen(false)} /><NotificationsPanel open={eventsOpen} notifications={notifications} headingRef={notificationHeading} onClose={()=>setEventsOpen(false)} onOpen={id=>{sourceAction.current=id;navigationClose.current=true;setEventsOpen(false);}} onEntered={()=>{if(restoreSource.current){restoreSource.current=false;(sourceAction.current?document.getElementById(actionID(sourceAction.current))??notificationHeading.current:notificationHeading.current)?.focus();}}} focusReturn={()=>{if(navigationClose.current){navigationClose.current=false;return;}(bell.current??document.querySelector<HTMLElement>('h1'))?.focus();}}/>
+    <WorkspaceProfile open={profileOpen} onClose={()=>setProfileOpen(false)} /><NotificationsPanel open={eventsOpen} notifications={notifications} headingRef={notificationHeading} onClose={()=>setEventsOpen(false)} onOpen={id=>{sourceAction.current=id;navigationClose.current=true;setEventsOpen(false);}} onEntered={()=>{if(restoreSource.current){restoreSource.current=false;(sourceAction.current?document.getElementById(actionID(sourceAction.current))??notificationHeading.current:notificationHeading.current)?.focus();}}} focusReturn={()=>{if(navigationClose.current){navigationClose.current=false;const ticket=capturePrivate(),boundary=notifications.boundary;requestAnimationFrame(()=>{if(!ticket.current()||sourceBoundary.current!==boundary)return;if(document.activeElement===bell.current||document.activeElement===document.body||document.activeElement?.closest('.f4-drawer'))document.querySelector<HTMLElement>('.f4-target h1')?.focus();});return;}(bell.current??document.querySelector<HTMLElement>('h1'))?.focus();}}/>
   </Layout></NotificationNavigation.Provider></NotificationsPrivateContext.Provider>;
 }

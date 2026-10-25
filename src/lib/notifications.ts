@@ -105,11 +105,13 @@ export class NotificationsController {
     private flights = new Map<string, Promise<void>>();
     private aborts = new Set<AbortController>();
     private cycle: Promise<void> | null = null;
+    private verificationRequested = false;
+    private queuedWake: Promise<void> | null = null;
     constructor(private deps: Dependencies) { }
     getSnapshot = () => this.value;
     subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
     private patch(next: Partial<NotificationsSnapshot>) { this.value = { ...this.value, ...next }; this.listeners.forEach(l => l()); }
-    private allowed() { return this.value.capability?.enabled === true && this.value.capability.families.length > 0 && !this.value.blocked; }
+    private allowed() { return this.value.capability?.enabled === true && this.value.capability.families.length > 0 && !this.value.blocked && !this.verificationRequested; }
     private cancelTimer() { if (this.timer !== undefined) {
         this.deps.clearTimer(this.timer);
         this.timer = undefined;
@@ -163,13 +165,39 @@ export class NotificationsController {
     refresh = (): Promise<void> => this.run(true, true);
     wake = (): Promise<void> => this.run(true, true);
     private run(explicit: boolean, verify: boolean): Promise<void> {
-        if (this.cycle)
-            return this.cycle;
+        if (verify) this.verificationRequested = true;
+        if (this.cycle) {
+            if (!verify) return this.cycle;
+            // A wake during count/head needs a follow-up. A wake during capabilities
+            // is consumed by this cycle's barrier before it starts private reads.
+            if (!this.queuedWake) {
+                const pending = this.cycle.then(async () => {
+                    while (this.active && this.verificationRequested) await this.run(explicit, true);
+                });
+                this.queuedWake = pending;
+                void pending.finally(() => { if (this.queuedWake === pending) this.queuedWake = null; });
+            }
+            return this.queuedWake;
+        }
         const task = this.runCycle(explicit, verify);
         this.cycle = task;
-        void task.finally(() => { if (this.cycle === task)
-            this.cycle = null; });
+        void task.finally(() => { if (this.cycle === task) this.cycle = null; });
         return task;
+    }
+    private async verifyBoundary(generation: number, ticket: {current: () => boolean}): Promise<boolean> {
+        let verified = false;
+        try { verified = await this.deps.verifySession(); } catch { /* Fail closed. */ }
+        if (generation === this.generation) this.verificationRequested = false;
+        if (!this.active || generation !== this.generation || !ticket.current()) return false;
+        if (!verified) {
+            this.clear(true);
+            this.failures++;
+            this.patch({ error: 'Не удалось проверить сеанс. Повторите попытку.' });
+            this.schedule();
+            return false;
+        }
+        this.patch({ blocked: false });
+        return true;
     }
     private async runCycle(explicit: boolean, verify: boolean) {
         this.cancelTimer();
@@ -178,31 +206,25 @@ export class NotificationsController {
         const gen = this.generation, ticket = this.deps.capturePrivate();
         const before = this.failureSequence;
         const existingList = this.flights.get('list');
-        if (verify || this.value.blocked) {
-            let verified = false;
-            try {
-                verified = await this.deps.verifySession();
-            }
-            catch { /* Fail closed. */ }
-            if (!this.active || gen !== this.generation || !ticket.current())
-                return;
-            if (!verified) {
-                this.clear(true);
-                this.failures++;
-                this.patch({ error: 'Не удалось проверить сеанс. Повторите попытку.' });
-                this.schedule();
-                return;
-            }
-            this.patch({ blocked: false });
+        if ((verify || this.value.blocked || this.verificationRequested) && !await this.verifyBoundary(gen, ticket)) return;
+        let replacingFamily = false;
+        await this.request('capability', signal => this.deps.api.capabilities(signal), capability => {
+            const changed = this.value.capability && JSON.stringify(this.value.capability.families) !== JSON.stringify(capability.families);
+            if (!capability.enabled || !capability.families.length || changed) {
+                this.clear();
+                this.failures = 0;
+                replacingFamily = capability.enabled && capability.families.length > 0;
+                this.patch({ capability, loading: replacingFamily && this.open });
+                if (!replacingFamily) this.schedule();
+            } else this.patch({ capability, error: null });
+        }, error => this.patch({ error: notificationError(error), countError: true }));
+        if (replacingFamily && this.active && ticket.current()) {
+            // Old-generation responses must drain before the replacement reader owns a resource.
+            await Promise.all([...this.flights.values()]);
+            if (this.active && ticket.current()) await this.runCycle(true, false);
+            return;
         }
-        await this.request('capability', s => this.deps.api.capabilities(s), cap => { const changed = this.value.capability && JSON.stringify(this.value.capability.families) !== JSON.stringify(cap.families); if (!cap.enabled || !cap.families.length || changed) {
-            this.clear();
-            this.failures = 0;
-            this.patch({ capability: cap });
-            this.schedule();
-        }
-        else
-            this.patch({ capability: cap, error: null }); }, e => this.patch({ error: notificationError(e), countError: true }));
+        if (this.verificationRequested && !await this.verifyBoundary(gen, ticket)) return;
         if (this.active && gen === this.generation && ticket.current() && this.allowed())
             await Promise.all([this.fetchCount(), this.open ? (existingList ?? this.head(explicit)) : Promise.resolve()]);
         this.failures = this.failureSequence === before ? 0 : this.failures + 1;

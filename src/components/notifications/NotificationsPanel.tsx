@@ -9,7 +9,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { notificationLocation } from '@/lib/notifications';
 import { formatSnapshotTime } from '@/lib/displayTime';
 import './notifications.css';
-export const NotificationNavigation = createContext({ back: () => { }, remember: (_id: string) => { } });
+export const NotificationNavigation = createContext({ back: () => { }, remember: (_id: string) => { }, focusTarget: (heading: HTMLElement | null) => { heading?.focus(); } });
 export const useNotificationNavigation = () => useContext(NotificationNavigation);
 export const actionID = (id: string) => 'notification-open-' + id;
 export function NotificationTime({ value }: {
@@ -43,7 +43,7 @@ export function NotificationRow({ item, mutation, onOpen, onMark }: {
   <Link id={actionID(item.notification_id)} className="f4-open" to={notificationLocation(item.target)} onClick={onOpen}>{alert ? 'Открыть скважину' : 'Открыть источник'}</Link>
   {item.read_at ? <div className="f4-small f4-muted">Прочитано <NotificationTime value={item.read_at}/></div> : <>
    {mutation === 'error' ? <p className="f4-inline-error" role="alert" id={errorID}>Не удалось сохранить отметку. Повторите попытку.</p> : null}
-   <Button type="text" block aria-busy={mutation === 'pending'} disabled={mutation === 'pending'} aria-describedby={mutation === 'error' ? errorID : undefined} onClick={onMark}>{mutation === 'pending' ? 'Сохраняем отметку…' : mutation === 'error' ? 'Повторить отметку' : 'Отметить прочитанным'}</Button>
+   <Button type="text" block aria-busy={mutation === 'pending'} aria-disabled={mutation === 'pending'} aria-describedby={mutation === 'error' ? errorID : undefined} onClick={() => { if (mutation !== 'pending') onMark(); }}>{mutation === 'pending' ? 'Сохраняем отметку…' : mutation === 'error' ? 'Повторить отметку' : 'Отметить прочитанным'}</Button>
   </>}
  </article>;
 }
@@ -74,18 +74,7 @@ export function NotificationsPanel({ open, onClose, notifications, headingRef, o
         return; const next = ids.map(i => document.getElementById(actionID(i))).find(Boolean); (next ?? document.getElementById('f4-empty-heading') ?? headingRef.current)?.focus(); }); }); };
     const feedback = !n.personal ? 'Для персональных уведомлений войдите в личную учётную запись' : n.capability?.reason === 'feature_off' ? 'Персональные уведомления отключены' : n.capability?.reason === 'no_families' || n.capability && n.capability.families.length === 0 ? 'Нет доступных типов уведомлений' : null;
     const enabled = n.personal && n.capability?.enabled && !!n.capability.families.length && !n.blocked;
-    return <Drawer aria-label="Уведомления" rootClassName="f4-drawer" width="min(440px, 100vw)" open={open} title={null} closable={false} onClose={onClose} afterOpenChange={visible => { if (visible) {
-        headingRef.current?.focus();
-        onEntered();
-    }
-    else
-        focusReturn(); }} styles={{ body: { padding: 0 } }}>
-  <div className="f4-panel" id="f4-notifications">
-   <div className="f4-panel-header"><h2 ref={headingRef} tabIndex={-1}>Уведомления</h2><Button type="text" onClick={onClose}>Закрыть</Button></div>
-   <p className="f4-small f4-muted">Прочтение сохраняется только для вашего аккаунта.</p>
-   {feedback ? <section className="f4-feedback"><h3>{feedback}</h3>{n.personal ? <Button onClick={() => explicit(c.refresh)}>Проверить доступ</Button> : null}</section> : <>
-    <Tabs id="f4-tabs" activeKey={n.state} onChange={key => { void c.setState(key === 'all' ? 'all' : 'unread'); }} items={[{ key: 'unread', label: 'Непрочитанные' }, { key: 'all', label: 'Все' }]}/>
-    <section id={`f4-tabs-panel-${n.state}`} aria-labelledby={`f4-tabs-tab-${n.state}`} role="tabpanel" aria-label={n.state === 'unread' ? 'Непрочитанные' : 'Все уведомления'} className="f4-list">
+    const content = <div className="f4-list">
      {n.countError ? <p className="f4-inline-error">Количество непрочитанных недоступно{n.count ? ` · прежнее значение: ${n.count.capped ? '99+' : n.count.value} (устарело)` : ''}</p> : null}
      {n.buffer ? <Button block onClick={() => explicit(c.applyBuffer)}>Есть новые уведомления</Button> : null}
      {n.loading || !n.capability && !n.error ? <div className="f4-feedback" aria-busy="true">Загружаем уведомления…</div> : null}
@@ -96,7 +85,21 @@ export function NotificationsPanel({ open, onClose, notifications, headingRef, o
      {n.restart ? <Button block onClick={() => explicit(c.refresh)}>Обновить с начала</Button> : n.cursor || continued ? <Button block disabled={n.loadingMore || !n.cursor} aria-busy={n.loadingMore} onClick={() => { setContinued(true); void c.loadMore(); }}>{!n.cursor ? 'Все доступные уведомления загружены' : n.loadingMore ? 'Загружаем…' : n.moreError ? 'Повторить загрузку' : 'Загрузить ещё'}</Button> : null}
      <div role="status" aria-live="polite" aria-atomic="true" className="f4-small f4-muted">{n.items.length ? `Загружено ${n.items.length} · По времени появления` : ''}</div>
      {enabled ? <Button type="text" block onClick={() => explicit(c.refresh)}>Обновить список</Button> : null}
-    </section>
+    </div>;
+    return <Drawer aria-label="Уведомления" rootClassName="f4-drawer" width="min(440px, 100vw)" open={open} title={null} closable={false} onClose={onClose} afterOpenChange={visible => { if (visible) {
+        headingRef.current?.focus();
+        onEntered();
+    }
+    else
+        focusReturn(); }} styles={{ body: { padding: 0 } }}>
+  <div className="f4-panel" id="f4-notifications">
+   <div className="f4-panel-header"><h2 ref={headingRef} tabIndex={-1}>Уведомления</h2><Button type="text" onClick={onClose}>Закрыть</Button></div>
+   <p className="f4-small f4-muted">Прочтение сохраняется только для вашего аккаунта.</p>
+   {feedback ? <section className="f4-feedback"><h3>{feedback}</h3>{n.personal ? <Button onClick={() => explicit(c.refresh)}>Проверить доступ</Button> : null}</section> : <>
+    <Tabs id="f4-tabs" activeKey={n.state} onChange={key => { void c.setState(key === 'all' ? 'all' : 'unread'); }} items={[
+        { key: 'unread', label: 'Непрочитанные', children: n.state === 'unread' ? content : null },
+        { key: 'all', label: 'Все', children: n.state === 'all' ? content : null },
+    ]}/>
    </>}
   </div>
  </Drawer>;
