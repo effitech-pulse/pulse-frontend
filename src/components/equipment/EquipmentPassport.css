@@ -45,8 +45,9 @@
 .passport-current-actions .ant-dropdown-menu {width:341px;max-width:calc(100vw - 32px);padding:4px;border:1px solid var(--pulse-border);border-radius:4px;background:var(--pulse-surface);}
 .passport-current-actions .ant-dropdown-menu-item {min-height:44px;padding:10px 16px;white-space:normal;overflow-wrap:anywhere;line-height:20px;}
 .passport-current-actions .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger) {color:var(--pulse-blue);}
-.passport-current-actions .ant-dropdown-menu-item-danger {color:var(--pulse-danger);}
-.passport-current-actions .ant-dropdown-menu-item-danger:hover {color:var(--pulse-danger);background:var(--pulse-danger-bg);}
+/* Match Ant's enabled danger chain and add the feature class to win its status cascade. */
+.passport-current-actions.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item.ant-dropdown-menu-item-danger:not(.ant-dropdown-menu-item-disabled) {color:var(--pulse-danger);background:var(--pulse-surface);}
+.passport-current-actions.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item.ant-dropdown-menu-item-danger:not(.ant-dropdown-menu-item-disabled):hover {color:var(--pulse-danger);background:var(--pulse-danger-bg);}
 .passport-current-actions :focus-visible {outline:2px solid var(--pulse-blue);outline-offset:2px;}
 @media(max-width:767px){.passport-current-actions .ant-dropdown-menu {width:318px;}}
 @media(prefers-reduced-motion:reduce){.passport-current-actions,.passport-current-actions * {animation:none!important;transition:none!important;}}
