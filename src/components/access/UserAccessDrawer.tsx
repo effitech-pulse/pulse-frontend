@@ -24,7 +24,7 @@ export function UserAccessDrawer({ value, account, onChange, password, onPasswor
     const { can, privateEpoch } = useAuth();
     const [all, setAll] = useState(false);
     const mutable = !disabled && (value.id === null ? can('users.create') : can('users.update'));
-    const scope = useQuery({ queryKey: ['access', 'organizations', privateEpoch], queryFn: managementApi.orgOptions, enabled: can('users.scope.assign'), retry: false });
+    const scope = useQuery({ queryKey: ['access', 'organizations', privateEpoch], queryFn: ({signal})=>managementApi.orgOptions(signal), enabled: can('users.scope.assign'), retry: false });
     const org = value.organization ?? account?.organization_scope;
     const names = Object.fromEntries(catalog.map(p => [p.key, p.name]));
     return <div className="access-form user-sections"><UserEditorSection id="user-section-employee" title="Сотрудник"><EmployeeProfileFields value={value} onChange={onChange} disabled={!mutable} fieldError={fieldError}/></UserEditorSection><UserEditorSection id="user-section-account" title="Учётная запись">

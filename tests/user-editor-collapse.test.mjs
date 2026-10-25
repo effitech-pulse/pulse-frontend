@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {revealAccessField} from '../src/lib/revealAccessField.ts';
@@ -31,7 +32,7 @@ function editorHtml(){
  const {MemoryRouter}=require('react-router-dom');const {QueryClient,QueryClientProvider}=require('@tanstack/react-query');
  const boundaries={'@/api/access':{managementApi:{orgOptions:async()=>({ngdus:[],departments:[],pairs:[]})}},'@/api/people':{peopleApi:{}},'@/api/client':{toApiError:e=>e},'@/auth/AuthProvider':{useAuth:()=>({can:key=>key==='users.scope.assign',privateEpoch:0,privateBlocked:false})},'@/lib/accessDraft':accessDraft};
  const cache=new Map();
- function load(filename){if(cache.has(filename))return cache.get(filename);const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>{if(Object.hasOwn(boundaries,id))return boundaries[id];if(id.startsWith('.')){const file=path.resolve(path.dirname(filename),id);for(const ext of ['.tsx','.ts'])if(existsSync(file+ext))return load(file+ext);}return require(id);};mod._compile(code,filename);cache.set(filename,mod.exports);return mod.exports;}
+ function load(filename){if(cache.has(filename))return cache.get(filename);const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>{if(Object.hasOwn(boundaries,id))return boundaries[id];if(id.startsWith('.')){const file=path.resolve(path.dirname(filename),id);for(const ext of ['.tsx','.ts'])if(existsSync(file+ext))return load(file+ext);}return loadDependency(id,filename,boundaries);};mod._compile(code,filename);cache.set(filename,mod.exports);return mod.exports;}
  const {UserAccessDrawer}=load(fileURLToPath(new URL('../src/components/access/UserAccessDrawer.tsx',import.meta.url)));
  const value={id:'23',revision:'9',name:'Сотрудник',login:'private-login',active:true,role_ids:['11'],group_ids:['12'],reset_password:true,organization:{kind:'department',ngdu_id:'1',department_id:'2'},profile:{revision:'7',job_title:'Технолог',workplace:{organization:null,division:null,department:'Отдел'},manager_id:null}};
  const fail=()=>{throw Error('Disclosure must not mutate draft');};

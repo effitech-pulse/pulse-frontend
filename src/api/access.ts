@@ -106,6 +106,8 @@ export interface AccessPage<T> {
     graph_revision: Decimal;
 }
 export interface PageQuery {
+    table_query?: string;
+    page_size?: number;
     search?: string;
     cursor?: string;
     graph_revision?: Decimal;
@@ -188,6 +190,7 @@ export interface AccessImpact {
     retained_by_other_source: string[];
 }
 export interface AccessPreviewResponse {
+    table_filter_options?: {source_role_ids:{value:Decimal;label:string}[];source_group_ids:{value:Decimal;label:string}[]};
     profile_change?: { before: { name: string; profile: ManagedProfile } | null; after: { name: string; profile: ManagedProfile } } | null;
     session_effect?: 'none' | 'revoke_on_apply';
     graph_revision: Decimal;
@@ -216,16 +219,18 @@ export interface AccessResult {
 }
 const root = '/api/v1/auth';
 export const managementApi = {
+    groupFilterOptions:async(search='',cursor?:string,signal?:AbortSignal)=>(await apiClient.get<{items:{value:string;label:string}[];next_cursor:string|null;graph_revision:string}>(`${root}/groups/filter-options`,{params:{field:'role_ids',search,page_size:25,cursor},signal})).data,
+    userFilterOptions:async(field:'role_ids'|'group_ids'|'ngdu_id'|'department_id',search='',cursor?:string,signal?:AbortSignal)=>(await apiClient.get<{items:{value:string;label:string}[];next_cursor:string|null;graph_revision:string}>(`${root}/users/filter-options`,{params:{field,search,page_size:25,cursor},signal})).data,
     users: async (query: PageQuery = {}) => { const page = (await apiClient.get<AccessPage<Account>>(`${root}/users`, { params: { ...query, access_version: 1 } })).data; page.items.forEach(parseAccessFields); return page; },
     user: async (id: Decimal) => parseAccessFields((await apiClient.get<Account>(`${root}/users/${encodeURIComponent(id)}`)).data),
-    roles: async (query: PageQuery = {}) => (await apiClient.get<AccessPage<AccessRole>>(`${root}/roles`, { params: query })).data,
+    roles: async (query: PageQuery = {},signal?:AbortSignal) => (await apiClient.get<AccessPage<AccessRole>>(`${root}/roles`, { params: query,signal })).data,
     role: async (id: Decimal) => (await apiClient.get<AccessRole>(`${root}/roles/${encodeURIComponent(id)}`)).data,
-    groups: async (query: PageQuery = {}) => (await apiClient.get<AccessPage<AccessGroup>>(`${root}/groups`, { params: query })).data,
+    groups: async (query: PageQuery = {},signal?:AbortSignal) => (await apiClient.get<AccessPage<AccessGroup>>(`${root}/groups`, { params: query,signal })).data,
     group: async (id: Decimal) => (await apiClient.get<AccessGroup>(`${root}/groups/${encodeURIComponent(id)}`)).data,
     groupMembers: async (id: Decimal, query: PageQuery = {}) => { const p = (await apiClient.get<AccessPage<Account>>(`${root}/groups/${encodeURIComponent(id)}/members`, { params: query })).data; p.items.forEach(parseAccessFields); return p; },
-    orgOptions: async () => (await apiClient.get<OrganizationOptions>(`${root}/organization-options`)).data,
+    orgOptions: async (signal?:AbortSignal) => (await apiClient.get<OrganizationOptions>(`${root}/organization-options`,{signal})).data,
     permissions: async () => (await apiClient.get<PermissionDefinition[]>(`${root}/permissions`)).data,
-    preview: async (change: AccessChange, query: PageQuery = {}) => (await apiClient.post<AccessPreviewResponse>(`${root}/access/preview`, { access_version: 1, change }, { params: query })).data,
+    preview: async (change: AccessChange, query: PageQuery = {},signal?:AbortSignal) => (await apiClient.post<AccessPreviewResponse>(`${root}/access/preview`, { access_version: 1, change }, { params: query,signal })).data,
     apply: async (receipt: AccessApply, password?: string) => {
         const v = receipt.change.user ?? receipt.change.role ?? receipt.change.group;
         const resource = receipt.change.user ? 'users' : receipt.change.role ? 'roles' : 'groups';

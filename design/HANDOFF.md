@@ -1,5 +1,11 @@
 # Дизайн и передача рабочего интерфейса Pulse
 
+## Таблицы · 24.10.2026
+
+Согласован [единый контракт фильтров колонок и множественной сортировки](tables-2026-10-24.md). Все активные колонки показывают направление и приоритет; неактивные не показывают стрелок. Фильтр имеет тип данных колонки и не переключает сортировку. Параметры отчёта/периода отдельно определяют исходную выборку.
+
+Перенос в React должен охватывать весь разрешённый набор до пагинации. Для cursor/limited историй и неподдержанных API-операторов требуется отдельная реализация; локальная сортировка загруженной страницы не считается глобальной. UI-состояние хранит упорядоченный набор ключей, а не один `sort`. Этот handoff описывает целевое поведение и не объявляет готовыми изменения runtime/API.
+
 ## Портал · 21.10.2026
 
 Актуальный пользовательский runtime — `http://127.0.0.1:8088/`. Обзор, список
@@ -628,3 +634,180 @@ Scaled spacer ограничивает overflow внутренних world/SVG �
 viewport-sized SVG overlay не расширяет native scroll extent вслед за camera.
 Zoom clamp по scaled bounds и reveal active после world-center anchor сохраняют
 активную карточку видимой, включая collapsed forest, который уже viewport.
+
+## F3 — история событий и exact основание, 23.10.2026
+
+O-06 designer/architect-analyst принят координатором. Новые страницы повторяют
+вертикальные cards, существующий shell/AntD/tokens; source frames не изменялись.
+
+| Композиция | Figma Light / Dark |
+|---|---|
+| История событий, desktop | `865:1345` / `871:2729` |
+| История событий,390 | `865:1528` / `871:2876` |
+| Exact saved check | `865:1699` / `871:3018` |
+| Exact review | `865:1822` / `871:3121` |
+| Exact lifecycle | `865:1944` / `871:3223` |
+| Well exact mode | `865:2065` / `871:3324` |
+| Review390 | `865:2182` / `871:3423` |
+| Saved check390 | `865:2300` / `871:3524` |
+| Feedback/roles/session | `865:2419` / `871:3626` |
+
+Ссылки используют основной file_key и `?node-id=<id-с-дефисом>`. Высоты Figma —
+полное scroll content, без фиксирования viewport. Desktop padding/section gap32/24,
+card padding20/radius4/gap12, Roboto28/40 heading,16/22 card title,14/20 body и12/17
+metadata. Existing AntD controls44; mobile buttons hit44, все поля/cards и before/after
+переносятся в один столбец. На1024 filters используют две колонки. Timeline/contributions
+имеют локальные подписанные scroll regions и клиентскую пагинацию по25 строк без
+урезания сохранённого результата; список событий использует только server LoadMore.
+Новые текст/selected-entry Light применяют existing ink для контраста на canvas;
+полная замена shell/дизайн-системы вне F3 не выполнялась. Иконки/логотип — существующие
+точные assets/library components оболочки, новые image assets отсутствуют.
+
+Реализация: `EventsPage`, `EventDetailPage`, `WellEventRoute`, одна `EventDetailView`.
+Навигация «История событий» доступна read-ролям, «Технический журнал» только admin;
+bell сохраняет свою очередь. Фильтры — draft до Apply, clear/default25, UTC `[from,to)`.
+Результаты читаются по source order, footer явно говорит «не полный аудит», только
+«Загружено N», без total/read/dismiss/notification семантики. Карточка не единственный
+click target: отдельная ссылка «Открыть событие».
+
+Exact API/SPA/well используют opaque eventId и исходный строковый ID Pulse.
+Dispatch well event выполняется до legacy Number/hooks. Без event прежний маршрут
+(Q1/check/tab/run_id) не меняется. Masked404/mismatch → unavailable без latest;
+close удаляет только event и сохраняет query/hash. Current compact well header
+не подменяет исторические review/well snapshots; check показывает весь typed
+saved result, без ReviewPanel/writes/ML или raw JSON passthrough. Microseconds,
+max-int64, null/false/0 и before.updated_at=null первой ревизии сохранены.
+
+Состояния: initial loading; empty200; append pending с текущими rows;
+503 retry того же cursor; точный422 validation_error/cursor_restart_required
+с явным restart; другие422 — invalid conditions;401 — существующий login lifecycle;
+403/404 — без private header/rows/links. F3 denial очищает только events cache,
+останавливает другие текущие F3 reads и не отзывает private-file session глобально.
+AuthProvider epoch по-прежнему определяет actor/role/scope/logout invalidation;
+late resolved replies не заполняют новый кэш. Ни данные, ни raw IDs в browser storage
+не сохраняются. Inactive/archive history читается по текущим разрешениям API.
+
+Клавиатура: native AntD controls/ссылки, видимый focus обеих тем, h1 получает focus
+при маршрутизации; Back/«К истории» восстанавливает доступную source link текущего
+epoch при её наличии, иначе heading. После LoadMore не выполняется перемещение
+focus; одна polite/atomic region сообщает loaded count. Error не захватывает focus
+при каждом retry. Reduced motion отключает F3 transitions/animations.
+
+Source evidence: focused contract/URL/session/rendered route tests используют
+локальную frozen wire fixture, реальные React Query/Router/SSR и Axios adapter.
+Компилятор проверяет closed DTO/negative cases; SSR не доказывает работу DOM effects,
+клавиатуру, CSS layout или реальный proxy/backend. Финальные `npm test`/`npm run build`,
+Light/Dark1440/1280/1024/390,200% zoom, roles/session/revoke/late responses,
+list→exact→well/reload/Back/Forward и оба неизменённых nginx — отдельные gates
+координатора после frozen diff. Полный visual/WCAG/runtime PASS этой записью
+не объявляется. Figma прочитана read-only; новые mutations не выполнялись.
+
+## TABLE-RUNTIME · реализация 24.10.2026
+
+Обычные реестры используют PulseTable: отдельную строку условий в общей сетке и
+упорядоченные ключи сортировки. Полные массивы скважин, источников, справочников,
+отказов и разрешённого ML snapshot обрабатываются до клиентской пагинации.
+Audit, collection logs, проверки, файловые задания, история карточки, RBAC lists,
+участники, Preview, сотрудники и события используют opt-in `table_query` с серверным
+фильтром/порядком до cursor pagination. Прежние legacy readers сохранены.
+
+Условия и порядок обычных списков сохраняются в отдельных `table.<name>` URL keys;
+выбранные run/check/tab и hash не сбрасываются. Preview условий доступа остаётся
+в памяти владельца черновика, сохраняя receipt/revision и sequence guards.
+Назначения и полный baseline группы не подменяются выбранной страницей участников.
+ID Pulse сохраняется точно через HTTP decode, join, ссылку и Excel; экспорт
+реестра использует полный обработанный порядок, а не одну загруженную страницу.
+
+Text sort/contains: явное приведение ASCII A–Z, А–Я/Ё, ӘӨҮҖҢҺ к нижнему регистру,
+затем Unicode scalar ordinal; пробелы сохраняются. Null-last в обоих направлениях.
+Audit ts хранится без доказанного пояса: «Время записи · пояс не задан», сравнение
+календарного времени без UTC/МСК. Другие timestamps требуют явного offset;
+микросекунды сохраняются, календарная дата отказа не сдвигается. Поля интервала
+не применяют неверный черновик. Телеметрия сохраняет внешний период/каналы и
+явно предупреждает об ограниченном загруженном наборе при truncated.
+
+Dashboard priority, очередь уведомлений, prepared-file/mapping editors и
+immutable объяснения/динамика результатов сохраняют исходный порядок как
+обоснованные исключения. Обычные списки больше не дублируют фильтры внешней панелью.
+Браузерная, Light/Dark/narrow и независимая приёмка выполняется координатором
+после фиксированного diff; сборка/unit не объявляются визуальной приёмкой.
+
+## WO-P1 · Паспорт оборудования · 25.10.2026
+
+В карточке добавлена вкладка `equipment` «Оборудование» между «История» и
+«Сведения». Она передаёт `exactWellId` в `EquipmentPassportPanel`; порядок,
+query/hash/history и посещённые панели сохраняются. Административный паспорт
+и сохранённые ML-результаты независимы от версии оборудования.
+
+Принятый источник — Figma `km4tIbp3LnMTRrV6yi6Qho` (Light/Dark):
+
+| Поверхность | Light | Dark |
+| --- | --- | --- |
+| Текущий состав | [1041:10493](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-10493) | [1046:9916](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-9916) |
+| Неизвестное / архив | [1041:10729](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-10729), [1041:10854](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-10854) | [1046:10757](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10757), [1046:11400](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11400) |
+| Register / update / replace | [1041:11040](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11040), [1041:11204](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11204), [1041:11373](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11373) | [1046:9274](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-9274), [1046:10117](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10117), [1046:10871](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10871) |
+| Linked correct / close / void | [1041:11537](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11537), [1041:11671](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11671) | [1046:11591](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11591), [1046:9403](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-9403) |
+| Manual diff / receipt | [1041:11809](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11809), [1041:11985](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-11985) | [1046:10247](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10247), [1046:11000](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11000) |
+| История | [1041:12098](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12098) | [1046:11714](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11714) |
+| Excel selection / errors / diff / no-op | [1041:12298](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12298), [1041:12471](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12471), [1041:12630](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12630), [1041:12839](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12839) | [1046:9520](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-9520), [1046:10436](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10436), [1046:11118](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11118), [1046:11879](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11879) |
+| Recovery / loading | [1041:12994](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-12994) | [1046:9662](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-9662) |
+| Mobile current / editor / full diff entry | [1041:13164](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-13164), [1041:13255](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-13255), [1041:13362](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1041-13362) | [1046:10576](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10576), [1046:11339](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-11339), [1046:12028](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-12028) |
+| Motor/control fields / actions | [1045:6651](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1045-6651), [1045:7002](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1045-7002) | [1046:12077](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-12077), [1046:10640](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1046-10640) |
+
+API: `GET /api/v1/wells/{id}/equipment-passport` и `/history`;
+`POST /api/v1/equipment-passports/previews`, `/import/previews`;
+`GET|DELETE /previews/{id}`, `POST /previews/{id}/commit`,
+`GET /receipts/{id}`, `POST /template`, `POST /export`.
+Используются существующие apiClient, AbortSignal, PrivateEpoch и table runtime.
+Браузер не разбирает XLSX для назначения оборудования. Template/import требуют
+`equipment_passports.import`; current export — `export`, history export —
+`history.read` + `export`. Все пять новых ключей имеют requires closure;
+legacy mappings не получают автоматических грантов.
+
+Current provenance берётся только из typed `provenance[].last_change`.
+Принятая scoped поправка25.10 в current frames1041:10493/1046:9916 и
+mobile1041:13164/1046:10576 добавляет Ant Dropdown «Ещё» заполненного слота:
+«Исправить запись» (correct), «Отметить запись ошибочной» (void, danger).
+Оба входа требуют read+update и используют exact current IDs/revisions;
+history.read и history lookup для них не требуются. Используются прежние
+reason → Preview → Commit формы. Закрытые/linked targets доступны через
+разрешённую историю; current вход не вычисляет их по соседям. Меню скрыто
+для read-only/архива/revoked; после отмены фокус возвращается к его trigger.
+История отдельно запрашивается при `history.read`, по полному серверному query:
+recorded_at/range; action,slot,source/in; actor_name,reason,changes/contains.
+Revision только справочная. Query key содержит точный well ID и private epoch;
+фильтрация истории на клиенте поверх страницы отсутствует.
+
+Preview использует `PulseTable mode=local` и owned query/page state в памяти.
+Полный diff раскрывает все эпизоды и их nullable поля вертикально на mobile.
+Перед commit требуется раскрытие полного diff, подтверждение намерения и всех
+warnings. Фильтр не исключает строки из all-or-nothing пакета. No-op завершается
+серверной квитанцией. Filename показывается только из выбранного файла текущего
+сеанса; template version в receipt не выдумывается.
+
+409 сохраняет draft и clear-намерения, блокируя новую проверку до явного
+перечитывания basis. Изменение намерения инвалидирует preview/key; сетевой retry
+commit сохраняет прежний UUID/digest и не допускает новую операцию до ответа.
+410 требует нового Prepare; 401/403/404 очищают private state, файлы, квитанции,
+feature cache и Blob URLs. Поздние callbacks защищены epoch/sequence/signal.
+
+Проверки исходников и браузерная приёмка различаются: targeted tests и
+`tsc --noEmit -p tsconfig.json` проверяют логику/компиляцию. Полный npm test,
+Vite build, real HTTP e2e, обе темы1440/1280/1024/390,320/200%zoom, keyboard,
+VoiceOver и визуальная сверка этой реализации остаются отдельным runtime gate.
+Figma screenshots и исходные токены не объявляются доказательством browser PASS.
+
+### Интеграция пользователей с актуальными таблицами · 25.10.2026
+
+Список `/people` сохраняет ServerEntityTable: column filters, multi-sort,
+URL query/cursor/revision и AbortSignal. Переключатель «Список / Структура»
+не изменяет URL-состояние списка. Поиск и показ отключённых записей структуры
+независимы; продуктовая подсказка объясняет это рядом с её контролами.
+Полный snapshot структуры получает только search/include_inactive, без
+переноса табличных фильтров и без построения из страниц списка.
+
+AccountsPage сохраняет текущий table-query Preview, отмену предыдущего запроса,
+восстановление invalid_table_cursor и инвалидацию access/people/table после Apply.
+RevealAccessField раскрывает native секции перед фокусом на ошибку/возвратом
+из Preview; keyed секции по private epoch/target сохраняются. Новое визуальное
+решение не вводилось: использованы принятые source collapse/chart и таблиц.

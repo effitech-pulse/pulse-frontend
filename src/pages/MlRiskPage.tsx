@@ -1,18 +1,18 @@
-import { Alert, Button, Card, Collapse, Descriptions, Modal, Select, Space, Table, Tag, Typography } from 'antd';
+import {LocalEntityTable} from '@/components/common/LocalEntityTable';
+import type {EntityField} from '@/components/common/LocalEntityTable';
+import { Alert, Button, Card, Collapse, Descriptions, Modal, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/auth/AuthProvider';
 import { useWells } from '@/hooks/useWells';
-import { useFundFilters } from '@/theme/FundFilters';
-import { mlRows, mlScopedRows, mlSnapshotNotice, cohortStatusLabel, mlAlertReviewPath } from '@/lib/mlSnapshot';
-import { filterMonitoringAlerts, type AlertModelFilter, type AlertProcessingFilter } from '@/lib/monitoringAlerts';
+import { mlRows, mlSnapshotNotice, cohortStatusLabel, mlAlertReviewPath } from '@/lib/mlSnapshot';
+import { type AlertModelFilter, type AlertProcessingFilter } from '@/lib/monitoringAlerts';
 import { formatSnapshotTime } from '@/lib/displayTime';
 import { mlApi, type MlDisplayWell } from '@/api/ml';
 import { PageSpin } from '@/components/common/PageSpin';
 import { ExplainBars } from '@/components/ml/ExplainBars';
-import { FundFilterBar } from '@/components/layout/FundFilterBar';
 import { ReviewPanel } from '@/components/telemetry/ReviewPanel';
 import { useMlRun } from '@/hooks/useMlRun';
 import { FAILURE_TYPE_RU } from '@/lib/labels';
@@ -29,21 +29,19 @@ const MODELS = [
 
 export function MlRiskPage() {
   const { can,canFull } = useAuth();
-  const { filters } = useFundFilters();
-  const [search, setSearch] = useSearchParams();
+  const [search] = useSearchParams();
   const selectedRun = Number(search.get('run_id')) || undefined;
   const model = (MODELS.some(item => item.value === search.get('model')) ? search.get('model') : 'attention') as AlertModelFilter;
   const processing = (['new','acknowledged','confirmed','false_positive','inconclusive','unlinked'].includes(search.get('processing') ?? '') ? search.get('processing') : 'all') as AlertProcessingFilter;
   const [explainWell, setExplainWell] = useState<MlDisplayWell | null>(null);
-  function selectFilter(key: string, value: string) { const next = new URLSearchParams(search); if (value === (key === 'model' ? 'attention' : 'all')) next.delete(key); else next.set(key, value); setSearch(next, {replace:true}); }
   const wellsQ = useQuery({ enabled:can(selectedRun?'cohort.runs.read':'risks.read'), queryKey: selectedRun ? ['ml-snapshot',selectedRun] : ['ml-wells'], queryFn: () => selectedRun ? mlApi.snapshot(selectedRun) : mlApi.wells(false) });
   const cohort = wellsQ.data?.profile === 'cohort';
   const metricsQ = useQuery({ queryKey: ['ml-metrics'], queryFn: mlApi.metrics, enabled: can('metrics.read') && !!wellsQ.data && !cohort });
   const { running, lastRun, start } = useMlRun(wellsQ.data ? (wellsQ.data.profile === 'cohort' ? 'cohort' : 'research') : undefined);
-  const registry = useWells(false, true, 'all');
-  const wells = mlScopedRows(mlRows(wellsQ.data), registry.data ?? [], filters, cohort);
-  const registryById = useMemo(() => new Map((registry.data ?? []).map(well => [well.id, well])), [registry.data]);
-  const shown = filterMonitoringAlerts(wells, model, processing);
+  const registry = useWells(false, false, 'all');
+  const wells = mlRows(wellsQ.data);
+  const registryById = useMemo(() => new Map((registry.data ?? []).map(well => [String(well.id), well])), [registry.data]);
+
   const notice = mlSnapshotNotice(wellsQ.data, lastRun);
   const readableNotice = wellsQ.data?.profile === 'cohort' && wellsQ.data.as_of ? notice?.replace(wellsQ.data.as_of, formatSnapshotTime(wellsQ.data.as_of)) : notice;
   const reviewPath = explainWell ? mlAlertReviewPath(explainWell) : null;
@@ -51,7 +49,7 @@ export function MlRiskPage() {
   const report = stage1?.metrics.report, perWell = stage1?.calibration?.per_well;
   const recall = perWell?.recall ?? report?.class_recall['1'];
   const precision = perWell?.precision ?? report?.class_precision['1'];
-  const metadata = (row: MlDisplayWell) => row.metadata ?? (row.app_well_id != null ? registryById.get(row.app_well_id) : undefined);
+  const metadata = (row: MlDisplayWell) => row.metadata ?? (row.app_well_id != null ? registryById.get(String(row.app_well_id)) : undefined);
   const columns: ColumnsType<MlDisplayWell> = [
     { title: 'Скважина', key: 'well', width: 165, render: (_, row) => row.app_well_id != null ? <Link to={`/wells/${row.app_well_id}${row.run_id != null ? `?run_id=${row.run_id}` : ''}`}>№ {metadata(row)?.well_number ?? '—'}<small className="pulse-cell-meta">ID Pulse {row.app_well_id}</small></Link> : 'Не сопоставлена' },
     { title: 'Модель', key: 'model', width: 150, sorter: (a,b) => (a.risk ?? -1) - (b.risk ?? -1), render: (_,row) => <><span className={row.risk === null ? 'pulse-muted' : row.tier === 'alert' ? 'pulse-danger' : row.tier === 'watch' ? 'pulse-warning' : 'pulse-success'}>{cohortStatusLabel(row)}</span>{row.risk !== null && <small className="pulse-cell-meta">Риск {(row.risk * 100).toFixed(1)}%</small>}</> },
@@ -60,17 +58,22 @@ export function MlRiskPage() {
     { title: 'Ответственный за скважину', key: 'owner', width: 170, render: (_,row) => metadata(row)?.responsible || 'Не назначен' },
     { title: 'Действие', key: 'action', width: 115, render: (_,row) => <Button type="link" onClick={() => setExplainWell(row)}>{row.alert_status === 'new' ? 'Проверить' : row.alert_status === 'acknowledged' ? 'Продолжить' : 'Открыть'}</Button> },
   ];
+  const fields:EntityField<MlDisplayWell>[]=[
+ {key:'id',label:'ID Pulse',column:'Скважина',kind:'pulseId',read:r=>r.app_well_id},
+ {key:'number',label:'№ скважины',column:'Скважина',primary:true,kind:'text',read:r=>metadata(r)?.well_number},
+ {key:'assessment',label:'Модель',kind:'enum',options:[{value:0,label:'Норма'},{value:1,label:'Наблюдение'},{value:2,label:'Тревога'},{value:null,label:'Без оценки'}],read:r=>r.risk===null?null:r.tier==='alert'?2:r.tier==='watch'?1:0},
+ {key:'processing',label:'Обработка',kind:'enum',options:[...Object.entries(PROCESSING).map(([value,state])=>({value,label:state.label})),{value:null,label:'Без записи обработки'}],read:r=>r.alert_id==null?null:r.alert_status},
+ {key:'reason',label:'Основание',column:'Основание / окно',kind:'text',read:r=>r.rule_findings.join(' · ')||r.reason_code||''},
+ {key:'window_end',label:'Дата окна',column:'Основание / окно',primary:true,kind:'datetime',read:r=>r.window_end},
+ {key:'owner',label:'Ответственный за скважину',kind:'text',read:r=>metadata(r)?.responsible},
+ {key:'ngdu',label:'НГДУ',kind:'enum',read:r=>metadata(r)?.ngdu},{key:'department',label:'Цех',kind:'enum',read:r=>metadata(r)?.department},
+ ];
+ const initialQuery={version:1 as const,sort:[],filters:[...(model==='all'?[]:[{field:'assessment',op:'in' as const,values:model==='attention'?[1,2]:[model==='alert'?2:model==='watch'?1:model==='normal'?0:null]}]),...(processing==='all'?[]:[{field:'processing',op:'in' as const,values:[processing==='unlinked'?null:processing]}])]};
   return <div className="pulse-stack pulse-monitoring-page pulse-monitoring-alerts">
     <div className="pulse-page-heading pulse-toolbar"><div><h1>Тревоги</h1><p>Оценка модели и статус обработки отображаются раздельно</p></div>{canFull('runs.start') && <Button type="primary" loading={running || wellsQ.data?.running || start.isPending} onClick={() => start.mutate()}>Запустить расчёт</Button>}</div>
-    <FundFilterBar hasExtraFilters={model !== 'attention' || processing !== 'all'} onReset={() => { const next = new URLSearchParams(search); next.delete('model'); next.delete('processing'); setSearch(next, {replace:true}); }} />
-    <div className="pulse-monitoring-filters">
-      <label><span>Оценка модели</span><Select aria-label="Фильтр оценки модели" value={model} options={MODELS} onChange={value => selectFilter('model',value)} /></label>
-      <label><span>Обработка</span><Select aria-label="Фильтр обработки тревоги" value={processing} options={[{value:'all',label:'Все состояния'},...Object.entries(PROCESSING).map(([value,state])=>({value,label:state.label})),{value:'unlinked',label:'Без записи обработки'}]} onChange={value=>selectFilter('processing',value)} /></label>
-      <Typography.Text type="secondary">Тревог: {wells.filter(row=>row.tier==='alert'&&row.risk!==null).length} · Под наблюдением: {wells.filter(row=>row.tier==='watch'&&row.risk!==null).length} · Без оценки: {wells.filter(row=>row.risk===null).length}</Typography.Text>
-    </div>
     {readableNotice && <p className="pulse-monitoring-caption" title={notice ?? undefined}>{readableNotice}</p>}
     <Card className="pulse-monitoring-table-card"><PageSpin loading={wellsQ.isLoading || (!cohort && registry.isLoading)} error={wellsQ.error || (!cohort ? registry.error : undefined)}>
-      <Table<MlDisplayWell> rowKey={row=>row.app_well_id ?? row.well_id!} columns={columns} dataSource={shown} scroll={{x:1080}} pagination={{pageSize:15,showSizeChanger:false,showTotal:total=>`Количество: ${total}`}} locale={{emptyText: <span className="pulse-muted">{model === 'attention' ? 'Тревог и наблюдений в выбранной выборке нет' : 'Нет доступных оценок по выбранным фильтрам'}</span>}} />
+      <LocalEntityTable<MlDisplayWell> onRefresh={()=>{void wellsQ.refetch();if(can('wells.read'))void registry.refetch();}} refreshing={wellsQ.isFetching||registry.isFetching} refreshDisabled={!can(selectedRun?'cohort.runs.read':'risks.read')} tableKey="alerts" fields={fields} initialQuery={initialQuery} defaultSort={[{field:'assessment',direction:'desc'},{field:'window_end',direction:'desc'}]} rowKey={row=>row.app_well_id ?? row.well_id!} columns={[...columns.slice(0,1),{title:'НГДУ',render:(_,r)=>metadata(r)?.ngdu??'—'},{title:'Цех',render:(_,r)=>metadata(r)?.department??'—'},...columns.slice(1)]} dataSource={wells} scroll={{x:1080}} pagination={{pageSize:15,showSizeChanger:false,showTotal:total=>`Количество: ${total}`}} locale={{emptyText: <span className="pulse-muted">{model === 'attention' ? 'Тревог и наблюдений в выбранной выборке нет' : 'Нет доступных оценок по выбранным фильтрам'}</span>}} />
     </PageSpin>{wellsQ.isError && <Button onClick={()=>void wellsQ.refetch()}>Повторить</Button>}</Card>
     <Card className="pulse-monitoring-note"><h2>Оценка модели не меняется при обработке тревоги</h2><p>Ответственный за обработку, комментарии и заключение сохраняются в форме проверки. Ответственный в списке указан по паспорту скважины.</p></Card>
     {can('metrics.read') && !cohort && <Collapse items={[{key:'metrics',label:'Метрики модели · историческая CV',children:<PageSpin loading={metricsQ.isLoading} error={metricsQ.error}><Descriptions column={{xs:1,md:2}} items={[{key:'model',label:'Модель',children:stage1?.name ?? '—'},{key:'recall',label:'Recall',children:recall == null ? '—' : `${(recall*100).toFixed(1)}%`},{key:'precision',label:'Precision',children:precision == null ? '—' : `${(precision*100).toFixed(1)}%`}]} /><p className="pulse-monitoring-caption">Историческая CV не является временной приёмкой и не подтверждает качество на текущем фонде.</p></PageSpin>}]} />}

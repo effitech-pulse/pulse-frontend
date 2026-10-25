@@ -1,3 +1,4 @@
+import {guardTablePage} from '@/lib/tableTransport';
 import {useAuth} from '@/auth/AuthProvider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
@@ -7,8 +8,8 @@ import {useFundFilters} from '@/theme/FundFilters';
 import type { WellUpdate } from '@/api/types';
 
 export const useWells = (activeOnly = true, applyFilters = true, archive:WellArchive = 'current') => {
-  const {filters}=useFundFilters();const selected=applyFilters?filters:undefined;
-  return useQuery({enabled: useAuth().can('wells.read'), queryKey:['wells', activeOnly, selected, archive], queryFn:() => wellsApi.list(activeOnly,selected,archive)});
+  const auth=useAuth();const {filters}=useFundFilters();const selected=applyFilters?filters:undefined;
+  return useQuery({enabled: auth.can('wells.read')&&!auth.privateBlocked, queryKey:['wells', activeOnly, selected, archive,auth.privateEpoch], queryFn:({signal}) => guardTablePage(auth.capturePrivate(),()=>wellsApi.list(activeOnly,selected,archive,signal),signal)});
 };
 
 export const useUpdateWell = () => {
@@ -16,32 +17,33 @@ export const useUpdateWell = () => {
   const qc = useQueryClient();
   const { message } = App.useApp();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: WellUpdate }) => {if(!can('wells.update'))throw new Error('Недостаточно прав');return wellsApi.update(id, data);},
+    mutationFn: ({ id, data }: { id: number|string; data: WellUpdate }) => {if(!can('wells.update'))throw new Error('Недостаточно прав');return wellsApi.update(id, data);},
     onSuccess: () => {
       message.success('Сохранено');
       qc.invalidateQueries({ queryKey: ['wells'] });
       qc.invalidateQueries({ queryKey: ['well'] });
       qc.invalidateQueries({ queryKey: ['well-history'] });
+      qc.invalidateQueries({queryKey:['table']});
     },
     onError: (e) => message.error(toApiError(e).message),
   });
 };
 
-export const useWell = (wellId: number) =>
-  useQuery({ queryKey: ['well', wellId], queryFn: () => wellsApi.get(wellId), enabled: useAuth().can('wells.read') && wellId > 0 });
+export const useWell = (wellId: number | string) =>
+  useQuery({ queryKey: ['well', wellId], queryFn: () => wellsApi.get(wellId), enabled: useAuth().can('wells.read') && Number(wellId) > 0 });
 
-export const useWellPredictions = (wellId: number, limit = 100) =>
+export const useWellPredictions = (wellId: number | string, limit = 100) =>
   useQuery({
     queryKey: ['well', wellId, 'predictions', limit],
     queryFn: () => wellsApi.predictions(wellId, limit),
-    enabled: useAuth().can('risks.read') && wellId > 0,
+    enabled: useAuth().can('risks.read') && Number(wellId) > 0,
   });
 
-export const useWellComplications = (wellId: number) =>
+export const useWellComplications = (wellId: number | string) =>
   useQuery({
     queryKey: ['well', wellId, 'complications'],
     queryFn: () => wellsApi.complications(wellId),
-    enabled: useAuth().can('risks.read') && wellId > 0,
+    enabled: useAuth().can('risks.read') && Number(wellId) > 0,
   });
 
 export const useDepartments = () =>

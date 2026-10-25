@@ -1,9 +1,12 @@
+import {LocalEntityTable} from '@/components/common/LocalEntityTable';
+import type {EntityField} from '@/components/common/LocalEntityTable';
+import {applyTableQuery} from '@/lib/tableQuery';
+import {readTableState} from '@/lib/tableState';
 import {useAuth} from '@/auth/AuthProvider';
 import {
   App,
   Alert,
   Modal,
-  Segmented,
   Tag,
   Typography,
   Tooltip,
@@ -14,7 +17,6 @@ import {
   InputNumber,
   Space,
   Switch,
-  Table,
 } from 'antd';
 import {
   CheckOutlined,
@@ -39,7 +41,6 @@ import type { Well } from '@/api/types';
 import { type WellArchive, wellsApi } from '@/api/wells';
 import { toApiError } from '@/api/client';
 import { useDepartments, useNgdus, useUpdateWell, useWells } from '@/hooks/useWells';
-import {useFundFilters} from '@/theme/FundFilters';
 import { PageSpin } from '@/components/common/PageSpin';
 import { WellImportModal } from '@/components/wells/WellImportModal';
 import { AddWellModal } from '@/components/wells/AddWellModal';
@@ -82,14 +83,14 @@ export type WellAssessmentFilter = 'all' | 'alert' | 'watch' | 'normal' | 'unsco
 export function WellsPage({ management = false, assessment = 'all' }: { management?: boolean; assessment?: WellAssessmentFilter }) {
   const {can}=useAuth();
   const navigate = useNavigate();
-  const [search, setSearch] = useSearchParams();
+  const [search] = useSearchParams();
   const ml = useQuery({ enabled:can('risks.read'), queryKey: ['ml-wells'], queryFn: () => mlApi.wells(false) });
-  const assessments = new Map(mlRows(ml.data).map(row => [row.app_well_id, row]));
-  const {filters}=useFundFilters();
+  const assessments = new Map(mlRows(ml.data).map(row => [String(row.app_well_id), row]));
+
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const client=useQueryClient();
-  const [archive,setArchive]=useState<WellArchive>('current');
+  const archive:WellArchive='current';
   const [editingRevision,setEditingRevision]=useState<number>();
   const [editConflict,setEditConflict]=useState(false);
   const [lifecycle,setLifecycle]=useState<{well:Well;restore:boolean}>();
@@ -97,9 +98,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
   const [lifecycleError,setLifecycleError]=useState('');
   const [lifecycleConflict,setLifecycleConflict]=useState(false);
   const [changingLifecycle,setChangingLifecycle]=useState(false);
-  const [showInactive, setShowInactive] = useState(!management);
-  const activeOnly=archive==='current'&&!showInactive;
-  const { data, isLoading, error } = useWells(activeOnly,true,archive);
+  const { data, isLoading, error, refetch, isFetching } = useWells(false,false,'all');
   const departments = useDepartments();
   const ngdus = useNgdus();
   const updateWell = useUpdateWell();
@@ -115,7 +114,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
     return name ? `${name} (${code})` : String(code);
   };
 
-  const [editingKey, setEditingKey] = useState<number | null>(null);
+  const [editingKey, setEditingKey] = useState<number|string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -129,7 +128,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
     setEditingKey(well.id);
   };
   const cancel = () => {setEditingKey(null);setEditConflict(false);};
-  const save = async (id: number) => {
+  const save = async (id: number|string) => {
     const row = await form.validateFields();
     if (row.well_number === '') row.well_number = null;
     try {await updateWell.mutateAsync({ id, data: {...row,revision:editingRevision} });setEditingKey(null);setEditConflict(false);}
@@ -158,8 +157,10 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
     if(!can('wells.export'))return;
     setExporting(true);
     try {
-      let blob = await wellsApi.exportXlsx(filters,activeOnly,archive);
-      if (!management && assessment !== 'all') blob = new Blob([filterWellWorkbook(await blob.arrayBuffer(), monitorRows.map(well => well.id))], { type: blob.type });
+      let blob = await wellsApi.exportXlsx(undefined,false,'all');
+      const state=readTableState(search,tableKey,tableFields,initialQuery);
+      const visible=applyTableQuery(data??[],{fields:tableFields,defaultSort:[{field:'id',direction:'asc'}],rowId:r=>String(r.id)},state.query);
+      blob = new Blob([filterWellWorkbook(await blob.arrayBuffer(), visible.map(well => well.id))], { type: blob.type });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -234,19 +235,38 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
   async function reloadEdit(){if(editingKey===null)return;try{const latest=await wellsApi.get(editingKey);if(latest.archived_at){cancel();message.info('Скважина перенесена в архив. Сначала восстановите её.');return;}form.setFieldsValue(latest);setEditingRevision(latest.revision);setEditConflict(false);}catch(e){message.error(toApiError(e).message);}}
   async function saveLifecycle(){
     if(!lifecycle || !can(lifecycle.restore?'wells.restore':'wells.archive') || changingLifecycle)return;if(!reason.trim()){setLifecycleError('Укажите причину');return;}setChangingLifecycle(true);setLifecycleError('');
-    try{await (lifecycle.restore?wellsApi.restore(lifecycle.well,reason):wellsApi.archive(lifecycle.well,reason));setLifecycle(undefined);await Promise.all(['wells','well','well-history','ml-wells','incident-stats'].map(key=>client.invalidateQueries({queryKey:[key]})));message.success(lifecycle.restore?'Скважина восстановлена с прежним ID Pulse':'Скважина перенесена в архив');}
+    try{await (lifecycle.restore?wellsApi.restore(lifecycle.well,reason):wellsApi.archive(lifecycle.well,reason));setLifecycle(undefined);await Promise.all(['wells','well','well-history','ml-wells','incident-stats','table'].map(key=>client.invalidateQueries({queryKey:[key]})));message.success(lifecycle.restore?'Скважина восстановлена с прежним ID Pulse':'Скважина перенесена в архив');}
     catch(e){const problem=toApiError(e);setLifecycleError(problem.message);setLifecycleConflict(problem.code==='conflict');}finally{setChangingLifecycle(false);}
   }
   const monitorColumns: ColumnsType<Well> = [
-    { title: 'Скважина', key: 'well', width: 180, render: (_, well) => <Link to={`/wells/${well.id}${assessments.get(well.id)?.run_id != null ? `?run_id=${assessments.get(well.id)!.run_id}` : ''}`}>№ {well.well_number ?? '—'}<small className="pulse-cell-meta">ID Pulse {well.id}</small></Link> },
+    { title: 'Скважина', key: 'well', width: 180, render: (_, well) => <Link to={`/wells/${well.id}${assessments.get(String(well.id))?.run_id != null ? `?run_id=${assessments.get(String(well.id))!.run_id}` : ''}`}>№ {well.well_number ?? '—'}<small className="pulse-cell-meta">ID Pulse {well.id}</small></Link> },
     { title: 'Цех', key: 'department', width: 150, render: (_, well) => <span className="sensitive">{deptLabel(well.department)}</span> },
-    { title: 'Оценка модели', key: 'assessment', width: 180, render: (_, well) => { const result = assessments.get(well.id); return <span className={result?.risk == null ? 'pulse-muted' : result.tier === 'alert' ? 'pulse-danger' : result.tier === 'watch' ? 'pulse-warning' : 'pulse-success'}>{result ? cohortStatusLabel(result) : ml.isError ? 'Не удалось загрузить' : ml.isLoading ? 'Загрузка…' : 'Без оценки'}</span>; } },
-    { title: 'Режим / данные', key: 'data', render: (_, well) => { const result = assessments.get(well.id); return <>{well.active ? 'Активна в реестре' : 'Неактивна в реестре'}<small className="pulse-cell-meta">{result?.data_ok === false ? 'В последнем окне есть пропуски' : result?.data_ok === true ? 'Последнее окно полное' : 'Качество окна неизвестно'}</small></>; } },
-    { title: 'Период данных', key: 'updated', width: 145, render: (_, well) => { const date = assessments.get(well.id)?.window_end; return date ? dayjs(date).format('DD.MM.YYYY') : '—'; } },
-    { title: 'Действие', key: 'open', width: 110, align: 'right', render: (_, well) => <Link to={`/wells/${well.id}${assessments.get(well.id)?.run_id != null ? `?run_id=${assessments.get(well.id)!.run_id}` : ''}`}>Открыть</Link> },
+    { title: 'Оценка модели', key: 'assessment', width: 180, render: (_, well) => { const result = assessments.get(String(well.id)); return <span className={result?.risk == null ? 'pulse-muted' : result.tier === 'alert' ? 'pulse-danger' : result.tier === 'watch' ? 'pulse-warning' : 'pulse-success'}>{result ? cohortStatusLabel(result) : ml.isError ? 'Не удалось загрузить' : ml.isLoading ? 'Загрузка…' : 'Без оценки'}</span>; } },
+    { title: 'Режим / данные', key: 'data', render: (_, well) => { const result = assessments.get(String(well.id)); return <>{well.active ? 'Активна в реестре' : 'Неактивна в реестре'}<small className="pulse-cell-meta">{result?.data_ok === false ? 'В последнем окне есть пропуски' : result?.data_ok === true ? 'Последнее окно полное' : 'Качество окна неизвестно'}</small></>; } },
+    { title: 'Период данных', key: 'updated', width: 145, render: (_, well) => { const date = assessments.get(String(well.id))?.window_end; return date ? dayjs(date).format('DD.MM.YYYY') : '—'; } },
+    { title: 'Действие', key: 'actions', width: 120, align: 'right', render: (_, well) => <Link to={`/wells/${well.id}${assessments.get(String(well.id))?.run_id != null ? `?run_id=${assessments.get(String(well.id))!.run_id}` : ''}`}>Открыть</Link> },
   ];
-  const monitorRows = (data ?? []).filter(well => { const result = assessments.get(well.id); return assessment === 'all' || (assessment === 'unscored' ? result?.risk == null : assessment === 'normal' ? result?.risk != null && result.tier === null : result?.risk != null && result.tier === assessment); });
-  const page = Math.max(1, Number(search.get('page')) || 1);
+  const tableKey=management?'wells-management':'wells-monitor';
+  const tableFields:EntityField<Well>[]=[
+   {key:'id',label:'ID Pulse',column:management?'ID Pulse':'Скважина',kind:'pulseId',read:r=>r.id},
+   {key:'well_number',label:'№ скважины',column:management?'№ скв.':'Скважина',primary:true,kind:'text',read:r=>r.well_number},
+   {key:'ngdu',label:'НГДУ',kind:'enum',options:ngdus.data?.map(r=>({value:r.id,label:ngduLabel(r.id)})),read:r=>r.ngdu},
+   {key:'department',label:'Цех',kind:'enum',options:departments.data?.map(r=>({value:r.id,label:deptLabel(r.id)})),read:r=>r.department},
+   {key:'archive',label:management?'Состояние':'Архив',kind:'boolean',read:r=>!!r.archived_at},
+   ...(management?[
+    {key:'responsible',label:'Ответственный',kind:'text' as const,read:(r:Well)=>r.responsible},
+    {key:'active',label:'Активна',kind:'boolean' as const,read:(r:Well)=>r.active},
+   ]:[
+    {key:'assessment',label:'Оценка модели',kind:'enum' as const,options:[{value:0,label:'Норма'},{value:1,label:'Наблюдение'},{value:2,label:'Тревога'},{value:null,label:'Без оценки'}],read:(r:Well)=>{const v=assessments.get(String(r.id));return v?.risk==null?null:v.tier==='alert'?2:v.tier==='watch'?1:0;}},
+    {key:'active',label:'Активность',column:'Режим / данные',primary:true,kind:'boolean' as const,read:(r:Well)=>r.active},
+    {key:'data_ok',label:'Полнота окна',column:'Режим / данные',kind:'boolean' as const,read:(r:Well)=>assessments.get(String(r.id))?.data_ok??null},
+    {key:'window_end',label:'Период данных',kind:'datetime' as const,read:(r:Well)=>assessments.get(String(r.id))?.window_end??null},
+   ]),
+  ];
+  const initialQuery={version:1 as const,sort:[],filters:[{field:'archive',op:'in' as const,values:[false]},
+   ...(management?[{field:'active',op:'in' as const,values:[true]}]:[]),
+   ...(!management&&assessment!=='all'?[{field:'assessment',op:'in' as const,values:[assessment==='alert'?2:assessment==='watch'?1:assessment==='normal'?0:null]}]:[])]};
+  const monitorExtra=[{title:'НГДУ',key:'ngdu',render:(_:unknown,r:Well)=>ngduLabel(r.ngdu)},{title:'Архив',key:'archive',render:(_:unknown,r:Well)=>r.archived_at?'В архиве':'В фонде'}];
   return (
     <div className="pulse-wells-table"
       style={{ position: 'relative' }}
@@ -265,15 +285,6 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
         className="pulse-registry-card"
         extra={
           <Space wrap>
-            <Segmented aria-label="Состояние реестра" value={archive} onChange={value=>{setArchive(value as WellArchive);cancel();}} options={[{value:'current',label:'Текущие'},{value:'archived',label:'Архив'},{value:'all',label:'Все'}]} />
-            <Switch
-              aria-label="Показывать неактивные скважины"
-              disabled={archive!=='current'}
-              checkedChildren="все"
-              unCheckedChildren="активные"
-              checked={showInactive}
-              onChange={setShowInactive}
-            />
             {management && can('wells.create') && <Tooltip title={ml.data?.profile === 'cohort' ? 'Состав задаёт Pulse Connector' : undefined}><span><Button disabled={archive!=='current' || ml.isLoading || ml.data?.profile === 'cohort'} icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
               Добавить
             </Button></span></Tooltip>}
@@ -288,15 +299,15 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
       >
         <PageSpin loading={isLoading} error={error}>
           <Form form={form} component={false}>
-            <Table
+            <LocalEntityTable<Well> onRefresh={()=>{void refetch();if(!management&&can('risks.read'))void ml.refetch();if(can('references.read')){void departments.refetch();void ngdus.refetch();}}} refreshing={isFetching||(!management&&ml.isFetching)||departments.isFetching||ngdus.isFetching} refreshDisabled={!can('wells.read')} tableKey={tableKey} fields={tableFields} initialQuery={initialQuery} defaultSort={[{field:'id',direction:'asc'}]}
               rowKey="id"
               loading={!management && ml.isLoading}
               scroll={{x:management ? 1100 : 950}}
               components={{ body: { cell: EditableCell } }}
-              columns={management ? columns : monitorColumns}
-              dataSource={management ? data ?? [] : monitorRows}
+              columns={management ? columns : [...monitorColumns.slice(0,1),...monitorExtra,...monitorColumns.slice(1)]}
+              dataSource={data ?? []}
               size="middle"
-              pagination={{ pageSize: 20, current: Math.min(page, Math.max(1, Math.ceil((management ? data?.length ?? 0 : monitorRows.length) / 20))), showSizeChanger: false, showTotal: total => `Количество: ${total}`, onChange: page => { const next = new URLSearchParams(search); next.set('page', String(page)); setSearch(next); } }}
+
             />
           </Form>
         </PageSpin>

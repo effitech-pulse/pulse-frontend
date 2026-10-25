@@ -53,6 +53,21 @@ export function validateUserChange(user:UserChange,password:string,departmentPen
  if(user.organization?.kind==='department'&&user.organization.department_id===null)throw new AccessFieldError('department','Выберите цех.');
 }
 export function blockAccessNavigation(dirty:boolean,pending:boolean):boolean{return dirty||pending;}
+interface AccessNavigationLocation {pathname:string;search:string;hash?:string}
+/** Изменение условий таблицы текущей группы не закрывает и не меняет черновик. */
+export function blockAccessLocationNavigation(dirty:boolean,pending:boolean,current:AccessNavigationLocation,next:AccessNavigationLocation,ownerGroupId:string|null|undefined):boolean {
+ if(!blockAccessNavigation(dirty,pending))return false;
+ if(current.pathname===next.pathname&&current.search===next.search)return false;
+ if(ownerGroupId!==undefined&&current.pathname===next.pathname&&(current.hash??'')===(next.hash??'')){
+  const before=new URLSearchParams(current.search),after=new URLSearchParams(next.search),id=ownerGroupId??'new';
+  if(before.get('entity')==='groups'&&after.get('entity')==='groups'&&before.get('id')===id&&after.get('id')===id){
+   for(const mode of ['members','candidates']){const key=`table.group-members-${id}-${mode}`;before.delete(key);after.delete(key);}
+   if(before.toString()===after.toString())return false;
+  }
+ }
+ return true;
+}
+
 
 import type { ManagedProfile } from '../api/people';
 export function normalizeProfile(profile: ManagedProfile): ManagedProfile {

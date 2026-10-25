@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -19,7 +20,7 @@ function load(relative,permissions,patch={}){
  '@/api/client':{},'@/theme/FundFilters':{useFundFilters:()=>({filters:{}})},
  };
  const filename=fileURLToPath(new URL(relative,import.meta.url));const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>boundaries[id]??require(id);mod._compile(code,filename);return {...mod.exports,options};
+ const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>boundaries[id]??loadDependency(id,filename,boundaries);mod._compile(code,filename);return {...mod.exports,options};
 }
 test('well-only principal never launches risks, complications, references or runs requests',()=>{
  const hooks=load('../src/hooks/useWells.ts',['wells.read']);

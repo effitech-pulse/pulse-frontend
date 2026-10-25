@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import {legacyAuth} from './auth-fixture.mjs';
 import * as authorization from '../src/auth/authorization.ts';
 import test from 'node:test';
@@ -18,7 +19,7 @@ function load(relative, boundaries) {
   const mod = new Module(filename);
   mod.filename = filename;
   mod.paths = Module._nodeModulePaths(path.dirname(filename));
-  mod.require = id => id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries, id) ? boundaries[id] : require(id);
+  mod.require = id => id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries, id) ? boundaries[id] : loadDependency(id,filename,boundaries);
   mod._compile(js, filename);
   return mod.exports;
 }
@@ -65,12 +66,13 @@ test('well query preserves all server-authorized members irrespective of histori
     '@/theme/FundFilters': { useFundFilters: () => ({ filters }) },
     '@/theme/FundProvider': { useFund: () => ({ fund: 'presentation' }) },
   });
+  const signal=new AbortController().signal;
   const query = useWells(false, true, 'all');
-  assert.deepEqual(await query.queryFn(), members);
-  assert.deepEqual(requests, [[false, filters, 'all']]);
+  assert.deepEqual(await query.queryFn({signal}), members);
+  assert.deepEqual(requests, [[false, filters, 'all',signal]]);
   // The client cannot recreate members filtered out by the server's role/scope.
   members.splice(0, 2);
-  assert.deepEqual(await query.queryFn(), []);
+  assert.deepEqual(await query.queryFn({signal}), []);
 });
 
 test('account edits preserve server funds even when the form has no scope fields', async () => {

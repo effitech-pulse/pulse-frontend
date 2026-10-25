@@ -15,7 +15,7 @@ test('assessment export retains selected Pulse IDs and literal zero/false/leadin
   const decoded = XLSX.read(output, { type: 'array' });
   assert.deepEqual(XLSX.utils.sheet_to_json(decoded.Sheets.wells, { header: 1, defval: null }), [
     ['PULSE_ID', 'WELL_NUMBER', 'NGDU', 'ACTIVE'],
-    [1001, '001', 0, false], [1003, null, -900, false],
+    [1003, null, -900, false], [1001, '001', 0, false],
   ]);
 });
 
@@ -31,4 +31,10 @@ test('empty assessment selection exports headers only and never falls back to al
 test('export cannot substitute an external ID when the Pulse identity column is absent', async () => {
   const { filterWellWorkbook } = await import('../src/lib/wellExport.ts');
   assert.throws(() => filterWellWorkbook(workbook([[1001]], ['UNITEK_ID']), [1001]), /PULSE_ID/);
+});
+test('export follows full visible exact int64 order instead of source workbook order',async()=>{
+ const {filterWellWorkbook}=await import('../src/lib/wellExport.ts');
+ const a='9007199254740992',b='9007199254740993',max='9223372036854775807';
+ const result=filterWellWorkbook(workbook([[a,'0007А',0,false],[b,'x',1,true],[max,'y',2,true]]),[max,b,a]);
+ const decoded=XLSX.read(result,{type:'array'});assert.deepEqual(XLSX.utils.sheet_to_json(decoded.Sheets.wells,{header:1}).slice(1).map(r=>r[0]),[max,b,a]);
 });

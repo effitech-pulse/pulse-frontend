@@ -11,7 +11,7 @@ export type AlertStatus = 'new' | 'acknowledged' | 'false_positive' | 'confirmed
 export interface MlWell {
   well_id: number;
   unitek_id: number | null;
-  app_well_id: number | null;
+  app_well_id: number|string | null;
   alert_id: number | null;
   alert_status: AlertStatus | null;
   tier: 'alert' | 'watch' | null;
@@ -57,7 +57,7 @@ export interface CohortResult extends TelemetryScore {
 interface CohortOutcomeBase {
   alert_id?: number | null;
   alert_status?: AlertStatus | null;
-  app_well_id: number;
+  app_well_id: number|string;
   reason_code: string;
   input_sha256?: string;
   bounds: { start: string; end: string } | null;
@@ -231,8 +231,8 @@ export const mlApi = {
       .then((r) => r.data),
   metrics: () =>
     apiClient.get<{ models: MlSavedModel[] }>(`${V1}/ml/metrics`).then((r) => r.data),
-  byAppWell: (wellId: number, runId?: number) => apiClient.get<MlRiskResponse>(`${V1}/wells/${wellId}/risk`, {params:{run_id:runId}}).then(r=>r.data),
-  appHistory: (wellId: number, limit=400, runId?: number) => apiClient.get<MlHistoryResponse>(`${V1}/wells/${wellId}/risk/history`,{params:{limit,run_id:runId}}).then(r=>r.data),
+  byAppWell: (wellId: number|string, runId?: number) => apiClient.get<MlRiskResponse>(`${V1}/wells/${wellId}/risk`, {params:{run_id:runId}}).then(r=>r.data),
+  appHistory: (wellId: number|string, limit=400, runId?: number) => apiClient.get<MlHistoryResponse>(`${V1}/wells/${wellId}/risk/history`,{params:{limit,run_id:runId}}).then(r=>r.data),
   byUnitek: (unitekId: number) =>
     apiClient.get<MlWell>(`${V1}/ml/wells/by-unitek/${unitekId}`).then((r) => r.data),
   explain: (wellId: number, topN = 6) =>

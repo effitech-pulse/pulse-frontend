@@ -74,9 +74,9 @@ export function mlSnapshotNotice(response?: MlWellsResponse, latestRun?: {id:num
 
 /** Server already guards cohort membership. Legacy fund filtering must not hide cohort members. */
 export function mlScopedRows(rows: MlDisplayWell[], registry: Well[], filters: FundFilters, cohort: boolean): MlDisplayWell[] {
-  const byId = new Map(registry.map(w => [w.id,w]));
+  const byId = new Map(registry.map(w => [String(w.id),w]));
   const selected = rows.filter(row => {
-    const well = row.metadata ?? (row.app_well_id != null ? byId.get(row.app_well_id) : undefined);
+    const well = row.metadata ?? (row.app_well_id != null ? byId.get(String(row.app_well_id)) : undefined);
     if (!cohort) return !!well;
     if (filters.ngdu !== undefined && well?.ngdu !== filters.ngdu) return false;
     if (filters.department !== undefined && well?.department !== filters.department) return false;
@@ -87,7 +87,7 @@ export function mlScopedRows(rows: MlDisplayWell[], registry: Well[], filters: F
   return selected.sort((a,b) => {
     const delta = filters.sort === 'name_asc' || filters.sort === 'name_desc'
       ? (a.metadata?.well_number ?? '').localeCompare(b.metadata?.well_number ?? '', 'ru', {numeric:true})
-      : (a.app_well_id ?? 0) - (b.app_well_id ?? 0);
+      : (BigInt(a.app_well_id ?? 0) < BigInt(b.app_well_id ?? 0) ? -1 : BigInt(a.app_well_id ?? 0) > BigInt(b.app_well_id ?? 0) ? 1 : 0);
     return filters.sort === 'id_desc' || filters.sort === 'name_desc' ? -delta : delta;
   });
 }

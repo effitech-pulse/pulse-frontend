@@ -1,0 +1,38 @@
+.pulse-table { color: var(--pulse-table-text); min-width: 0; }
+.pulse-table-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.pulse-table-actions:empty { display: none; }
+.pulse-table .ant-table-thead > tr:first-child > th { background: var(--pulse-table-heading); padding: 0 8px; height: 40px; }
+.pulse-table .ant-table-thead > tr:nth-child(2) > th { background: var(--pulse-table-surface); padding: 8px; height: 60px; vertical-align: middle; }
+.pulse-table-sort { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-height: 40px; padding: 0; border: 0; color: inherit; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.pulse-table-sort-state { display: inline-flex; align-items: center; gap: 6px; color: var(--pulse-table-text); font-size: 12px; font-weight: 400; }
+.pulse-table-sort-arrow { color: var(--pulse-table-accent); font-size: 18px; }
+.pulse-table-filter-cell { display: flex; flex-direction: column; gap: 8px; min-height: 32px; }
+.pulse-table-filter-field { position: relative; min-width: 120px; font-weight: 400; }
+.pulse-table-filter-trigger { display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%; min-height: 32px; padding: 4px 11px; border: 1px solid var(--pulse-table-border); border-radius: 4px; color: var(--pulse-table-text); background: var(--pulse-table-surface); font: inherit; font-weight: 400; text-align: left; cursor: pointer; }
+.pulse-table-filter-field:has(.pulse-table-filter-clear) .pulse-table-filter-trigger { padding-right: 36px; }
+.pulse-table-filter-clear { position: absolute; right: 4px; top: 4px; width: 24px; height: 24px; border: 0; border-radius: 4px; background: var(--pulse-table-surface); color: var(--pulse-table-muted); font-size: 20px; cursor: pointer; }
+.pulse-table button:focus-visible { outline: 2px solid var(--pulse-table-accent); outline-offset: 2px; }
+.pulse-table-filter-error { display: block; color: var(--pulse-table-error, #cf1322); font-size: 12px; }
+.pulse-table-popover { display: flex; flex-direction: column; gap: 8px; width: 280px; max-width: calc(100vw - 48px); }
+.pulse-table-options { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; }
+.pulse-table-range-label { font-weight: 500; }
+.pulse-table-pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
+.pulse-table-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (prefers-reduced-motion: reduce) { .pulse-table *, .pulse-table-popover * { transition: none !important; animation: none !important; } }
+
+.pulse-table-compound { display: flex; flex-direction: column; gap: 16px; }
+.pulse-table-group-label { margin-bottom: 8px; font-weight: 500; }
+/* Ant's measurement clone retains width without entering the keyboard tab order. */
+.pulse-table .ant-table-measure-row .pulse-table-filter-cell { visibility: hidden; }
+
+.pulse-table-filter-actions { display: flex; justify-content: flex-end; align-items: center; gap: 4px; min-width: 104px; height: 32px; }
+.pulse-table .pulse-table-filter-actions .pulse-table-action.ant-btn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; min-width: 32px; height: 32px; min-height: 32px; padding: 0; border-radius: 4px; color: var(--pulse-table-muted); }
+.pulse-table-filter-actions .pulse-table-action .anticon { font-size: 16px; }
+.pulse-table-filter-actions .pulse-table-action:disabled { color: var(--pulse-table-muted); opacity: .38; }
+.pulse-table-filter-actions .pulse-table-action:not(:disabled):hover { color: var(--pulse-table-muted); background: var(--pulse-table-canvas); }
+.pulse-table-filter-actions .pulse-table-action:not(:disabled):active { background: var(--pulse-table-selected); }
+.pulse-table-reset-icon { position: relative; display: inline-flex; width: 16px; height: 16px; }
+.pulse-table-filter-actions .pulse-table-reset-icon .pulse-table-reset-x { position: absolute; right: 0; bottom: 0; font-size: 6px; line-height: 1; background: var(--pulse-table-surface); }
+
+/* Only filter-row actions stay visible; service titles and body cells scroll normally. */
+.pulse-table .ant-table-thead > tr:nth-child(2) > th.pulse-table-actions-sticky { position: sticky; right: 0; z-index: 3; background: var(--pulse-table-surface); border-left: 1px solid var(--pulse-table-border); }

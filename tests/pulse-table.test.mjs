@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire,Module} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+import ts from 'typescript';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import * as logic from '../src/lib/tableQuery.ts';
+const require=createRequire(import.meta.url);
+const filename=fileURLToPath(new URL('../src/components/common/PulseTable.tsx',import.meta.url));
+const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
+const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));
+mod.require=id=>id.endsWith('.css')?{}:id==='../../lib/tableQuery'?logic:require(id);mod._compile(code,filename);
+const {PulseTable}=mod.exports;
+const schema={fields:[{key:'name',label:'Имя',kind:'text',read:r=>r.name},{key:'n',label:'Число',kind:'number',read:r=>r.n}],defaultSort:[],rowId:r=>r.id};
+const columns=[{key:'name',title:'Имя',dataIndex:'name',width:180},{key:'n',title:'Число',dataIndex:'n',width:120},{key:'actions',title:'Действия',render:()=>React.createElement('span',null,'Открыть')}];
+const base={schema,columns,onQueryChange:()=>{},query:logic.createEmptyTableQuery()};
+const render=props=>renderToStaticMarkup(React.createElement(PulseTable,{...base,...props}));
+test('real Ant header has two aligned rows and primary aria-sort only, active ranks have labels',()=>{
+ const html=render({mode:'local',rows:[{id:'1',name:'A',n:0}],pagination:{page:1,pageSize:20,onPageChange:()=>{}},query:{version:1,filters:[],sort:[{field:'name',direction:'desc'},{field:'n',direction:'asc'}]}});
+ const head=html.slice(html.indexOf('<thead'),html.indexOf('</thead>'));
+ assert.equal((head.match(/<tr/g)??[]).length,2);assert.equal((head.match(/aria-sort=/g)??[]).length,1);
+ assert.match(head,/aria-sort="descending"/);assert.match(head,/Имя\. По убыванию, приоритет 1/);assert.match(head,/Число\. По возрастанию, приоритет 2/);
+ assert.match(head,/Фильтр: Имя/);assert.match(head,/Фильтр: Число/);assert.doesNotMatch(head,/Действия\. Без сортировки/);
+ const none=render({mode:'local',rows:[],pagination:{page:1,pageSize:20,onPageChange:()=>{}}});
+ assert.doesNotMatch(none,/class="pulse-table-sort-arrow"/);assert.match(none,/Нет данных/);
+});
+test('local query applies across complete array before pagination; no-match retains reset',()=>{
+ const rows=Array.from({length:30},(_,i)=>({id:String(i+1),name:`row-${i+1}`,n:i+1}));
+ const query={version:1,sort:[],filters:[{field:'n',op:'range',from:29,to:29}]};
+ const html=render({mode:'local',rows,query,pagination:{page:1,pageSize:1,onPageChange:()=>{}}});
+ assert.match(html,/row-29/);assert.doesNotMatch(html,/row-1</);assert.match(html,/Сбросить фильтры/);
+ const no=render({mode:'local',rows,query:{...query,filters:[{field:'n',op:'range',from:99}]},pagination:{page:1,pageSize:1,onPageChange:()=>{}}});
+ assert.match(no,/Нет совпадений/);assert.match(no,/Сбросить фильтры/);
+});
+test('server envelope remains server ordered even when local filter would reject its rows',()=>{
+ const html=render({mode:'server',page:{items:[{id:'2',name:'SECOND',n:2},{id:'1',name:'FIRST',n:1}],next_cursor:'next'},pagination:{canPrevious:false,onPrevious:()=>{},onNext:()=>{}},query:{version:1,sort:[{field:'n',direction:'asc'}],filters:[{field:'n',op:'range',from:99}]}});
+ assert.ok(html.indexOf('SECOND')<html.indexOf('FIRST'));assert.match(html,/SECOND/);assert.match(html,/Далее/);
+});

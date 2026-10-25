@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import {legacyAuth} from './auth-fixture.mjs';
 import * as authorization from '../src/auth/authorization.ts';
 import test from 'node:test';
@@ -28,9 +29,9 @@ function render(profile){
  '@/lib/mlSnapshot':snapshot,'@/lib/monitoringAlerts':filtersLib,'@/lib/displayTime':time,
  '@/api/ml':{mlApi:{snapshot:never,wells:never,metrics:never}},'@/components/common/PageSpin':{PageSpin:({children})=>children},'@/components/ml/ExplainBars':{ExplainBars:()=>null},'@/components/layout/FundFilterBar':{FundFilterBar:()=>null},'@/components/telemetry/ReviewPanel':{ReviewPanel:()=>null},'@/hooks/useMlRun':{useMlRun:()=>({running:false,lastRun:null,start:{isPending:false,mutate:never}})},'@/lib/labels':{FAILURE_TYPE_RU:{}},
  };
- const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries,id)?boundaries[id]:require(id);mod._compile(code,filename);
- return renderToStaticMarkup(React.createElement(QueryClientProvider,{client},React.createElement(MemoryRouter,{initialEntries:['/ml-risk?run_id=35&model=all']},React.createElement(mod.exports.MlRiskPage))));
+ const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));mod.require=id=>id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries,id)?boundaries[id]:loadDependency(id,filename,boundaries);mod._compile(code,filename);
+ return renderToStaticMarkup(React.createElement(QueryClientProvider,{client},React.createElement(MemoryRouter,{initialEntries:['/ml-risk?run_id=35&model=all&'+new URLSearchParams({'table.alerts':JSON.stringify({query:{version:1,sort:[],filters:[{field:'number',op:'contains',value:'KEEP'},{field:'ngdu',op:'in',values:[9]},{field:'department',op:'in',values:[2]}]},page:1,pageSize:20,cursors:[]})})]},React.createElement(mod.exports.MlRiskPage))));
 }
-for(const profile of ['research','cohort'])test(`${profile} selected snapshot respects shared well/NGDU/department filters`,()=>{
+for(const profile of ['research','cohort'])test(`${profile} selected snapshot uses independent column number/NGDU/department filters before paging`,()=>{
  const html=render(profile);assert.match(html,/href="\/wells\/2\?run_id=35"/);assert.doesNotMatch(html,/href="\/wells\/1(?:\?|"|\/)/);assert.match(html,/KEEP/);
 });

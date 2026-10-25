@@ -222,6 +222,7 @@
 
 .people-view-switch {display:flex;gap:8px;flex-wrap:wrap;}
 .people-view-switch .ant-btn {min-width:120px;}
+.people-page .people-view-switch .ant-btn,.people-page .organization-tree-state .ant-btn {min-height:44px;height:auto;white-space:normal;}
 .organization-tree-panel {min-width:0;padding:20px;border:1px solid var(--pulse-border);border-radius:12px;background:var(--pulse-surface);}
 .organization-chart-toolbar {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;min-width:0;}
 .organization-tree-count {margin:0;font-size:13px;line-height:19px;font-weight:500;min-width:0;overflow-wrap:anywhere;}

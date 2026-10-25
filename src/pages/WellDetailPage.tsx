@@ -1,4 +1,6 @@
-import { Alert, Card, Col, Descriptions, Empty, Row, Table, Tabs } from 'antd';
+import {EquipmentPassportPanel} from '@/components/equipment/EquipmentPassportPanel';
+import {LocalEntityTable} from '@/components/common/LocalEntityTable';
+import { Alert, Card, Col, Descriptions, Empty, Row, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import { RiskHistoryChart } from '@/components/ml/RiskHistoryChart';
 import { useMemo } from 'react';
@@ -21,14 +23,12 @@ import { TelemetryWorkspace } from '@/components/telemetry/TelemetryWorkspace';
 export function WellDetailPage() {
   const { wellId: wellIdParam } = useParams();
   const exactWellId=wellIdParam&&validPulseId(wellIdParam)?wellIdParam:'';
-  // Legacy APIs use safe JS numbers; private file routes always use the original string.
-  const parsedWellId=Number(exactWellId);
-  const wellId=Number.isSafeInteger(parsedWellId)?parsedWellId:0;
+  const wellId=exactWellId?(BigInt(exactWellId)<=BigInt(Number.MAX_SAFE_INTEGER)?Number(exactWellId):exactWellId):0;
   const [search] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
   const requestedTab = search.get('tab');
-  const activeTab = ['telemetry', 'checks', 'failures', 'history', 'details'].includes(requestedTab ?? '') ? requestedTab! : 'overview';
+  const activeTab = ['telemetry', 'checks', 'failures', 'history', 'equipment', 'details'].includes(requestedTab ?? '') ? requestedTab! : 'overview';
 
   const selectedRun=Number(search.get('run_id')) || undefined;
   const well = useWell(wellId);
@@ -37,13 +37,13 @@ export function WellDetailPage() {
   const classification = useQuery({
     queryKey: ['well', wellId, 'classification'],
     queryFn: () => wellsApi.classification(wellId),
-    enabled: can('risks.read') && wellId > 0,
+    enabled: can('risks.read') && Number(wellId) > 0,
   });
 
   const mlRisk = useQuery({
     queryKey: ['well-risk', wellId, selectedRun],
     queryFn: () => mlApi.byAppWell(wellId, selectedRun),
-    enabled: can('risks.read') && wellId > 0,
+    enabled: can('risks.read') && Number(wellId) > 0,
     retry: false,
   });
   const departments = useDepartments();
@@ -59,7 +59,7 @@ export function WellDetailPage() {
   const riskHistory = useQuery({
     queryKey: ['ml-history', wellId, selectedRun],
     queryFn: () => mlApi.appHistory(wellId, 400, selectedRun),
-    enabled: can('risks.read') && wellId > 0 && !!mlRisk.data && !('status' in mlRisk.data),
+    enabled: can('risks.read') && Number(wellId) > 0 && !!mlRisk.data && !('status' in mlRisk.data),
     retry: false,
   });
   const risk = mlRisk.data ? mlRiskRow(mlRisk.data) : null;
@@ -157,9 +157,10 @@ export function WellDetailPage() {
             ),
           },
           { key: 'telemetry', disabled:!can('telemetry.read'), label: 'Телеметрия', children: can('telemetry.read') && well.data ? <TelemetryWorkspace key={wellId} wellId={String(wellId)} /> : <PageSpin loading={well.isLoading} error={well.error}><span /></PageSpin> },
-          { key: 'checks', disabled:!can('checks.read')&&!can('filechecks.read'), label: 'Проверки', children: <ManualChecks key={exactWellId} wellId={exactWellId} periodEnabled={wellId>0} /> },
+          { key: 'checks', disabled:!can('checks.read')&&!can('filechecks.read'), label: 'Проверки', children: <ManualChecks key={exactWellId} wellId={exactWellId} periodEnabled={Number(wellId)>0} /> },
           { key: 'failures', disabled:!can('incidents.read'), label: 'Отказы', children: <IncidentsTab wellId={wellId} /> },
           { key: 'history', disabled:!can('wells.history.read'), label: 'История', children: <WellHistoryPanel wellId={wellId} /> },
+          { key: 'equipment', disabled:!can('equipment_passports.read'), label: 'Оборудование', children: <EquipmentPassportPanel key={exactWellId} wellId={exactWellId} /> },
           { key: 'details', label: 'Сведения', children: (
             <div className="pulse-stack">
               <Card title="Паспорт скважины">
@@ -184,7 +185,8 @@ export function WellDetailPage() {
                 <Col xs={24}>
                   <Card title="Осложнения">
                     <PageSpin loading={complications.isLoading} error={complications.error}>
-                      <Table
+                      <LocalEntityTable onRefresh={()=>void complications.refetch()} refreshing={complications.isFetching} refreshDisabled={!can('risks.read')||Number(wellId)<=0} tableKey={`complications-${wellId}`} fields={[
+ {key:'code',label:'Код',kind:'text',read:r=>r.code},{key:'name',label:'Название',kind:'text',read:r=>r.name},{key:'category',label:'Категория',kind:'enum',read:r=>r.category}]} defaultSort={[{field:'code',direction:'asc'}]}
                         rowKey="id"
                         columns={[
                           { title: 'Код', dataIndex: 'code', key: 'code' },
