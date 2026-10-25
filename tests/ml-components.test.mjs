@@ -1,3 +1,4 @@
+import {loadDependency} from './load-dependency.mjs';
 import {legacyAuth} from './auth-fixture.mjs';
 import * as authorization from '../src/auth/authorization.ts';
 import test from 'node:test';
@@ -18,7 +19,7 @@ function loadComponent(relative, boundaries) {
  const filename=fileURLToPath(new URL(relative,import.meta.url));
  const js=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
  const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));
- mod.require=id=>id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries,id)?boundaries[id]:require(id);
+ mod.require=id=>id==='@/auth/authorization'?authorization:id==='@/auth/AuthProvider'&&!Object.hasOwn(boundaries,id)?{useAuth:()=>legacyAuth()}:Object.hasOwn(boundaries,id)?boundaries[id]:loadDependency(id,filename,boundaries);
  mod._compile(js,filename);return mod.exports;
 }
 const displayTime = await import('../src/lib/displayTime.ts');
