@@ -20,7 +20,7 @@ const fields:EntityField<PassportEvent>[]=[
  {key:'changes',label:'Изменения',column:'Было → стало',kind:'text',read:event=>JSON.stringify(event.diff)},
  {key:'reason',label:'Причина',column:'Было → стало',kind:'text',read:event=>event.reason},
 ];
-const initialQuery:TableQuery={version:1,filters:[],sort:[{field:'recorded_at',direction:'desc'}]};
+const initialQuery:TableQuery={version:1,filters:[],sort:[]};
 export function EquipmentPassportHistory({wellId,canUpdate,canExport,busy,onBack,onExport,onEdit,onFailure}:{wellId:string;canUpdate:boolean;canExport:boolean;busy:boolean;onBack:()=>void;onExport:(query:TableQuery)=>void;onEdit:(action:PassportAction,target:PassportInstallation,linked?:string)=>void;onFailure:(error:unknown)=>void}){
  const auth=useAuth();const [selected,setSelected]=useState<PassportEvent>();
  const read=useCallback(async(request:TablePageRequest,signal:AbortSignal)=>{try{return await readEquipmentPassportHistory(wellId,request,signal);}catch(error){if(!signal.aborted)onFailure(error);throw error;}},[wellId,onFailure]);
