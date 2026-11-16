@@ -197,9 +197,6 @@
 .employee-profile-page section > .employee-name-link {align-self:flex-start;padding-inline:16px;}
 .employee-name-link:focus-visible {outline:2px solid var(--pulse-blue);outline-offset:2px;}
 
-.employee-back-link {display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;padding:0 16px;color:var(--pulse-ink);border-radius:4px;text-decoration:none;font-size:13px;line-height:20px;}
-.employee-back-link:hover {color:var(--pulse-blue);background:var(--pulse-selected);}
-.employee-back-link:focus-visible {outline:2px solid var(--pulse-blue);outline-offset:2px;}
 .people-page .employee-mobile-manager p {margin:8px 0 0;}
 @media(max-width:600px){.people-page .access-toolbar > .ant-checkbox-wrapper {align-self:stretch;}}
 /* Confirmed 320px long-content case: keep every safe profile value readable. */

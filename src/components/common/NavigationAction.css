@@ -1,0 +1,51 @@
+.pulse-navigation-action.pulse-navigation-action {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 44px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--pulse-blue);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.pulse-navigation-action.pulse-navigation-action:hover,
+.pulse-navigation-action.pulse-navigation-action:active {
+  background: transparent;
+  box-shadow: none;
+  color: var(--pulse-ink);
+  text-decoration: none;
+}
+
+.pulse-navigation-action.pulse-navigation-action:focus-visible {
+  outline: 2px solid var(--pulse-blue);
+  outline-offset: 2px;
+}
+
+.pulse-navigation-action.pulse-navigation-action:disabled {
+  color: var(--pulse-muted);
+  cursor: not-allowed;
+}
+
+.pulse-navigation-action > .anticon {
+  flex: 0 0 auto;
+}
+
+.pulse-navigation-action-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

@@ -15,6 +15,7 @@ import { incidentsApi } from '@/api/incidents';
 import { useMlRun } from '@/hooks/useMlRun';
 import { useDepartments, useWells } from '@/hooks/useWells';
 import { failureTypeRu } from '@/lib/labels';
+import { NavigationAction } from '@/components/common/NavigationAction';
 import { PageSpin } from '@/components/common/PageSpin';
 import { ExplainBars } from '@/components/ml/ExplainBars';
 import { FundFilterBar } from '@/components/layout/FundFilterBar';
@@ -55,7 +56,7 @@ export function Dashboard() {
       <div><span>Под наблюдением</span><strong className="pulse-warning">{ml.isSuccess?watches.length:'—'}</strong><small>изменение режима</small></div>
       <div><span>Качество последнего окна</span><strong>{quality}{knownQuality?'%':''}</strong><small>{missing} с пропусками · {unscored} без оценки</small></div>
     </div>
-    <section className="pulse-attention"><div className="pulse-section-heading"><h2>Скважины, требующие внимания</h2><Link to="/ml-risk">Все тревоги →</Link></div><Card className="pulse-attention-card">
+    <section className="pulse-attention"><div className="pulse-section-heading"><h2>Скважины, требующие внимания</h2><NavigationAction to="/ml-risk">Все тревоги</NavigationAction></div><Card className="pulse-attention-card">
       <FundFilterBar />
       <PageSpin loading={wells.isLoading || ml.isLoading} error={wells.error || ml.error}>
         <Table<MlDisplayWell> rowKey={w => w.app_well_id ?? w.well_id!} columns={columns} dataSource={attention} scroll={{x:850}} pagination={{pageSize:5,showSizeChanger:false,showTotal:total=>`${total} скважин · сначала тревоги`}} locale={{emptyText:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={scored.length ? 'В выбранном фонде нет тревог и наблюдений' : 'Оценок риска нет · нормальное состояние не подтверждено'} />}} />

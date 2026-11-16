@@ -5,6 +5,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { WorkspaceProfile } from './WorkspaceMenu';
 import {routeAccess} from '@/auth/authorization';
 import { useAuth } from '@/auth/AuthProvider';
+import {HelpMenu} from '@/components/help/HelpMenu';
 import { useTheme } from '@/theme/ThemeProvider';
 
 import {NotificationsPrivateContext,useNotifications} from '@/hooks/useNotifications';
@@ -67,12 +68,15 @@ export function AppLayout() {
     if (new URLSearchParams(location.search).has('blur')) document.body.dataset.blur = '1';
     else delete document.body.dataset.blur;
   }, [location.search]);
-  const selectedKey = eventRoute ? '/events' : location.pathname.startsWith('/wells') || location.pathname.startsWith('/telemetry/') ? '/structure'
+  const helpRoute=/^\/help(?:\/|$)/.test(location.pathname);
+  const helpSupportedRoutes=new Set(['/structure','/ml-risk','/analytics','/upload-check','/events','/integrations','/system/access']);
+  const helpRouteEnabled=(path:string)=>helpSupportedRoutes.has(path)&&routeAccess(principal,path);
+  const selectedKey = helpRoute ? '' : eventRoute ? '/events' : location.pathname.startsWith('/wells') || location.pathname.startsWith('/telemetry/') ? '/structure'
     : ITEMS.map(i => i.key).filter(k => k !== '/' && location.pathname.startsWith(k)).sort((a,b) => b.length-a.length)[0] ?? '/';
-  const title = eventRoute ? 'История событий' : location.pathname.startsWith('/telemetry/') ? 'Телеметрия' : location.pathname.startsWith('/wells/') ? 'Карточка скважины' : ITEMS.find(i => i.key === selectedKey)?.title;
+  const title = helpRoute ? 'Справка' : eventRoute ? 'История событий' : location.pathname.startsWith('/telemetry/') ? 'Телеметрия' : location.pathname.startsWith('/wells/') ? 'Карточка скважины' : ITEMS.find(i => i.key === selectedKey)?.title;
   const name = mode === 'local' ? principal?.name : 'Рабочее пространство';
   const group = MONITORING.some(i => i.key === selectedKey) ? 'Мониторинг' : selectedKey==='/events'?'Инструменты':'Система';
-  return <NotificationsPrivateContext.Provider value={{blocked:notifications.blocked,block:notifications.controller.deny,recheck:notifications.controller.refresh}}><NotificationNavigation.Provider value={{back:returnToNotifications,remember:id=>{sourceAction.current=id;},focusTarget:heading=>{if(!navigationClose.current)heading?.focus();}}}><Layout className="pulse-app">
+  return <NotificationsPrivateContext.Provider value={{blocked:notifications.blocked,block:notifications.controller.deny,recheck:notifications.controller.refresh}}><NotificationNavigation.Provider value={{back:returnToNotifications,remember:id=>{sourceAction.current=id;},focusTarget:heading=>{if(!navigationClose.current)heading?.focus();}}}>{helpRoute?<div className="help-docs-host"><Suspense fallback={<div role="status">Загрузка справки…</div>}>{forbidden?<Result status="403" title="Доступ ограничен"/>:<Outlet context={{helpRouteEnabled,helpActions:<HelpMenu/>}}/>}</Suspense></div>:<Layout className="pulse-app">
     <Sider width={224} breakpoint="lg" collapsedWidth={0} collapsed={collapsed} onCollapse={setCollapsed} trigger={null} className="app-sidebar">
       <div className="app-sidebar-inner" aria-hidden={collapsed} ref={element=>{if(element)element.toggleAttribute('inert',collapsed);}}>
         <Link to="/" className="app-brand" aria-label="Пульс скважины — обзор фонда"><img className="app-brand-mark" src="/figma/pulse-symbol.svg" alt="" aria-hidden="true" /><span><strong>Пульс скважины</strong><small>Мониторинг УЭЦН</small></span></Link>
@@ -81,15 +85,15 @@ export function AppLayout() {
       </div>
     </Sider>
     <Layout className="app-main">
-      <Header className="app-header"><div className="app-header-context"><NavigationToggle collapsed={collapsed} showLabel={eventRoute} onToggle={()=>setCollapsed(v=>!v)} /><div className="app-breadcrumb">{group} / {title}</div></div><Space size={12}>
-        <Tooltip title={dark?'Светлая тема':'Тёмная тема'}><Button className="app-icon-button" aria-label="Переключить тему" onClick={toggle} icon={dark?<BulbOutlined />:<MoonOutlined />} /></Tooltip>
+      <Header className="app-header"><div className="app-header-context"><NavigationToggle collapsed={collapsed} showLabel={eventRoute} onToggle={()=>setCollapsed(v=>!v)} /><div className="app-breadcrumb">{helpRoute?'Справка':group}{helpRoute?'':' / '}{helpRoute?'':title}</div></div><Space size={12}>
+        <HelpMenu/><Tooltip title={dark?'Светлая тема':'Тёмная тема'}><Button className="app-icon-button" aria-label="Переключить тему" onClick={toggle} icon={dark?<BulbOutlined />:<MoonOutlined />} /></Tooltip>
         <NotificationBell buttonRef={bell} count={notifications.count} countError={notifications.countError} open={eventsOpen} onClick={()=>{drawerInvoker.current=document.activeElement;setEventsOpen(true);}}/>
 
       </Space></Header>
       <Content className={`app-content${location.pathname.startsWith('/analytics')?' app-content-full':''}`}>
-        <Suspense fallback={<div className="app-loading"><Spin size="large" /></div>}>{forbidden?<Result status="403" title="Доступ ограничен" />:<Outlet />}</Suspense>
+        <Suspense fallback={<div className="app-loading"><Spin size="large" /></div>}>{forbidden?<Result status="403" title="Доступ ограничен" />:<Outlet context={{helpRouteEnabled}} />}</Suspense>
       </Content>
     </Layout>
     <WorkspaceProfile open={profileOpen} onClose={()=>setProfileOpen(false)} /><NotificationsPanel open={eventsOpen} notifications={notifications} headingRef={notificationHeading} onClose={()=>setEventsOpen(false)} onOpen={id=>{sourceAction.current=id;navigationClose.current=true;setEventsOpen(false);}} onEntered={()=>{if(restoreSource.current){restoreSource.current=false;(sourceAction.current?document.getElementById(actionID(sourceAction.current))??notificationHeading.current:notificationHeading.current)?.focus();}}} focusReturn={()=>{if(navigationClose.current){navigationClose.current=false;const ticket=capturePrivate(),boundary=notifications.boundary;requestAnimationFrame(()=>{if(!ticket.current()||sourceBoundary.current!==boundary)return;if(document.activeElement===bell.current||document.activeElement===document.body||document.activeElement?.closest('.f4-drawer'))document.querySelector<HTMLElement>('.f4-target h1')?.focus();});return;}const ticket=capturePrivate(),boundary=notifications.boundary,invoker=drawerInvoker.current;requestAnimationFrame(()=>restoreNotificationBellFocus(bell.current,invoker,ticket,()=>sourceBoundary.current===boundary&&!panelOpen.current));}}/>
-  </Layout></NotificationNavigation.Provider></NotificationsPrivateContext.Provider>;
+  </Layout>}</NotificationNavigation.Provider></NotificationsPrivateContext.Provider>;
 }

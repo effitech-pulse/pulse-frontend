@@ -36,3 +36,29 @@
 
 /* Only filter-row actions stay visible; service titles and body cells scroll normally. */
 .pulse-table .ant-table-thead > tr:nth-child(2) > th.pulse-table-actions-sticky { position: sticky; right: 0; z-index: 3; background: var(--pulse-table-surface); border-left: 1px solid var(--pulse-table-border); }
+
+/* Alerts opt in: existing tables retain their original controls and action position. */
+.pulse-table-alerts .pulse-table-filter-cell { min-height: 44px; }
+.pulse-table-alerts .pulse-table-filter-trigger,
+.pulse-table-alerts .pulse-table-filter-field > .ant-input-affix-wrapper,
+.pulse-table-alerts .pulse-table-filter-field > .ant-input,
+.pulse-table-alerts .pulse-table-filter-cell > .ant-btn { min-height: 44px; }
+.pulse-table-alerts .pulse-table-multiselect { width: 100%; min-width: 120px; height: 44px; font-weight: 400; }
+.pulse-table-alerts .pulse-table-multiselect .ant-select-selector { height: 44px; flex-wrap: nowrap; }
+.pulse-table-alerts .pulse-table-multiselect .ant-select-selection-overflow { flex-wrap: nowrap; }
+.pulse-table-alerts .pulse-table-multiselect .ant-tag { display: inline-flex; align-items: center; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.pulse-table-alerts .pulse-table-multiselect .ant-tag-close-icon { margin-left: 4px; }
+.pulse-table-alerts .pulse-table-actions-left { text-align: left; }
+.pulse-table-alerts .pulse-table-filter-actions { height: 44px; justify-content: flex-start; }
+.pulse-table-chip-overflow { border: 0; padding: 0 4px; font: inherit; color: inherit; background: transparent; cursor: pointer; }
+.pulse-alert-report-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 16px; }
+.pulse-alert-run-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 280px; max-width: 560px; min-width: 0; }
+.pulse-alert-run-field .ant-select { width: 100%; }
+.pulse-table-alerts .ant-btn[aria-label^="Действия"] { width: 44px; min-width: 44px; height: 44px; padding: 0; }
+.pulse-table-selected-chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pulse-table-selected-chip .ant-tag-close-icon { flex-shrink: 0; }
+.pulse-alert-report-controls > .ant-btn { height: 44px; }
+.pulse-alert-run-field .ant-select-selector { min-height: 44px; }
+.pulse-table-selected-options { width: min(320px, calc(100vw - 48px)); }
+.pulse-table-selected-options > .ant-btn { height: auto; min-height: 44px; white-space: normal; text-align: left; }
+.pulse-table-selected-options > .ant-btn > span { overflow-wrap: anywhere; min-width: 0; }

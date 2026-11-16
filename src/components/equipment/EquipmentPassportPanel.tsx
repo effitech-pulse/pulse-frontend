@@ -10,10 +10,10 @@ import type {PassportAction,PassportInstallation,PassportIssue,PassportMutation,
 import {actionLabel,attributeLabels,createPassportDraft,PassportDraftValidationError,passportSlots,reducePassportDraft,slotAttributes,slotLabel,toPassportChangeSet} from '../../lib/equipmentPassportDraft';
 import type {PassportDraftEvent} from '../../lib/equipmentPassportDraft';
 import {guardTablePage} from '../../lib/tableTransport';
-import type {TableQuery} from '../../lib/tableQuery';
 import {EquipmentPassportEditor} from './EquipmentPassportEditor';
 import {EquipmentPassportPreview} from './EquipmentPassportPreview';
 import {EquipmentPassportImport} from './EquipmentPassportImport';
+import {NavigationAction} from '../common/NavigationAction';
 import {EquipmentPassportHistory} from './EquipmentPassportHistory';
 import './EquipmentPassport.css';
 
@@ -102,10 +102,10 @@ export function EquipmentPassportPanel({wellId}:{wellId:string}){
   if(destination==='current'){dispatch({type:'private_reset'});setOriginal(undefined);setLinkedId(undefined);setFile(null);const ticket=auth.capturePrivate();const slot=returnToSlot.current;returnToSlot.current=null;requestAnimationFrame(()=>{if(ticket.current())(slot?actionTriggers.current.get(slot)??heading.current:heading.current)?.focus();});}
   if(preview)void operation('Отменяем предпросмотр…',signal=>cancelEquipmentPassportPreview(preview.id,signal),()=>{});
  }
- function download(kind:'template'|'current_components'|'history',query?:TableQuery){
-  const ids=kind==='history'?[wellId]:selected;
-  if(kind==='template'?!canImport:!canExport||kind==='history'&&!auth.can('equipment_passports.history.read'))return;
-  void operation('Готовим книгу…',signal=>kind==='template'?downloadEquipmentPassportTemplate(ids,signal):exportEquipmentPassports({well_ids:ids,mode:kind,query},signal),blob=>{
+ function download(kind:'template'|'current_components'){
+  const ids=selected;
+  if(kind==='template'?!canImport:!canExport)return;
+  void operation('Готовим книгу…',signal=>kind==='template'?downloadEquipmentPassportTemplate(ids,signal):exportEquipmentPassports({well_ids:ids,mode:kind},signal),blob=>{
    const url=URL.createObjectURL(blob);urls.current.add(url);const anchor=document.createElement('a');anchor.href=url;anchor.download=kind==='template'?'equipment-passport-v1.xlsx':`equipment-passports-${kind}.xlsx`;anchor.click();URL.revokeObjectURL(url);urls.current.delete(url);
   });
  }
@@ -118,13 +118,13 @@ export function EquipmentPassportPanel({wellId}:{wellId:string}){
  if(!allowed)return <Alert type="warning" message={denied||auth.privateBlocked?'Скважина недоступна':'Нет доступа к паспорту оборудования'}/>;
  const current=read.data;
  return <div className="equipment-passport"><h2 tabIndex={-1} ref={heading}>Паспорт оборудования</h2>
-  <p>Установленное оборудование и сведения из паспортов. Неизвестные данные отображаются явно.</p>
+  <p className="passport-description">Установленное оборудование и сведения из паспортов. Неизвестные данные отображаются явно.</p>
   {pending?<div role="status" aria-live="polite"><Spin size="small"/> {pending}</div>:null}
   {failure?<div role="alert" tabIndex={-1} ref={errorHeading} className="passport-error"><Alert type="error" message={failure.message} description={<>{failure.requestId?<p>Код обращения: {failure.requestId}</p>:null}{failure.code?<details><summary>Подробнее</summary>{failure.code}</details>:null}{failure.issues.map((issue,index)=><p key={index}><a href={`#passport-${issue.field??'change_reason'}`}>{issue.row_key} · {issue.field??'строка'} · {issue.message}</a></p>)}</>}/>{draft.conflict?<Button disabled={!!pending} onClick={reread}>Перечитать актуальные данные</Button>:null}</div>:null}
   {draft.conflict&&!failure?<Alert type="warning" message="Перед новой проверкой перечитайте актуальные данные" action={<Button disabled={!!pending} onClick={reread}>Перечитать актуальные данные</Button>}/>:null}
   {archived?<Alert type="warning" message="Скважина в архиве. Паспорт доступен только для чтения."/>:null}
-  {draft.receipt?<Receipt receipt={draft.receipt} filename={mode==='import'?file?.name:undefined} onBack={()=>cancel()}/>:draft.preview?<EquipmentPassportPreview key={draft.preview.id} preview={draft.preview} busy={!!pending} ambiguous={ambiguous} isImport={mode==='import'} onCommit={commit} onBack={()=>cancel(mode)}/>:mode==='editor'&&draft.rows[0]?<EquipmentPassportEditor row={draft.rows[0]} original={original} linkedId={linkedId} issues={failure?.issues??[]} busy={!!pending||!canWrite} checkBlocked={draft.conflict} onEvent={edit} onCheck={check} onCancel={()=>cancel()}/>:mode==='import'?<EquipmentPassportImport selected={selected} onSelection={setSelected} file={file} onFile={next=>{setFile(next);edit({type:'invalidate'});}} checkBlocked={draft.conflict} onCheck={check} onTemplate={()=>download('template')} onExport={()=>download('current_components')} onBack={()=>cancel()} onFailure={handleFailure} canImport={canImport} canExport={canExport} busy={!!pending} issues={failure?.issues??[]}/>:mode==='history'?<EquipmentPassportHistory wellId={wellId} canUpdate={canWrite} canExport={canExport} busy={!!pending} onBack={()=>cancel()} onExport={query=>download('history',query)} onFailure={handleFailure} onEdit={(action,target,successor)=>start(action,target.slot,target,successor)}/>:<>
-   <Space wrap>{canImport?<Button type="primary" disabled={!!pending} onClick={()=>setMode('import')}>Импорт Excel</Button>:null}{canExport?<Button disabled={!!pending} onClick={()=>setMode('import')}>Экспорт Excel</Button>:null}{auth.can('equipment_passports.history.read')?<Button type="link" onClick={()=>setMode('history')}>История оборудования</Button>:null}</Space>
+  {draft.receipt?<Receipt receipt={draft.receipt} filename={mode==='import'?file?.name:undefined} onBack={()=>cancel()}/>:draft.preview?<EquipmentPassportPreview key={draft.preview.id} preview={draft.preview} busy={!!pending} ambiguous={ambiguous} isImport={mode==='import'} onCommit={commit} onBack={()=>cancel(mode)}/>:mode==='editor'&&draft.rows[0]?<EquipmentPassportEditor row={draft.rows[0]} original={original} linkedId={linkedId} issues={failure?.issues??[]} busy={!!pending||!canWrite} checkBlocked={draft.conflict} onEvent={edit} onCheck={check} onCancel={()=>cancel()}/>:mode==='import'?<EquipmentPassportImport selected={selected} onSelection={setSelected} file={file} onFile={next=>{setFile(next);edit({type:'invalidate'});}} checkBlocked={draft.conflict} onCheck={check} onTemplate={()=>download('template')} onExport={()=>download('current_components')} onBack={()=>cancel()} onFailure={handleFailure} canImport={canImport} canExport={canExport} busy={!!pending} issues={failure?.issues??[]}/>:mode==='history'?<EquipmentPassportHistory wellId={wellId} canUpdate={canWrite} onBack={()=>cancel()} onFailure={handleFailure} onEdit={(action,target,successor)=>start(action,target.slot,target,successor)}/>:<>
+   <Space wrap>{canImport?<Button type="primary" disabled={!!pending} onClick={()=>setMode('import')}>Импорт Excel</Button>:null}{canExport?<Button disabled={!!pending} onClick={()=>setMode('import')}>Экспорт Excel</Button>:null}{auth.can('equipment_passports.history.read')?<NavigationAction onClick={()=>setMode('history')}>История оборудования</NavigationAction>:null}</Space>
    {read.isError||metadata.isError?<Alert type="error" message="Не удалось загрузить паспорт" action={<Button onClick={()=>{setFailure(null);void read.refetch();void metadata.refetch();}}>Повторить</Button>}/>:!current||!metadata.data?<div className="passport-slots" role="status" aria-live="polite">{passportSlots.map(slot=><Card key={slot} title={slotLabel[slot]}>Загружаем паспорт…</Card>)}</div>:<>
     <div className="passport-slots">{passportSlots.map(slot=>{const installation=current.slots.find(item=>item.slot===slot);const provenance=current.provenance?.find(item=>item.slot===slot)?.last_change;
      return <Card className="passport-surface" key={slot} title={slotLabel[slot]}>{installation?<>

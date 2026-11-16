@@ -1,7 +1,8 @@
+import {CopyTableSelectionButton} from '@/components/common/CopyTableSelectionButton';
 import {LocalEntityTable} from '@/components/common/LocalEntityTable';
 import type {EntityField} from '@/components/common/LocalEntityTable';
 import {applyTableQuery} from '@/lib/tableQuery';
-import {readTableState} from '@/lib/tableState';
+import {useTableState} from '@/hooks/useTableState';
 import {useAuth} from '@/auth/AuthProvider';
 import {
   App,
@@ -32,7 +33,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { useState, type DragEvent, type HTMLAttributes, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { mlApi } from '@/api/ml';
 import { cohortStatusLabel, mlRows } from '@/lib/mlSnapshot';
@@ -83,7 +84,6 @@ export type WellAssessmentFilter = 'all' | 'alert' | 'watch' | 'normal' | 'unsco
 export function WellsPage({ management = false, assessment = 'all' }: { management?: boolean; assessment?: WellAssessmentFilter }) {
   const {can}=useAuth();
   const navigate = useNavigate();
-  const [search] = useSearchParams();
   const ml = useQuery({ enabled:can('risks.read'), queryKey: ['ml-wells'], queryFn: () => mlApi.wells(false) });
   const assessments = new Map(mlRows(ml.data).map(row => [String(row.app_well_id), row]));
 
@@ -158,7 +158,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
     setExporting(true);
     try {
       let blob = await wellsApi.exportXlsx(undefined,false,'all');
-      const state=readTableState(search,tableKey,tableFields,initialQuery);
+      const state=tableState;
       const visible=applyTableQuery(data??[],{fields:tableFields,defaultSort:[{field:'id',direction:'asc'}],rowId:r=>String(r.id)},state.query);
       blob = new Blob([filterWellWorkbook(await blob.arrayBuffer(), visible.map(well => well.id))], { type: blob.type });
       const url = URL.createObjectURL(blob);
@@ -266,6 +266,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
   const initialQuery={version:1 as const,sort:[],filters:[{field:'archive',op:'in' as const,values:[false]},
    ...(management?[{field:'active',op:'in' as const,values:[true]}]:[]),
    ...(!management&&assessment!=='all'?[{field:'assessment',op:'in' as const,values:[assessment==='alert'?2:assessment==='watch'?1:assessment==='normal'?0:null]}]:[])]};
+  const tableState=useTableState(tableKey,tableFields,initialQuery);
   const monitorExtra=[{title:'НГДУ',key:'ngdu',render:(_:unknown,r:Well)=>ngduLabel(r.ngdu)},{title:'Архив',key:'archive',render:(_:unknown,r:Well)=>r.archived_at?'В архиве':'В фонде'}];
   return (
     <div className="pulse-wells-table"
@@ -294,6 +295,7 @@ export function WellsPage({ management = false, assessment = 'all' }: { manageme
             <Button disabled={!can('wells.export') || (!management && assessment !== 'all' && (!ml.isSuccess || isLoading || !!error))} icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
               Экспорт в Excel
             </Button>
+            {can('wells.read') && <CopyTableSelectionButton getLink={tableState.selectionLink} />}
           </Space>
         }
       >

@@ -19,3 +19,35 @@ export function readTableState<T>(params:URLSearchParams,key:string,fields:Field
 export function writeTableState(params:URLSearchParams,key:string,state:TableState):URLSearchParams {
  const next=new URLSearchParams(params);next.set(`table.${key}`,JSON.stringify(state));return next;
 }
+
+const HISTORY_KEY='pulse.tables.v1';
+export interface TableLocation {pathname:string;search:string;hash:string;state:unknown}
+interface TableHistory {owner:string;tables:Record<string,unknown>}
+function record(value:unknown):Record<string,unknown> {return value!==null&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};}
+function history(value:unknown,owner:string):TableHistory {
+ const raw=record(record(value)[HISTORY_KEY]);
+ return raw.owner===owner?{owner,tables:{...record(raw.tables)}}:{owner,tables:{}};
+}
+/** Import every URL key together; each table validates its own deferred entry. */
+export function importTableLocation(location:TableLocation,owner:string):TableLocation {
+ const params=new URLSearchParams(location.search),stored=history(location.state,owner);let changed=false;
+ for(const [name,value] of params){if(!name.startsWith('table.'))continue;changed=true;try{stored.tables[name.slice(6)]=JSON.parse(value);}catch{stored.tables[name.slice(6)]=null;}}
+ if(!changed)return location;
+ for(const name of [...params.keys()])if(name.startsWith('table.'))params.delete(name);
+ return {...location,search:params.size?`?${params}`:'',state:{...record(location.state),[HISTORY_KEY]:stored}};
+}
+export function readHistoryTableState<T>(value:unknown,key:string,fields:FieldSchema<T>[],owner:string,initial?:TableQuery):TableState {
+ const params=new URLSearchParams();params.set(`table.${key}`,JSON.stringify(history(value,owner).tables[key]??null));
+ return readTableState(params,key,fields,initial);
+}
+export function updateTableLocation(location:TableLocation,key:string,state:TableState,owner:string):TableLocation {
+ const clean=importTableLocation(location,owner),stored=history(clean.state,owner);stored.tables[key]=state;
+ return {...clean,state:{...record(clean.state),[HISTORY_KEY]:stored}};
+}
+export function tableSelectionLink<T>(origin:string,location:TableLocation,key:string,state:TableState,fields:FieldSchema<T>[]):string {
+ const params=new URLSearchParams(location.search);
+ for(const name of [...params.keys()])if(name.startsWith('table.'))params.delete(name);
+ const validated=readTableState(writeTableState(new URLSearchParams(),key,state),key,fields);
+ const shared={query:validated.query,page:1,pageSize:validated.pageSize,cursors:[]};
+ const url=new URL(location.pathname,origin);url.search=writeTableState(params,key,shared).toString();url.hash=location.hash;return url.href;
+}

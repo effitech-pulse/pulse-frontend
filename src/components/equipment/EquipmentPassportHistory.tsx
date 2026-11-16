@@ -8,32 +8,37 @@ import type {TableQuery} from '../../lib/tableQuery';
 import type {EntityField} from '../common/LocalEntityTable';
 import {entityColumns} from '../common/LocalEntityTable';
 import {useServerTable} from '../../hooks/useServerTable';
+import {NavigationAction} from '../common/NavigationAction';
 import {PulseTable} from '../common/PulseTable';
 import {actionLabel,slotLabel} from '../../lib/equipmentPassportDraft';
 import {PassportFullDiff} from './EquipmentPassportPreview';
 const fields:EntityField<PassportEvent>[]=[
- {key:'recorded_at',label:'Дата',column:'Время / автор',kind:'datetime',read:event=>event.recorded_at,primary:true},
- {key:'actor_name',label:'Автор',column:'Время / автор',kind:'text',read:event=>event.actor.name},
- {key:'source',label:'Источник',column:'Время / автор',kind:'enum',read:event=>event.source,options:[{value:'manual',label:'Вручную'},{value:'excel',label:'Excel'}]},
- {key:'slot',label:'Слот',column:'Слот / действие',kind:'enum',read:event=>event.slot,options:Object.entries(slotLabel).map(([value,label])=>({value,label}))},
- {key:'action',label:'Действие',column:'Слот / действие',kind:'enum',read:event=>event.action,options:Object.entries(actionLabel).map(([value,label])=>({value,label}))},
- {key:'changes',label:'Изменения',column:'Было → стало',kind:'text',read:event=>JSON.stringify(event.diff)},
- {key:'reason',label:'Причина',column:'Было → стало',kind:'text',read:event=>event.reason},
+ {key:'recorded_at',label:'Дата',column:'Дата',kind:'datetime',read:event=>event.recorded_at,primary:true},
+ {key:'actor_name',label:'Автор',column:'Автор',kind:'text',read:event=>event.actor.name},
+ {key:'source',label:'Источник',column:'Источник',kind:'enum',read:event=>event.source,options:[{value:'manual',label:'Вручную'},{value:'excel',label:'Excel'}]},
+ {key:'slot',label:'Слот',column:'Слот',kind:'enum',read:event=>event.slot,options:Object.entries(slotLabel).map(([value,label])=>({value,label}))},
+ {key:'action',label:'Действие',column:'Действие',kind:'enum',read:event=>event.action,options:Object.entries(actionLabel).map(([value,label])=>({value,label}))},
+ {key:'changes',label:'Изменения',column:'Изменения',kind:'text',read:event=>JSON.stringify(event.diff)},
+ {key:'reason',label:'Причина',column:'Причина',kind:'text',read:event=>event.reason},
 ];
 const initialQuery:TableQuery={version:1,filters:[],sort:[]};
-export function EquipmentPassportHistory({wellId,canUpdate,canExport,busy,onBack,onExport,onEdit,onFailure}:{wellId:string;canUpdate:boolean;canExport:boolean;busy:boolean;onBack:()=>void;onExport:(query:TableQuery)=>void;onEdit:(action:PassportAction,target:PassportInstallation,linked?:string)=>void;onFailure:(error:unknown)=>void}){
+export function EquipmentPassportHistory({wellId,canUpdate,onBack,onEdit,onFailure}:{wellId:string;canUpdate:boolean;onBack:()=>void;onEdit:(action:PassportAction,target:PassportInstallation,linked?:string)=>void;onFailure:(error:unknown)=>void}){
  const auth=useAuth();const [selected,setSelected]=useState<PassportEvent>();
  const read=useCallback(async(request:TablePageRequest,signal:AbortSignal)=>{try{return await readEquipmentPassportHistory(wellId,request,signal);}catch(error){if(!signal.aborted)onFailure(error);throw error;}},[wellId,onFailure]);
  const table=useServerTable(`equipmenthistory-${wellId}`,fields,read,auth.can('equipment_passports.history.read'),initialQuery);
- return <><Card className="passport-surface" title="История оборудования">
-  <Space wrap><Button onClick={onBack}>Текущий состав</Button>{canExport?<Button disabled={busy} onClick={()=>onExport(table.state.query)}>Экспорт истории</Button>:null}</Space>
+ return <><NavigationAction direction="back" onClick={onBack}>Актуальное</NavigationAction>
+ <Card className="passport-surface" title="История оборудования">
   <p>Фильтры выполняются сервером по всей доступной истории. Редакция — справочное значение. Экспорт: не более 1000 событий.</p>
   {table.notice?<p role="status">{table.notice}</p>:null}
-  <PulseTable<PassportEvent> mode="server" schema={{fields,defaultSort:initialQuery.sort,rowId:event=>event.id}} query={table.state.query} onQueryChange={table.state.setQuery} page={table.data??{items:[],next_cursor:null}} pagination={table.pagination} onRefresh={table.refresh} refreshing={table.isFetching} refreshDisabled={table.refreshDisabled} loading={table.isFetching} error={table.isError?'Не удалось загрузить историю':undefined}
+  <PulseTable<PassportEvent> scroll={{x:'max-content'}} mode="server" schema={{fields,defaultSort:initialQuery.sort,rowId:event=>event.id}} query={table.state.query} onQueryChange={table.state.setQuery} page={table.data??{items:[],next_cursor:null}} pagination={table.pagination} onRefresh={table.refresh} refreshing={table.isFetching} refreshDisabled={table.refreshDisabled} loading={table.isFetching} error={table.isError?'Не удалось загрузить историю':undefined}
    columns={entityColumns<PassportEvent>([
-    {key:'time',title:'Время / автор',render:(_,event)=><span>{event.recorded_at}<br/>{event.actor.name} · {event.source}</span>},
-    {key:'slot-action',title:'Слот / действие',render:(_,event)=><span>{slotLabel[event.slot]} · {actionLabel[event.action]}</span>},
-    {key:'changes-reason',title:'Было → стало',render:(_,event)=><span>{event.reason||'Причина не указана'}<br/>{event.diff.before.length} → {event.diff.after.length} эпизодов</span>},
+    {key:'recorded_at',title:'Дата',render:(_,event)=>event.recorded_at},
+    {key:'actor_name',title:'Автор',render:(_,event)=>event.actor.name},
+    {key:'source',title:'Источник',render:(_,event)=>event.source},
+    {key:'slot',title:'Слот',render:(_,event)=>slotLabel[event.slot]},
+    {key:'action',title:'Действие',render:(_,event)=>actionLabel[event.action]},
+    {key:'changes',title:'Изменения',render:(_,event)=><span>{event.diff.before.length} → {event.diff.after.length} эпизодов</span>},
+    {key:'reason',title:'Причина',render:(_,event)=>event.reason||'Причина не указана'},
     {key:'revision',title:'Редакция',render:(_,event)=><Button type="link" onClick={()=>setSelected(event)}>{event.revision} · Открыть</Button>},
    ],fields)}/>
  </Card>{selected?<Card className="passport-surface" title={`Событие ${selected.id} · исходная запись сохранена`}>

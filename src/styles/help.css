@@ -1,0 +1,93 @@
+.help-trigger.ant-btn {width:44px;height:44px;min-width:44px;flex:none;padding:0;border-radius:4px;color:var(--pulse-ink)}
+.help-trigger.ant-btn .anticon {font-size:20px}
+.help-trigger.ant-btn:hover,.help-trigger.ant-btn[aria-expanded='true'] {color:var(--pulse-blue);background:var(--help-selected,#edf3ff)}
+
+.help-trigger:focus-visible {outline:2px solid var(--pulse-blue);outline-offset:2px}
+.help-docs-host {min-height:100dvh;background:var(--pulse-canvas)}
+.help-docs {--help-link:#2359c1;--help-link-hover:#123f9a;--help-selected:#e8effd;--help-current:#204fa8;--help-input-border:#a5b4c4;min-width:0;min-height:100dvh;background:var(--pulse-canvas);color:var(--pulse-ink);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+:root[data-theme='dark'] .help-docs {--help-link:var(--pulse-blue);--help-link-hover:#aac8ff;--help-selected:#1d3455;--help-current:var(--pulse-ink);--help-input-border:#607893}
+.help-docs * {box-sizing:border-box}
+.help-docs a {color:var(--help-link);text-underline-offset:3px}
+.help-docs a:hover {color:var(--help-link-hover)}
+.help-docs a:focus-visible,.help-docs button:focus-visible,.help-docs input:focus-visible,.help-docs-main:focus-visible {outline:3px solid var(--pulse-blue);outline-offset:3px}
+.help-docs button,.help-docs input {font-family:inherit}
+.help-docs button {cursor:pointer}
+.help-docs-header {min-height:76px;padding:14px 30px;display:flex;gap:14px;align-items:center;background:var(--pulse-surface);border-bottom:1px solid var(--pulse-border)}
+.help-docs-brand {display:flex;gap:14px;align-items:center;min-width:0;color:var(--pulse-ink)!important;text-decoration:none}
+.help-docs-brand img {width:36px;height:36px;flex:none}
+.help-docs-brand strong {display:block;font-size:17px;line-height:24px;font-weight:600}
+.help-docs-brand small {display:block;color:var(--pulse-muted);font-size:12px;line-height:18px}
+.help-docs-header-actions {margin-left:auto;display:flex;gap:12px;align-items:center;font-size:13px;flex:none}
+.help-docs-header-actions .help-docs-return,.help-docs-theme {display:flex;align-items:center;justify-content:center;min-height:44px;padding:7px 12px;border:1px solid var(--pulse-border);border-radius:4px;background:var(--pulse-surface);text-decoration:none;color:var(--pulse-ink)}
+.help-docs-return {min-width:164px}
+.help-docs-theme {width:44px;min-width:44px;flex:none;padding:0}
+.help-docs-theme .anticon {font-size:20px}
+.help-docs-layout {display:grid;grid-template-columns:288px minmax(0,1fr)}
+.help-docs-sidebar {padding:24px 18px;position:sticky;top:0;height:calc(100dvh - 1px);overflow:auto;border-right:1px solid var(--pulse-border);min-width:0;scroll-padding:8px}
+.help-docs-sidebar label {display:block;font-size:12px;color:var(--pulse-ink);margin-bottom:6px;line-height:20px}
+.help-docs-search-controls {display:flex;gap:6px;min-width:0}
+.help-docs-search-controls .ant-input {min-width:0;width:100%;min-height:44px;padding:9px 11px;border:1px solid var(--help-input-border);border-radius:4px;background:var(--pulse-surface);font-size:14px;line-height:22px;color:var(--pulse-ink)}
+.help-docs-search-controls input::placeholder {color:var(--pulse-muted);opacity:1}
+.help-docs-search-controls input {caret-color:var(--pulse-blue)}
+.help-docs-clear {min-height:44px;padding:7px 8px;border:1px solid var(--pulse-border);border-radius:4px;background:var(--pulse-surface);color:var(--pulse-ink);font-size:12px;flex:none}
+.help-docs-search-status {min-height:30px;padding-top:5px;font-size:12px;color:var(--pulse-ink);margin:0}
+.help-docs-nav-group {padding-top:14px;padding-bottom:6px;min-width:0}
+.help-docs-nav-group h2 {font-size:13px;line-height:20px;margin:0 0 3px;font-weight:600}
+.help-docs-nav-group h2 a {display:flex;align-items:center;min-height:44px;text-decoration:none;color:var(--pulse-ink)}
+.help-docs-sidebar nav {display:flex;flex-direction:column;gap:3px}
+.help-docs-sidebar nav a {display:flex;align-items:center;min-height:44px;font-size:13px;line-height:1.5;padding:9px 10px;border-radius:4px;text-decoration:none;color:var(--pulse-ink);border-left:3px solid transparent;overflow-wrap:anywhere}
+.help-docs-sidebar nav a[aria-current='page'] {background:var(--help-selected);border-left-color:var(--pulse-blue);color:var(--help-current);font-weight:600}
+.help-docs-main {padding:32px 42px 80px;min-width:0}
+.help-docs-article {max-width:1160px;margin:0 auto;background:var(--pulse-surface);border:1px solid var(--pulse-border);padding:34px 40px;border-radius:4px;min-width:0;overflow-wrap:anywhere}
+.help-docs-article h1 {font-size:30px;line-height:1.25;font-weight:650;margin:0 0 22px}
+.help-docs-article h2 {font-size:22px;line-height:1.35;margin:36px 0 14px;font-weight:600}
+.help-docs-article h3 {font-size:17px;line-height:1.4;margin:26px 0 12px}
+.help-docs-article p {margin:12px 0}
+.help-docs-article ul,.help-docs-article ol {padding-left:24px}
+.help-docs-article li {margin:7px 0}
+.help-docs-text-action {display:inline-flex;align-items:center;min-height:44px;padding:7px 0;border:0;background:transparent;color:var(--help-link);font:inherit;text-decoration:underline;text-underline-offset:3px;text-align:left}
+.help-docs-text-action:hover {color:var(--help-link-hover)}
+.help-docs-copy-status:empty {display:none}
+.help-docs-results {list-style:none;padding:0!important}
+.help-docs-results li {margin:24px 0}
+.help-docs-results small,.help-docs-copy-status {font-size:12px;color:var(--pulse-muted)}
+.help-docs-footer {max-width:1160px;margin:20px auto 0;color:var(--pulse-ink);font-size:12px;overflow-wrap:anywhere}
+.help-docs-skip {position:absolute;left:12px;top:-80px;background:var(--pulse-surface);padding:10px;z-index:5}
+.help-docs-skip:focus {top:10px}
+.help-docs ::selection {background:var(--help-selected);color:var(--pulse-ink)}
+.help-page.help-empty {max-width:1160px;margin:32px auto;padding:34px 40px;border:1px solid var(--pulse-border);border-radius:4px;background:var(--pulse-surface);color:var(--pulse-ink)}
+.help-skeleton {display:flex;flex-direction:column;gap:16px;width:100%}
+.help-skeleton span {display:block;height:12px;border-radius:4px;background:var(--pulse-border)}
+.help-skeleton span:nth-child(2) {width:80%}
+.help-skeleton span:nth-child(3) {width:60%}
+@media(max-width:1000px) {.help-docs-main {padding:24px}.help-docs-layout {grid-template-columns:245px minmax(0,1fr)}.help-docs-article {padding:24px}}
+@media(max-width:720px) {
+ .help-docs-header {padding:12px 16px;min-height:0;flex-wrap:wrap}
+ .help-docs-header-actions {width:100%;margin:0;flex-wrap:wrap}
+ .help-docs-layout {display:block}
+ .help-docs-sidebar {position:relative;height:auto;max-height:310px;padding:16px;border-right:0;border-bottom:1px solid var(--pulse-border)}
+ .help-docs-sidebar nav {display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ .help-docs-main {padding:16px}
+ .help-docs-article {padding:22px 18px}
+ .help-docs-article h1 {font-size:24px}
+ .help-page.help-empty {margin:16px;padding:22px 18px}
+}
+@media(prefers-reduced-motion:reduce) {.help-docs *,.help-trigger {animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.help-dropdown.ant-dropdown {width:288px;max-width:calc(100vw - 32px)}
+.help-dropdown .ant-dropdown-menu .ant-dropdown-menu-item {min-height:44px;box-sizing:border-box;white-space:normal;padding:12px;line-height:20px}
+.help-dropdown .ant-dropdown-menu-title-content {min-width:0;white-space:normal;overflow-wrap:anywhere}
+.help-dropdown .ant-dropdown-menu-title-content>a {display:block;color:inherit;white-space:normal}
+.help-dropdown .ant-dropdown-menu-item:focus-visible {outline:2px solid var(--pulse-blue);outline-offset:-2px}
+
+@media(max-width:767px) {
+ .help-dropdown.ant-dropdown {left:auto!important;right:16px!important;width:min(288px,calc(100vw - 32px))}
+}
+
+:root[data-theme='dark'] .help-trigger {--help-selected:#1d3455}
+@media(max-width:360px) {.help-docs-sidebar nav {grid-template-columns:minmax(0,1fr)}}
+
+.help-page.help-empty {font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;min-width:0;overflow-wrap:anywhere}
+.help-page.help-empty h1 {font-size:30px;line-height:1.25;font-weight:650;margin:0 0 22px}
+.help-page.help-empty h2 {font-size:22px;line-height:1.35}
+.help-page.help-empty .help-action {display:inline-flex;align-items:center;min-height:44px;padding:7px 0;border:0;background:transparent;color:var(--pulse-blue);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.help-page.help-empty :focus-visible {outline:3px solid var(--pulse-blue);outline-offset:3px}

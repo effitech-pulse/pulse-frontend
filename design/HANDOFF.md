@@ -715,8 +715,15 @@ Audit, collection logs, проверки, файловые задания, ис�
 участники, Preview, сотрудники и события используют opt-in `table_query` с серверным
 фильтром/порядком до cursor pagination. Прежние legacy readers сохранены.
 
-Условия и порядок обычных списков сохраняются в отдельных `table.<name>` URL keys;
-выбранные run/check/tab и hash не сбрасываются. Preview условий доступа остаётся
+Условия, порядок и пагинация обычных списков сохраняются по ключам таблиц в
+React Router history state; выбранные run/check/tab и hash не сбрасываются.
+Старые `table.<name>` URL keys импортируются атомарно через replace.
+Явная кнопка «Скопировать параметры выборки» рядом с Excel передаёт условия,
+порядок и размер первой страницы, исключая cursors/revision. Источник UI —
+[clean table share Light/Dark и fallback](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1281-7183):
+secondary Ant Button с CopyOutlined, success message, при Clipboard error —
+Modal с readonly выделяемой ссылкой и возвратом фокуса. Доступ определяется чтением,
+не правом экспорта; приватная граница блокирует действие. Preview условий доступа остаётся
 в памяти владельца черновика, сохраняя receipt/revision и sequence guards.
 Назначения и полный baseline группы не подменяются выбранной страницей участников.
 ID Pulse сохраняется точно через HTTP decode, join, ссылку и Excel; экспорт
@@ -953,3 +960,31 @@ responses, canary raw-error absence, exact tuple/max-int64/opaque-ID tests;
 browser Light/Dark1440/1280/1024/390/320,200%zoom, keyboard/Escape/focusreturn,
 pending/error/retry, buffered head и cursor restart. Source screenshots
 не заменяют эти проверки. Рабочие8088/8018/БД55439 designer не использовал.
+
+## HELP · центр справки · 08.11.2026
+
+Реализованы локальный JSON renderer без HTML, поиск полного текста по двум руководствам,
+устойчивые адреса статей, честный not-found, копирование ссылки без query и статусы
+ошибки/загрузки чанка. Header использует общий HelpMenu с ReadOutlined44×44.
+Runtime UAHelpMenu остаётся адаптером к действующим feedback/policy; их provider
+и lifecycle сохранены. В canonical этих UA-действий нет, общий menu показывает
+руководства. Ссылки на отсутствующие в host checkout разделы скрыты.
+Figma: [HELP](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1365-8727).
+Browser QA runtime candidate: Light1440/1024/390, Dark1440/1280/320, поиск,
+deep refresh/Back/Forward/not-found, mobile оглавление, keyboard menu/Escape,
+открытие policy и feedback. Runtime и canonical сборки проверяются отдельно;
+визуальное QA canonical оболочки этим свидетельством не подменяется.
+
+## HELP · оболочка документации по прежнему образцу · 08.11.2026
+
+Коррекция по образцу business-handbook: справка использует собственные header76,
+sidebar288 с поиском и двумя группами21 статьи и широкую article до1160. Глобальная
+навигация продукта внутри `/help` не отображается; «В приложение» возвращает на `/`
+с прежними проверками доступа. `/help` и `/help/user-guide` сразу показывают статью
+«Начало работы и доступ», `/help/business-guide` — «Назначение системы и границы
+применения», сохраняя URL. Копируется каноническая ссылка показанной статьи.
+Поиск фильтрует sidebar и выводит результаты в документе; очистка возвращает
+содержимое текущего адреса. Используется native system stack образца; Dark —
+существующие semantic токены. Содержание JSON, права, модель поиска и menu
+feedback/policy не менялись. Новый источник: [Figma HELP reference](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1374-9301),
+[mobile390](https://www.figma.com/design/km4tIbp3LnMTRrV6yi6Qho?node-id=1374-9549).

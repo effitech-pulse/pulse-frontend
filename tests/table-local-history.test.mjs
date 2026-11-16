@@ -10,7 +10,7 @@ const filtered={...empty,filters:[{field:'name',op:'contains',value:'Name'}]};
 const ordered={...filtered,sort:[{field:'name',direction:'desc'}]};
 const rows=Array.from({length:60},(_,i)=>({id:String(i+1),name:`Name ${i+1}`}));
 async function localHistory(url,run,mode='local'){
- const previous=React.useLayoutEffect;React.useLayoutEffect=effect=>{effect();};
+ const previous=React.useLayoutEffect,previousEffect=React.useEffect;const effects=[];React.useEffect=effect=>{effects.push(effect);};React.useLayoutEffect=effect=>{effect();};
  let table,pagination,input;const buttons=new Map();
  const pass=({children})=>children??null;
  const antd={theme:{useToken:()=>({token:{}})},Alert:pass,Empty:pass,Space:pass,Tooltip:pass,Popover:pass,Checkbox:pass,
@@ -26,8 +26,8 @@ async function localHistory(url,run,mode='local'){
  });
  const pushes=[];let lastKey=router.state.location.key;
  const off=router.subscribe(state=>{if(state.location.key!==lastKey){lastKey=state.location.key;if(state.historyAction==='PUSH')pushes.push(state.location);}});
- const render=()=>{renderToStaticMarkup(React.createElement(RouterProvider,{router}));return {table,pagination,input,buttons};};
- try{await run({router,render,pushes});}finally{off();router.dispose();React.useLayoutEffect=previous;}
+ const render=()=>{renderToStaticMarkup(React.createElement(RouterProvider,{router}));const key=router.state.location.key;effects.splice(0).forEach(effect=>effect());if(router.state.location.key!==key)return render();return {table,pagination,input,buttons};};
+ try{await run({router,render,pushes});}finally{off();router.dispose();React.useLayoutEffect=previous;React.useEffect=previousEffect;}
 }
 const actions=[
  {name:'sort',before:empty,after:{...empty,sort:[{field:'name',direction:'asc'}]},click:view=>view.table.columns[0].title.props.onClick()},
@@ -38,14 +38,14 @@ const actions=[
 for(const action of actions)test(`local ${action.name} from page2 updates query/page in one history entry and Back restores exact prior state`,async()=>{
  const params=new URLSearchParams({tab:'saved','table.other':'opaque','table.local':JSON.stringify({query:action.before,page:2,pageSize:10,cursors:['old'],revision:'7'})});
  await localHistory(new URL(`https://pulse.test/list?${params}`),async({router,render,pushes})=>{
-  const before=router.state.location;assert.equal(render().pagination.current,2);
+  assert.equal(render().pagination.current,2);const before=router.state.location;
   action.click(render());
   const after=router.state.location,view=render();
   assert.equal(pushes.length,1,'query and page reset must be a single navigation');
-  const state=JSON.parse(new URLSearchParams(after.search).get('table.local'));
+  const state=after.state['pulse.tables.v1'].tables.local;
   assert.deepEqual(state.query,action.after);assert.equal(state.page,1);assert.equal(state.pageSize,10);assert.deepEqual(state.cursors,[]);assert.equal(state.revision,undefined);
   assert.equal(view.pagination.current,1);assert.equal(view.pagination.pageSize,10);
-  assert.equal(new URLSearchParams(after.search).get('tab'),'saved');assert.equal(new URLSearchParams(after.search).get('table.other'),'opaque');assert.equal(after.hash,'#anchor');assert.deepEqual(after.state,{owner:'audit'});
+  assert.equal(new URLSearchParams(after.search).get('tab'),'saved');assert.equal(new URLSearchParams(after.search).has('table.other'),false);assert.equal(after.state['pulse.tables.v1'].tables.other,null);assert.equal(after.hash,'#anchor');assert.equal(after.state.owner,'audit');
   await router.navigate(-1);assert.equal(router.state.location.key,before.key);assert.equal(render().pagination.current,2);
   await router.navigate(-1);assert.equal(router.state.location.pathname,'/previous');
   await router.navigate(2);assert.equal(router.state.location.key,after.key);assert.equal(render().pagination.current,1);

@@ -5,7 +5,7 @@ import { Alert, Button, Card, Descriptions, Drawer, Empty, Space, Table, Tag, Ty
 import { TelemetryChart, type ZoomRange } from './TelemetryChart';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { integrationsApi, type ManualCheck, type TelemetryScore } from '@/api/integrations';
 import { ReviewPanel } from './ReviewPanel';
 import { toApiError } from '@/api/client';
@@ -19,11 +19,12 @@ export function CheckVerdict({result}: {result: TelemetryScore}) {
 }
 export function ManualChecks({wellId,periodEnabled=true}: {wellId: string;periodEnabled?:boolean}) {
   const {can}=useAuth();
-  const [search, setSearch] = useSearchParams();
+  const [search] = useSearchParams();
+  const location=useLocation(),navigate=useNavigate();
   const selected=parseFileCheckLink(search.get('check'));
   const id=selected.kind==='period'?selected.id:null;
   const detail = useQuery({queryKey: ['manual-check', wellId, id], queryFn: () => integrationsApi.savedCheck(wellId, id!), enabled: can('checks.read') && !!id});
-  const open = (value?: string) => setSearch(p => { if (value) p.set('check', value); else p.delete('check'); return p; });
+  const open = (value?: string) => {const next=new URLSearchParams(search);if(value)next.set('check',value);else next.delete('check');navigate({pathname:location.pathname,search:next.toString(),hash:location.hash},{state:location.state});};
   const v = detail.data, r = v?.result;
   return <div className="pulse-stack">
     <h2>Проверки за период</h2>

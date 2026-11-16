@@ -28,7 +28,7 @@ function UserAccessDrawer(){}
 const boundaries={
  'react':hooks,'antd':antd,'@ant-design/icons':{LoadingOutlined:'LoadingOutlined'},
  '@tanstack/react-query':{useQuery:()=>({data:[],isPending:false,isError:false}),useQueryClient:()=>({})},
- 'react-router-dom':{useNavigate:()=>url=>{navigations.push(url);routeID=url.match(/users\/([^/]+)\/edit/)?.[1]??routeID;},useSearchParams:()=>[params,()=>{}],useBlocker:()=>({state:'unblocked'})},
+ 'react-router-dom':{useLocation:()=>({pathname:'/system/access',search:'?tab=users',hash:'',state:null}),useNavigate:()=>url=>{navigations.push(url);routeID=url.match(/users\/([^/]+)\/edit/)?.[1]??routeID;},useSearchParams:()=>[params,()=>{}],useBlocker:()=>({state:'unblocked'})},
  '@/api/access':{managementApi},'@/auth/AuthProvider':{useAuth:()=>({mode:'local',principal:{access_model:'rbac_v1',graph_revision:'1'},privateEpoch:0,privateBlocked:false,can:()=>true,capturePrivate:()=>({current:()=>true}),refreshSession:async()=>{}})},
  '@/api/client':{toApiError:e=>({message:e.message})},'@/lib/accessDraft':draftModule,'@/lib/revealAccessField':revealModule,
  '@/components/access/UsersPanel':{UsersPanel:'UsersPanel',AccessError:'AccessError'},

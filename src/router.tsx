@@ -2,6 +2,8 @@ import { lazy } from 'react';
 import { Navigate, createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 
+import {HelpRoute} from '@/components/help/HelpRoute';
+
 // Lazy pages → каждый экран в своём чанке (antd/charts грузятся по требованию).
 const Dashboard = lazy(() => import('@/pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 // Список скважин теперь — вкладка внутри «Структуры добычи» (StructurePage).
@@ -36,6 +38,10 @@ export const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: <Dashboard /> },
+      {path:'help',element:<HelpRoute/>},
+      {path:'help/:guideId',element:<HelpRoute/>},
+      {path:'help/:guideId/:articleId',element:<HelpRoute/>},
+      {path:'help/*',element:<HelpRoute/>},
       { path: 'wells', element: <Navigate to="/structure" replace /> },
       { path:'wells/:wellId/alerts/:alertId',element:<NotificationAlertPage/> },
       { path: 'wells/:wellId', element: <WellEventRoute /> },

@@ -1,11 +1,12 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import type {CSSProperties, FocusEvent, ReactNode} from 'react';
-import {Alert, Button, Checkbox, Empty, Input, Pagination, Popover, Space, Table, Tooltip, theme} from 'antd';
+import {Alert, Button, Checkbox, Empty, Input, Pagination, Popover, Select, Space, Table, Tag, Tooltip, theme} from 'antd';
 import type {TableProps} from 'antd';
 import type {ColumnType, ColumnsType} from 'antd/es/table';
 import {applyTableQuery, parseTableNumberBound, cycleSort, resetFilters, resetSort, validateTableFilter} from '../../lib/tableQuery';
 import type {FieldOption, FieldSchema, Scalar, TableFilter, TableQuery, TableSchema} from '../../lib/tableQuery';
 import {ReloadOutlined, SortAscendingOutlined, FilterOutlined, CloseOutlined} from '@ant-design/icons';
+import {availableFieldOptions, mergeFieldOptions, optionKey, selectedFieldOptions} from '../../lib/tableOptions';
 import './PulseTable.css';
 
 export type PulseColumn<T> = Omit<ColumnType<T>, 'sorter' | 'filters' | 'sortOrder' | 'defaultSortOrder' | 'filterDropdown'> & {
@@ -15,7 +16,7 @@ type CommonProps<T> = Pick<TableProps<T>, 'rowKey' | 'scroll' | 'size' | 'locale
   schema: TableSchema<T>; columns: PulseColumn<T>[]; query: TableQuery;
   /** Владелец обновляет query и сбрасывает страницу одним действием. */
   onQueryChange: (query: TableQuery) => void; loading?: boolean; error?: ReactNode;
-  headerActions?: ReactNode; emptyText?: ReactNode;
+  headerActions?: ReactNode; emptyText?: ReactNode; variant?: 'alerts';
   onRefresh?:()=>void; refreshing?:boolean; refreshDisabled?:boolean;
 };
 export type PulseTableProps<T> = CommonProps<T> & ({mode: 'local'; rows: T[];
@@ -23,8 +24,34 @@ export type PulseTableProps<T> = CommonProps<T> & ({mode: 'local'; rows: T[];
   | {mode: 'server'; page: {items: T[]; next_cursor: string | null};
     pagination: {canPrevious: boolean; onPrevious: () => void; onNext: () => void}});
 
-function FilterField<T>({field, filter, rows, onChange, inline = false, onClose}: {field: FieldSchema<T>; filter?: TableFilter;
-  rows: T[]; onChange: (filter?: TableFilter) => void; inline?: boolean; onClose?:()=>void}) {
+function SelectedValuesOverflow({options, omittedCount, onRemove}: {options: FieldOption[]; omittedCount: number; onRemove: (value: Scalar) => void}) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const close = () => {setOpen(false); trigger.current?.focus();};
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => popup.current?.querySelector<HTMLButtonElement>('button')?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+  return <Popover trigger="click" open={open} onOpenChange={setOpen} content={<div ref={popup} className="pulse-table-options pulse-table-selected-options"
+    onKeyDown={event => {if(event.key === 'Escape') {event.stopPropagation(); close();}}}>
+    {options.map(option => <Button key={optionKey(option.value)} onClick={() => {onRemove(option.value);close();}}
+      aria-label={`Удалить: ${option.label}`}>{option.label}<CloseOutlined /></Button>)}
+  </div>}>
+    <button ref={trigger} type="button" className="pulse-table-chip-overflow" aria-expanded={open}
+      aria-label={`Выбрано ${options.length}. Просмотреть и удалить значения`}
+      onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault(); event.stopPropagation(); setOpen(previous => !previous);
+        } else if (event.key === 'Escape') {event.stopPropagation(); close();}
+      }}
+      onMouseDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>+{omittedCount}</button>
+  </Popover>;
+}
+
+function FilterField<T>({field, filter, rows, onChange, inline = false, onClose, variant}: {field: FieldSchema<T>; filter?: TableFilter;
+  rows: T[]; onChange: (filter?: TableFilter) => void; inline?: boolean; onClose?:()=>void; variant?: 'alerts'}) {
   const {token} = theme.useToken();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -72,6 +99,19 @@ function FilterField<T>({field, filter, rows, onChange, inline = false, onClose}
   const options = useMemo(() => field.loadOptions ? remote : field.options ?? (field.kind === 'boolean'
     ? [{label: 'Да', value: true}, {label: 'Нет', value: false}, {label: 'Неизвестно', value: null}]
     : Array.from(new Set(rows.map(row => field.read(row) ?? null))).map(value => ({label: value === null ? 'Неизвестно' : String(value), value}))), [field, rows, remote]);
+  // Сохраняем подписи выбранных remote options после поиска/следующей страницы.
+  const optionCache = useRef<FieldOption[]>([]);
+  optionCache.current = mergeFieldOptions((optionCache.current ?? []).filter(option => selected.includes(option.value)), options);
+  const loadMore = async () => {
+    if (!field.loadOptions || (!nextOption && !optionError)) return;
+    nextController.current?.abort();
+    const controller = new AbortController(); nextController.current = controller;
+    setOptionLoading(true); setOptionError(false);
+    try { const result = await field.loadOptions(search, nextOption ?? undefined, controller.signal);
+      if (!controller.signal.aborted) {setRemote(previous => nextOption ? [...previous, ...result.items] : result.items); setNextOption(result.next_cursor);}
+    } catch {if (!controller.signal.aborted) setOptionError(true);}
+    finally {if (!controller.signal.aborted) setOptionLoading(false);}
+  };
   const close = () => {if(inline){onClose?.();return;}setOpen(false); trigger.current?.focus();};
   const clear = () => {onChange(); setFrom(''); setTo(''); setText(''); setInvalid(false);};
   if (field.kind === 'text' || field.kind === 'pulseId') return <div className="pulse-table-filter-field">
@@ -81,6 +121,30 @@ function FilterField<T>({field, filter, rows, onChange, inline = false, onClose}
     {field.options?.some(option=>option.value===null)?<Checkbox checked={filter?.op==='in'&&filter.values.includes(null)} onChange={event=>onChange(event.target.checked?{field:field.key,op:'in',values:[null]}:undefined)}>{field.options.find(option=>option.value===null)?.label}</Checkbox>:null}
     {invalid ? <span role="alert" className="pulse-table-filter-error">Введите положительный ID int64</span> : null}
   </div>;
+  if (multi && variant === 'alerts') {
+    const chosen = selectedFieldOptions(optionCache.current, selected);
+    const remaining = availableFieldOptions(options, selected);
+    const all = mergeFieldOptions(remaining, chosen);
+    const remove = (value: Scalar) => {
+      const values = selected.filter(item => item !== value);
+      onChange(values.length ? {field: field.key, op: 'in', values} : undefined);
+    };
+    return <Select className="pulse-table-multiselect" aria-label={`Фильтр: ${field.label}`} mode="multiple"
+      showSearch allowClear placeholder="Все" value={selected.map(optionKey)} maxTagCount="responsive"
+      notFoundContent={search ? 'Нет совпадений' : !field.loadOptions && options.length > 0 && remaining.length === 0 ? 'Все варианты выбраны' : 'Нет данных'}
+      searchValue={search} onSearch={setSearch} onDropdownVisibleChange={setOpen}
+      options={all.map(option => ({value: optionKey(option.value), label: option.label, hidden: selected.includes(option.value)})).filter(option => !option.hidden)}
+      // labelRender для Select multiple задаётся через tagRender, cache хранит исходные labels.
+      tagRender={({value, label, isMaxTag, closable, onClose: removeTag}) => isMaxTag ? <>{label}</> : <Tooltip title={chosen.find(option => optionKey(option.value) === value)?.label}>
+        <Tag className="pulse-table-selected-chip" closable={closable} onClose={removeTag} onMouseDown={event => {event.preventDefault(); event.stopPropagation();}}>
+          <span className="pulse-table-selected-chip-label">{chosen.find(option => optionKey(option.value) === value)?.label ?? String(value)}</span>
+        </Tag></Tooltip>}
+      maxTagPlaceholder={omitted => <SelectedValuesOverflow options={chosen} omittedCount={omitted.length} onRemove={remove} />}
+      filterOption={field.loadOptions ? false : (input, option) => String(option?.label ?? '').toLocaleLowerCase('ru').includes(input.toLocaleLowerCase('ru'))}
+      onChange={(keys: string[]) => {const values = keys.map(key => all.find(option => optionKey(option.value) === key)?.value).filter((value): value is Scalar => value !== undefined); onChange(values.length ? {field: field.key, op: 'in', values} : undefined);}}
+      dropdownRender={menu => <>{menu}{optionError ? <div role="alert">Не удалось загрузить варианты</div> : null}{nextOption || optionError ? <Button loading={optionLoading} onMouseDown={event=>event.preventDefault()} onClick={() => void loadMore()}>{optionError ? 'Повторить' : 'Ещё варианты'}</Button> : null}</>}
+      loading={optionLoading} />;
+  }
   const localValue = (value: string | number | undefined) => {
     if (value === undefined) return '';
     if (field.kind !== 'datetime' || field.timezone === 'unspecified') return String(value);
@@ -127,7 +191,7 @@ function FilterField<T>({field, filter, rows, onChange, inline = false, onClose}
   </Popover>{filter ? <button type="button" className="pulse-table-filter-clear" aria-label={`Очистить: ${field.label}`} onClick={clear}>×</button> : null}</div>;
 }
 
-function ColumnFilters<T>({fields, rows, query, onChange}: {fields: FieldSchema<T>[]; rows: T[]; query: TableQuery; onChange: (query: TableQuery) => void}) {
+function ColumnFilters<T>({fields, rows, query, onChange, variant}: {fields: FieldSchema<T>[]; rows: T[]; query: TableQuery; onChange: (query: TableQuery) => void; variant?: 'alerts'}) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const popup = useRef<HTMLDivElement>(null);
@@ -140,12 +204,12 @@ function ColumnFilters<T>({fields, rows, query, onChange}: {fields: FieldSchema<
   }, [open]);
   const setFilter = (field: FieldSchema<T>, next?: TableFilter) => onChange({...query,
     filters: [...query.filters.filter(filter => filter.field !== field.key), ...(next ? [next] : [])]});
-  if (fields.length < 2) return fields.map(field => <FilterField key={field.key} field={field} rows={rows}
+  if (fields.length < 2) return fields.map(field => <FilterField variant={variant} key={field.key} field={field} rows={rows}
     filter={query.filters.find(filter => filter.field === field.key)} onChange={next => setFilter(field, next)} />);
   const count = query.filters.filter(filter => fields.some(field => field.key === filter.field)).length;
   return <div className="pulse-table-filter-field" onKeyDown={event => {if (open && event.key === 'Escape') {event.stopPropagation(); setOpen(false); trigger.current?.focus();}}}><Popover fresh open={open} onOpenChange={setOpen} trigger="click" placement="bottomLeft"
     content={<div ref={popup} className="pulse-table-compound">{fields.map(field => <section key={field.key} aria-label={field.label}>
-      <div className="pulse-table-group-label">{field.label}</div><FilterField inline onClose={()=>{setOpen(false);trigger.current?.focus();}} field={field} rows={rows}
+      <div className="pulse-table-group-label">{field.label}</div><FilterField variant={variant} inline onClose={()=>{setOpen(false);trigger.current?.focus();}} field={field} rows={rows}
         filter={query.filters.find(filter => filter.field === field.key)} onChange={next => setFilter(field, next)} />
     </section>)}</div>}>
     <button ref={trigger} type="button" className="pulse-table-filter-trigger" aria-label={`Фильтры: ${fields.map(field => field.label).join(', ')}`} aria-expanded={open}>
@@ -201,10 +265,11 @@ export function PulseTable<T extends object>(props: PulseTableProps<T>) {
     && !(last.filterKeys?.length) && !last.sortKey && !schema.fields.some(field => field.key === last.key);
   const displayColumns: PulseColumn<T>[] = reuseActions ? columns.map((column,index) => index === columns.length-1 ? {...column,width:typeof column.width==='number'?Math.max(120,column.width):120} : column)
     : [...columns,{key:'pulse-table-utility',title:'',width:120,render:()=>null}];
+  if (props.variant === 'alerts') {const action = displayColumns.pop()!; displayColumns.unshift({...action, title:'Действия', width:120});}
   const tableColumns: ColumnsType<T> = displayColumns.map((column,columnIndex) => {
     const {filterKeys, sortKey, ...base} = column;
     const fixed = narrow && (column.fixed === 'left' || column.fixed === true) ? undefined : column.fixed;
-    const isActions = columnIndex === displayColumns.length - 1;
+    const isActions = columnIndex === (props.variant === 'alerts' ? 0 : displayColumns.length - 1);
     const fieldKey = sortKey ?? (schema.fields.some(field => field.key === column.key) ? column.key : undefined);
     const index = query.sort.findIndex(sort => sort.field === fieldKey);
     const active = query.sort[index];
@@ -219,9 +284,9 @@ export function PulseTable<T extends object>(props: PulseTableProps<T>) {
       onHeaderCell: () => ({'aria-sort': index === 0 ? active?.direction === 'asc' ? 'ascending' : 'descending' : undefined}),
       children: [{...base, fixed, onHeaderCell: isActions ? leaf => {
         const cell = column.onHeaderCell?.(leaf) ?? {};
-        return {...cell, className: [cell.className, 'pulse-table-actions-sticky'].filter(Boolean).join(' ')};
+        return {...cell, className: [cell.className, props.variant === 'alerts' ? 'pulse-table-actions-left' : 'pulse-table-actions-sticky'].filter(Boolean).join(' ')};
       } : column.onHeaderCell, title: <div className="pulse-table-filter-cell" onClick={event => event.stopPropagation()}>
-        {columnIndex === displayColumns.length-1 ? actionButtons : <ColumnFilters fields={fields} rows={rows} query={query} onChange={change} />}
+        {isActions ? actionButtons : <ColumnFilters variant={props.variant} fields={fields} rows={rows} query={query} onChange={change} />}
       </div>}],
     };
   });
@@ -230,7 +295,7 @@ export function PulseTable<T extends object>(props: PulseTableProps<T>) {
     '--pulse-table-accent': token.colorPrimary, '--pulse-table-error': token.colorError} as CSSProperties;
   const safePage=props.mode==='local'?Math.min(props.pagination.page,Math.max(1,Math.ceil(filtered.length/props.pagination.pageSize))):1;
   const pagedRows = props.mode === 'local' ? filtered.slice((safePage - 1) * props.pagination.pageSize, safePage * props.pagination.pageSize) : filtered;
-  return <div ref={container} className="pulse-table" style={style} onFocusCapture={revealFocusedFilter}>
+  return <div ref={container} className={`pulse-table${props.variant === 'alerts' ? ' pulse-table-alerts' : ''}`} style={style} onFocusCapture={revealFocusedFilter}>
     {props.headerActions ? <div className="pulse-table-actions">{props.headerActions}</div> : null}
     <span className="pulse-table-sr-only" role="status">{query.sort.length ? query.sort.map((sort, index) => `${schema.fields.find(field => field.key === sort.field)?.label ?? sort.field}: ${sort.direction === 'asc' ? 'по возрастанию' : 'по убыванию'}, приоритет ${index + 1}`).join('; ') : 'Исходный порядок'}</span>
     {props.error ? <Alert type="error" showIcon message={props.error} /> : null}

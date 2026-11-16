@@ -167,7 +167,7 @@ img.app-brand-mark { width: 28px; height: 28px; flex-shrink: 0; }
 .pulse-page-heading > .ant-btn { min-width: 192px; }
 .pulse-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
 .pulse-section-heading h2 { margin: 0; color: var(--pulse-ink); font-size: 16px; font-weight: 500; line-height: 24px; }
-.pulse-section-heading > a { font-size: 12px; flex-shrink: 0; }
+.pulse-section-heading > .pulse-navigation-action { flex-shrink: 0; }
 .pulse-attention { min-width: 0; }
 .pulse-overview .pulse-attention-card .ant-card-body { padding: 20px; }
 .pulse-fund-filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 16px; min-width: 0; }
@@ -291,4 +291,8 @@ img.app-brand-mark { width: 28px; height: 28px; flex-shrink: 0; }
   .pulse-monitoring-drop-content > strong { font-size: 22px; line-height: 30px; }
   .pulse-monitoring-page .ant-card-head-title { white-space: normal; overflow-wrap: anywhere; }
   .pulse-monitoring-page .ant-btn, .pulse-monitoring-file-choice { min-height: 44px; }
+}
+
+@media (max-width: 600px) {
+  .pulse-table-selection-copy { min-height: 44px; }
 }

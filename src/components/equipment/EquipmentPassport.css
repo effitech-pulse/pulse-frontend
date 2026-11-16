@@ -8,6 +8,7 @@
 .equipment-passport .ant-card-head-title {white-space:normal;font-size:16px;font-weight:500;padding:20px 0 0;}
 .equipment-passport .ant-btn {min-height:44px;height:auto;white-space:normal;line-height:20px;padding:10px 16px;max-width:100%;}
 .equipment-passport .ant-btn > span {white-space:normal;}
+.equipment-passport .passport-description {margin:0;}
 .equipment-passport .ant-input,.equipment-passport .ant-select-selector {min-height:44px!important;}
 .equipment-passport .ant-checkbox-wrapper {min-height:44px;padding:10px 0;align-items:flex-start;}
 .equipment-passport :focus-visible {outline:2px solid var(--pulse-blue);outline-offset:2px;}

@@ -17,15 +17,15 @@ const snapshot=await import('../src/lib/mlSnapshot.ts'),filtersLib=await import(
 const registry=[{id:1,well_number:'DROP',ngdu:8,department:1},{id:2,well_number:'KEEP',ngdu:9,department:2}];
 const filters={search:'KEEP',ngdu:9,department:2,sort:'id_asc'};
 const selectedRegistry=registry.filter(well=>well.well_number.includes(filters.search)&&well.ngdu===filters.ngdu&&well.department===filters.department);
-function render(profile){
+function render(profile,authOverrides={}){
  const rows=registry.map(well=>({well_id:well.id+100,app_well_id:well.id,metadata:well,risk:.2,tier:'alert',alert:true,alert_id:well.id+30,alert_status:'new',data_ok:null,rule_findings:[],windows_fired:1,windows_total:1,window_end:'2026-10-21T00:00:00Z',run_id:35,true_failure_type_name:null}));
  const envelope=profile==='cohort'?{profile,run_id:35,snapshot_id:'s35',as_of:'2026-10-21T00:00:00Z',outcomes:rows.map(row=>({app_well_id:row.app_well_id,status:'scored',metadata:row.metadata,alert_id:row.alert_id,alert_status:row.alert_status,result:{verdict:'alert',latest_risk:.2,n_windows:1,windows_above_watch:1,timeline:[{window_end:row.window_end,risk:.2}],contributions:[]}}))}:{profile,wells:rows.map(({metadata,...row})=>row)};
- const client=new QueryClient({defaultOptions:{queries:{staleTime:Infinity,retry:false}}});client.setQueryData(['ml-snapshot',35],envelope);
+ const client=new QueryClient({defaultOptions:{queries:{staleTime:Infinity,retry:false}}});client.setQueryData(['ml-snapshot',35,0],envelope);
  const filename=fileURLToPath(new URL('../src/pages/MlRiskPage.tsx',import.meta.url));
  const code=ts.transpileModule(readFileSync(filename,'utf8'),{compilerOptions:{esModuleInterop:true,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
  const never=()=>{throw Error('Unexpected transport or recompute');};
  const boundaries={
- '@/auth/AuthProvider':{useAuth:()=>legacyAuth()},'@/hooks/useWells':{useWells:(_active=true,apply=true)=>({data:apply?selectedRegistry:registry,isLoading:false})},'@/theme/FundFilters':{useFundFilters:()=>({filters})},
+ '@/auth/AuthProvider':{useAuth:()=>({...legacyAuth(),...authOverrides})},'@/hooks/useWells':{useWells:(_active=true,apply=true)=>({data:apply?selectedRegistry:registry,isLoading:false})},'@/theme/FundFilters':{useFundFilters:()=>({filters})},
  '@/lib/mlSnapshot':snapshot,'@/lib/monitoringAlerts':filtersLib,'@/lib/displayTime':time,
  '@/api/ml':{mlApi:{snapshot:never,wells:never,metrics:never}},'@/components/common/PageSpin':{PageSpin:({children})=>children},'@/components/ml/ExplainBars':{ExplainBars:()=>null},'@/components/layout/FundFilterBar':{FundFilterBar:()=>null},'@/components/telemetry/ReviewPanel':{ReviewPanel:()=>null},'@/hooks/useMlRun':{useMlRun:()=>({running:false,lastRun:null,start:{isPending:false,mutate:never}})},'@/lib/labels':{FAILURE_TYPE_RU:{}},
  };
@@ -34,4 +34,15 @@ function render(profile){
 }
 for(const profile of ['research','cohort'])test(`${profile} selected snapshot uses independent column number/NGDU/department filters before paging`,()=>{
  const html=render(profile);assert.match(html,/href="\/wells\/2\?run_id=35"/);assert.doesNotMatch(html,/href="\/wells\/1(?:\?|"|\/)/);assert.match(html,/KEEP/);
+});
+
+for(const auth of [{privateBlocked:true},{can:(...keys)=>!keys.includes('risks.read')},{can:(...keys)=>!keys.includes('cohort.runs.read')}])test('selected snapshot never exposes cached rows after blocking/revoking read access '+JSON.stringify(Object.keys(auth)),()=>{
+ const html=render('cohort',auth);assert.doesNotMatch(html,/href="\/wells\/2/);assert.doesNotMatch(html,/KEEP<\/a>/);
+});
+test('revoked export permission removes export action despite cached snapshot',()=>{
+ const html=render('cohort',{can:(...keys)=>!keys.includes('risks.export')});assert.match(html,/href="\/wells\/2/);assert.doesNotMatch(html,/Экспорт в Excel/);
+});
+test('read access keeps selection sharing available without export permission',()=>{
+ const html=render('cohort',{can:(...keys)=>!keys.includes('risks.export')});
+ assert.match(html,/Скопировать параметры выборки/);assert.doesNotMatch(html,/Экспорт в Excel/);
 });

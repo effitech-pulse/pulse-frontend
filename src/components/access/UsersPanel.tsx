@@ -4,7 +4,7 @@ import {accountFields} from './tableFields';
 import { Alert, Button, Card, Input, Skeleton, Space } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { managementApi, type Account, type AccessPage, type PageQuery, type OrganizationScope } from '@/api/access';
 import { toApiError } from '@/api/client';
@@ -17,6 +17,7 @@ export function organizationLabel(scope: OrganizationScope | null | undefined, l
 export function useAccessPage<T>(key: string, read: (query: PageQuery) => Promise<AccessPage<T>>, enabled = true) {
     const { privateEpoch, privateBlocked } = useAuth();
     const [params, setParams] = useSearchParams();
+    const location=useLocation();
     const linked = ['users', 'groups', 'roles'].includes(key);
     const [localSearch, setSearchValue] = useState('');
     const search = linked ? (params.get('search') ?? '') : localSearch;
@@ -30,7 +31,7 @@ export function useAccessPage<T>(key: string, read: (query: PageQuery) => Promis
             next.set('search', v);
         else
             next.delete('search');
-        setParams(next);
+        setParams(next,{state:location.state});
     }
     else
         setSearchValue(v); setHistory([]); setRevision(undefined); }

@@ -5,7 +5,7 @@ import { Alert, App, Button, Drawer, Skeleton, Space } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { useBlocker, useSearchParams, useNavigate } from 'react-router-dom';
+import { useBlocker, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { managementApi, type Account, type AccessChange, type AccessPreviewResponse, type GroupChange, type RoleChange, type UserChange } from '@/api/access';
 import { useAuth } from '@/auth/AuthProvider';
@@ -33,6 +33,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
     const client = useQueryClient();
     const { message, modal } = App.useApp();
     const [params, setParams] = useSearchParams();
+    const location=useLocation();
     const available = tabs.filter(t => can(t.permission));
     const tab = available.find(t => t.key === params.get('tab'))?.key ?? available[0]?.key;
     const modern = auth.mode === 'local' && principal?.access_model === 'rbac_v1' && !auth.privateBlocked;
@@ -93,7 +94,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
     useEffect(() => { if (modern && tab && params.get('tab') !== tab) {
         const p = new URLSearchParams(params);
         p.set('tab', tab);
-        setParams(p, { replace: true });
+        setParams(p, { replace: true, state:location.state });
     } }, [modern, tab, params, setParams]);
     useEffect(() => {
         if (error instanceof AccessFieldError) {
@@ -215,7 +216,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
     function open(kind: Tab, id: string | null, copy = false) { if (kind === 'users') { navigate(userEditorLocation(id,params)); return; } opener.current = document.activeElement as HTMLElement; const p = new URLSearchParams(params); p.set('tab', kind); p.set('entity', kind); p.set('id', id ?? 'new'); if (copy)
         p.set('copy', '1');
     else
-        p.delete('copy'); setParams(p); }
+        p.delete('copy'); setParams(p,{state:location.state}); }
     function closeNow() {
         const roleExit = entity === 'roles';
         bypassNavigation.current = true;
@@ -224,7 +225,7 @@ export function AccountsPage({userEditorID}: {userEditorID?:string} = {}) {
         setPassword(''); setDraft(null); setRoleRows(null); setPreviewPage(null);
         const next = new URLSearchParams(params);
         next.delete('entity'); next.delete('id'); next.delete('copy');
-        if(userEditorID) {next.set('tab','users');navigate(`/system/access?${next}`);} else setParams(next);
+        if(userEditorID) {next.set('tab','users');navigate(`/system/access?${next}`);} else setParams(next,{state:location.state});
         setTimeout(() => {
             if (opener.current?.isConnected) opener.current.focus();
             else if (roleExit) document.querySelector<HTMLInputElement>('#access-panel-roles input')?.focus();

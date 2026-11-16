@@ -14,15 +14,15 @@ const query={version:1,filters:[{field:'name',op:'contains',value:'Анна'}],s
 // SSR runs the real hook and router. Only layout effects run eagerly to activate
 // useNavigate's mounted guard; this harness does not claim DOM/e2e coverage.
 async function withTable(url,key,run){
- const previous=React.useLayoutEffect;
+ const previous=React.useLayoutEffect,previousEffect=React.useEffect;const effects=[];React.useEffect=effect=>{effects.push(effect);};
  React.useLayoutEffect=effect=>{effect();};
  let table;
  function Probe(){table=useTableState(key,fields);return null;}
  const router=createMemoryRouter([{path:'*',element:React.createElement(Probe)}],{
   initialEntries:[{pathname:url.pathname,search:url.search,hash:url.hash,state:{returnTo:'/people',origin:'audit'}}],
  });
- const render=()=>{renderToStaticMarkup(React.createElement(RouterProvider,{router}));return table;};
- try{await run({router,render});}finally{router.dispose();React.useLayoutEffect=previous;}
+ const render=()=>{renderToStaticMarkup(React.createElement(RouterProvider,{router}));const key=router.state.location.key;effects.splice(0).forEach(effect=>effect());if(router.state.location.key!==key)return render();return table;};
+ try{await run({router,render});}finally{router.dispose();React.useLayoutEffect=previous;React.useEffect=previousEffect;}
 }
 
 test('every table mutation preserves path, hash, history state and unrelated query values',async()=>{
@@ -34,9 +34,9 @@ test('every table mutation preserves path, hash, history state and unrelated que
    const location=router.state.location,params=new URLSearchParams(location.search);
    assert.equal(location.pathname,'/structure');
    assert.equal(location.hash,'#saved-anchor');
-   assert.deepEqual(location.state,{returnTo:'/people',origin:'audit'});
+   assert.equal(location.state.returnTo,'/people');assert.equal(location.state.origin,'audit');
    assert.equal(params.get('run_id'),'7');assert.equal(params.get('check'),'q1_abc');
-   assert.deepEqual(params.getAll('tag'),['a','b']);assert.equal(params.get('table.other'),'opaque');
+   assert.deepEqual(params.getAll('tag'),['a','b']);assert.equal(params.has('table.other'),false);assert.equal(location.state['pulse.tables.v1'].tables.other,null);
    assert.deepEqual(render().query,query);
   }
  });
@@ -71,5 +71,20 @@ test('dirty group editor accepts its table query with hash intact and still bloc
   router.state.blockers.get('draft').reset();
   await router.navigate('/people');
   assert.equal(router.state.blockers.get('draft')?.state,'blocked');
+ });
+});
+test('Back followed by paging uses restored selection rather than the pending destination',async()=>{
+ await withTable(new URL('https://pulse.test/wells?run_id=7'),'probe',async({router,render})=>{
+  await render().setQuery(query);render();await router.navigate(-1);
+  assert.equal(render().query.filters.length,0);
+  await render().setPage(3,50);
+  assert.equal(render().query.filters.length,0);assert.equal(render().page,3);
+ });
+});
+test('a cancelled table navigation cannot leak its pending query into the next action',async()=>{
+ await withTable(new URL('https://pulse.test/wells'),'probe',async({router,render})=>{
+  router.getBlocker('reject',()=>true);await render().setQuery(query);
+  assert.equal(router.state.blockers.get('reject').state,'blocked');router.state.blockers.get('reject').reset();router.deleteBlocker('reject');
+  await render().setPage(2,20);assert.equal(render().query.filters.length,0);assert.equal(render().page,2);
  });
 });

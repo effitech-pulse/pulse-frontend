@@ -84,7 +84,7 @@ test('profile-only preview uses server none effect and renders metadata even wit
  assert.match(html,/Ведущий технолог/);assert.match(html,/Производство/);assert.match(html,/Цех 2/);
  assert.doesNotMatch(html,/потребуется войти снова|завершат затронутые/iu);
 });
-const directoryAuth=(patch={})=>({mode:'local',principal:{authenticated:true,mechanism:'session',account_id:23,access_id:'23',access_model:'rbac_v1',permission_keys:[],role:'viewer',...patch},privateEpoch:0,privateBlocked:false});
+const directoryAuth=(patch={})=>({capturePrivate:()=>({current:()=>true}),mode:'local',principal:{authenticated:true,mechanism:'session',account_id:23,access_id:'23',access_model:'rbac_v1',permission_keys:[],role:'viewer',...patch},privateEpoch:0,privateBlocked:false});
 const colleague={id:'23',name:'Безопасный коллега',active:false,job_title:'Инженер',workplace:{organization:null,division:'Производство',department:'Диагностика'},manager:{id:'24',name:'Руководитель',job_title:null,active:false},login:'PRIVATE_LOGIN',scope:{ngdus:[777]},last_login:'PRIVATE_LAST_LOGIN',permission_keys:['users.update']};
 function profileHtml(auth=directoryAuth()){
  const {EmployeeProfilePage}=load('../src/pages/EmployeeProfilePage.tsx',{
@@ -109,8 +109,14 @@ test('safe directory zero-permission list uses safe profile links without admini
 
 test('employee profile back navigation is a single semantic link across its whole button-sized target',()=>{
  const html=profileHtml();
- assert.doesNotMatch(html,/<button[^>]*user-back/);
- assert.match(html,/<a[^>]*class="[^"]*user-back[^"]*"[^>]*href="\/people"[^>]*>К сотрудникам<\/a>/);
+ const backLinks=[...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].filter(([,attributes])=>/\bhref="\/people"/.test(attributes));
+ assert.equal(backLinks.length,1,'Back navigation must be a single link to the directory');
+ const content=backLinks[0][2];
+ assert.equal(content.replace(/<[^>]*>/g,'').trim(),'К сотрудникам');
+ assert.doesNotMatch(content,/<(?:button|a)\b/,'The link must not contain another interactive control');
+ const icons=[...content.matchAll(/<[^>]+\brole="img"[^>]*>/g)];
+ assert.ok(icons.length>0,'Back navigation includes a directional icon');
+ for(const [icon] of icons)assert.match(icon,/\baria-hidden="true"/,'Directional icons must be decorative');
 });
 test('mobile directory preserves safe manager name, link and inactive status',()=>{
  const {PeoplePage}=load('../src/pages/PeoplePage.tsx',{'@/api/people':{peopleApi:{list:()=>{throw Error('Unexpected network');}}},'@/auth/AuthProvider':{useAuth:()=>directoryAuth()},'@/components/access/UsersPanel':{AccessError:()=>null}});

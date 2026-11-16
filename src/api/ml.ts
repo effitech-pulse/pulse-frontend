@@ -120,6 +120,7 @@ export interface MlHistoryView {
 export type DriftVerdict = 'stable' | 'moderate' | 'severe' | 'unknown';
 
 export interface MlRun {
+  snapshot_id?: string | null;
   id: number;
   started_at: string;
   finished_at: string | null;
@@ -210,16 +211,16 @@ export interface MlExplainResponse {
 }
 
 export const mlApi = {
-  wells: (alertOnly = false) =>
+  wells: (alertOnly = false, signal?: AbortSignal) =>
     apiClient
-      .get<MlWellsResponse>(`${V1}/ml/wells`, { params: { alert_only: alertOnly } })
+      .get<MlWellsResponse>(`${V1}/ml/wells`, { signal, params: { alert_only: alertOnly } })
       .then((r) => r.data),
-  snapshot: (runId: number) =>
-    apiClient.get<CohortWellsResponse>(`${V1}/ml/runs/${runId}/snapshot`).then(r => r.data),
+  snapshot: (runId: number, signal?: AbortSignal) =>
+    apiClient.get<CohortWellsResponse>(`${V1}/ml/runs/${runId}/snapshot`, {signal}).then(r => r.data),
   refresh: () =>
     apiClient.post<{ started: boolean }>(`${V1}/ml/wells/refresh`).then((r) => r.data),
-  runs: (limit = 20) =>
-    apiClient.get<MlRunsResponse>(`${V1}/ml/runs`, { params: { limit } }).then((r) => r.data),
+  runs: (limit = 20, signal?: AbortSignal) =>
+    apiClient.get<MlRunsResponse>(`${V1}/ml/runs`, { signal, params: { limit } }).then((r) => r.data),
   health: () => apiClient.get<MlHealth>(`${V1}/ml/health`).then((r) => r.data),
   history: (wellId: number, limit = 400) =>
     apiClient

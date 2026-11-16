@@ -94,7 +94,7 @@ export function WellDetailPage() {
         onChange={tab => {
           const next = new URLSearchParams(search);
           next.set('tab', tab);
-          navigate({ pathname: location.pathname, search: next.toString(), hash: location.hash });
+          navigate({ pathname: location.pathname, search: next.toString(), hash: location.hash }, {state:location.state});
         }}
         items={[
           {
